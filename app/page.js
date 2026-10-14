@@ -6,21 +6,40 @@ export default function Home() {
   const [selectedStyle, setSelectedStyle] = useState('Cinematic');
   const [loading, setLoading] = useState(false);
   const [credits, setCredits] = useState(5);
+  const [resultImage, setResultImage] = useState(null);
 
   const styles = ['Cinematic', '3D Render', 'Anime', 'Cyberpunk', 'Oil Painting'];
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!prompt.trim()) return;
     if (credits <= 0) {
-      alert('נגמרו לך הקודים החינמיים!');
+      alert('נגמרו לך הקרדיטים!');
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
+    setResultImage(null);
+
+    try {
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, style: selectedStyle }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'שגיאה ביצירת התמונה');
+      }
+
+      setResultImage(data.imageUrl);
+      setCredits(prev => prev - 1);
+    } catch (err) {
+      alert(err.message);
+    } finally {
       setLoading(false);
-      setCredits(credits - 1);
-      alert(`התמונה נוצרה בהצלחה בסגנון ${selectedStyle}!`);
-    }, 2000);
+    }
   };
 
   return (
@@ -30,7 +49,7 @@ export default function Home() {
           PixelPulse AI
         </h1>
         <div style={{ backgroundColor: '#18181b', padding: '8px 16px', borderRadius: '20px', border: '1px solid #27272a', fontSize: '0.9rem', color: '#a1a1aa' }}>
-          קרדיטים חינם: <span style={{ color: '#ec4899', fontWeight: 'bold' }}>{credits}</span>
+          קרדיטים: <span style={{ color: '#ec4899', fontWeight: 'bold' }}>{credits}</span>
         </div>
       </div>
 
@@ -41,7 +60,7 @@ export default function Home() {
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="למשל: חתול אסטרונאוט מרחף בחלל עם רקע של ערפילית צבעונית..."
+          placeholder="למשל: חתול אסטרונאוט מרחף בחלל..."
           style={{ width: '100%', height: '100px', backgroundColor: '#09090b', color: 'white', border: '1px solid #3f3f46', borderRadius: '8px', padding: '12px', fontSize: '1rem', resize: 'none', outline: 'none', boxSizing: 'border-box', marginBottom: '20px' }}
         />
 
@@ -60,8 +79,7 @@ export default function Home() {
                 padding: '8px 14px',
                 borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: '0.9rem',
-                transition: '0.2s'
+                fontSize: '0.9rem'
               }}
             >
               {style}
@@ -81,12 +99,18 @@ export default function Home() {
             borderRadius: '8px',
             border: 'none',
             fontWeight: 'bold',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            boxShadow: '0 4px 15px rgba(147, 51, 234, 0.4)'
+            cursor: loading ? 'not-allowed' : 'pointer'
           }}
         >
-          {loading ? 'מייצר תמונה בעזרת AI...' : 'התחל לייצר (קרדיט 1-)'}
+          {loading ? 'מעבד בקשה בשרת...' : 'התחל לייצר (קרדיט 1-)'}
         </button>
+
+        {resultImage && (
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            <p style={{ color: '#4ade80', marginBottom: '10px' }}>התמונה נוצרה בהצלחה!</p>
+            <img src={resultImage} alt="Generated AI" style={{ width: '100%', borderRadius: '12px', border: '1px solid #3f3f46' }} />
+          </div>
+        )}
       </div>
     </main>
   );
