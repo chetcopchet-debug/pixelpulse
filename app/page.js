@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
+import { prepareUpload, uploadRaw } from "./clientImage";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -249,30 +250,23 @@ export default function Home() {
   };
   const handleUploadFile = async (file) => {
     if (!file) return;
-    if (!/^image\//.test(file.type || "")) { setError("Please choose an image file."); return; }
-    if (file.size > 40 * 1024 * 1024) { setError("That image is too large."); return; }
     setUploading(true); setError("");
     try {
-      const src = URL.createObjectURL(file);
-      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Couldn't read that image.")); i.src = src; });
-      const scale = Math.min(1, 1536 / Math.max(img.naturalWidth, img.naturalHeight));
-      const w = Math.max(1, Math.round(img.naturalWidth * scale)), h = Math.max(1, Math.round(img.naturalHeight * scale));
-      const c = document.createElement("canvas"); c.width = w; c.height = h;
-      const ctx = c.getContext("2d");
-      const png = file.type === "image/png";
-      if (!png) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h); }
-      ctx.drawImage(img, 0, 0, w, h); URL.revokeObjectURL(src);
-      let data = c.toDataURL(png ? "image/png" : "image/jpeg", 0.88);
-      if (data.length > 3.6e6) data = c.toDataURL("image/jpeg", 0.85);
-      const r = w / h; const ratio = r > 1.3 ? "16:9" : r < 0.77 ? "9:16" : "1:1";
-      const res = await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data, ratio }) });
+      const prep = await prepareUpload(file);
+      let res;
+      if (prep.data) {
+        res = await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: prep.data }) });
+      } else {
+        showToast(prep.isHeic ? "Converting HEIC photo…" : "Converting photo on the server…");
+        res = await uploadRaw(prep.raw);
+      }
       const d = await res.json().catch(() => ({}));
-      if (!res.ok || !d.item) throw new Error(d.error || "Upload failed.");
+      if (!res.ok || !d.item) throw new Error(d.error || (res.status === 413 ? "Photo is too large. Try a smaller one." : `Upload failed (${res.status}).`));
       const ni = toItem(d.item);
       setHistory((prev) => [ni, ...prev].slice(0, 36));
       setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
       showToast("⇪ Uploaded — Repaint, Sharpen, Cutout or use as guide");
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(e.message || "Upload failed."); }
     finally { setUploading(false); }
   };
   const [toolBusy, setToolBusy] = useState(""); // "<tool>:<id>"
@@ -607,7 +601,7 @@ export default function Home() {
           <div className="pp-chiprow">
             <label className={`pp-chip pp-upload${uploading ? " pp-generating" : ""}`} title="Upload a photo">
               {uploading ? "…" : "⇪"} Upload
-              <input type="file" accept="image/*" hidden disabled={uploading} onChange={(e) => { handleUploadFile(e.target.files?.[0]); e.target.value = ""; }} />
+              <input type="file" accept="image/*,.heic,.heif" hidden disabled={uploading} onChange={(e) => { handleUploadFile(e.target.files?.[0]); e.target.value = ""; }} />
             </label>
             <button className="pp-chip" onClick={() => setSheetOpen(true)}>{curTier.icon} {curTier.label}</button>
             <button className="pp-chip" onClick={() => setSheetOpen(true)}>{style}</button>
