@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabase, BUCKET } from '../../../lib/supabase';
-import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
+import { getCreatorId, setCreatorCookie, isUuid, creatorTag } from '../../../lib/identity';
 import { getClientIp } from '../../../lib/credits';
 import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 const MAX_RAW = 8 * 1024 * 1024;
-const TMP_RE = /^tmp\/[0-9a-f-]{36}\/[0-9]+-[a-z0-9]{6}$/;
+const TMP_RE = /^tmp\/[0-9a-f]{24}\/[0-9a-f]{32}$/;
 const err = (error, status) => NextResponse.json({ error }, { status });
 
 // Accepts:
@@ -31,10 +31,10 @@ export async function POST(request) {
 
   // Idempotency: the client sends one upload id per picked photo; a retry/double-send returns the same row.
   const uploadId = request.headers.get('x-upload-id');
-  const fixedName = !creator.isNew && isUuid(uploadId) ? `up-${uploadId.toLowerCase()}` : null;
+  const fixedName = !creator.isNew && isUuid(uploadId) ? `u${creatorTag(creator.id, uploadId.toLowerCase())}` : null;
   if (fixedName) {
     const { data: existing } = await supabase.from('images').select('id, public_url, aspect_ratio')
-      .eq('creator_id', creator.id).like('storage_path', `${creator.id}/${fixedName}.%`).limit(1).maybeSingle();
+      .eq('creator_id', creator.id).like('storage_path', `i/${fixedName}.%`).limit(1).maybeSingle();
     if (existing) return NextResponse.json({ success: true, duplicate: true, item: { id: existing.id, public_url: existing.public_url,
       prompt: 'Uploaded image', style: null, aspect_ratio: existing.aspect_ratio, model: 'upload', is_public: false, likes: 0, remix_of: null } });
   }
@@ -45,7 +45,7 @@ export async function POST(request) {
     if (ct.includes('application/json')) {
       const body = await request.json().catch(() => null);
       if (typeof body?.tmpPath === 'string') {
-        if (creator.isNew || !TMP_RE.test(body.tmpPath) || !body.tmpPath.startsWith(`tmp/${creator.id}/`)) return err('Invalid upload reference.', 400);
+        if (creator.isNew || !TMP_RE.test(body.tmpPath) || !body.tmpPath.startsWith(`tmp/${creatorTag(creator.id, 'tmp')}/`)) return err('Invalid upload reference.', 400);
         tmpPath = body.tmpPath;
         const { data, error } = await supabase.storage.from(BUCKET).download(tmpPath);
         if (error || !data) return err('The uploaded file was not found. Please try again.', 400);

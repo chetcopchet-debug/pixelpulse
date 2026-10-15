@@ -152,7 +152,8 @@ export default function Home() {
     } else {
       loadCredits();
     }
-    loadHistory();
+    // Upgrade legacy (unsigned) identity cookie before loading private history
+    fetch("/api/session", { method: "POST" }).catch(() => {}).finally(loadHistory);
     loadFeed();
   }, []);
 
@@ -492,7 +493,7 @@ export default function Home() {
       <button className="pp-cap" onClick={() => openRepaint(item)} disabled={!!toolBusy || !item.id} title="Repaint an area (2 credits)">◐<span>Repaint</span></button>
       <button className="pp-cap" onClick={() => handleTool("cutout", item)} disabled={!!toolBusy || !item.id} title="Remove background (free)">{toolBusy === `cutout:${item.id}` ? "…" : "✂"}<span>Cutout</span></button>
       {item.isPublic && <button className="pp-cap" onClick={() => handleShare(item)} title="Share">↗<span>Share</span></button>}
-      <button className={`pp-cap${item.isPublic ? " pp-on" : " pp-accent"}`} onClick={() => handlePublishToCommunity(item)} title="Publish">{item.isPublic ? "✓" : "◉"}<span>{item.isPublic ? "Live" : "Publish"}</span></button>
+      {item.tier !== "upload" && <button className={`pp-cap${item.isPublic ? " pp-on" : " pp-accent"}`} onClick={() => handlePublishToCommunity(item)} title="Publish">{item.isPublic ? "✓" : "◉"}<span>{item.isPublic ? "Live" : "Publish"}</span></button>}
     </div>
   );
 
