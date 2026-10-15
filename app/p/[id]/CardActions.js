@@ -29,7 +29,6 @@ export default function CardActions({ id, prompt, style, ratio, tier, url, forma
           { key: 'share', icon: '↗', label: 'Share', onClick: share },
         ]}
         more={[
-          { key: 'style', icon: '◈', label: 'Style only', hint: 'Keep your own prompt', onClick: () => go(`/?${styleQs}`) },
           { key: 'copy', icon: '✎', label: 'Copy prompt', onClick: () => copy(prompt, 'Prompt copied') },
           { key: 'repaint', icon: '◐', label: 'Repaint', hint: '2⚡ · paint an area', onClick: () => go(`/?${new URLSearchParams({ repaint: id, src: url })}`) },
           { key: 'feed', icon: '▦', label: 'Explore the feed', onClick: () => go('/?tab=community') },

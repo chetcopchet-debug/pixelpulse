@@ -3,8 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Thumb from "./Thumb";
 
 const FILTERS = [
-  { id: "all", label: "All" }, { id: "created", label: "Created" }, { id: "uploads", label: "Uploads" },
-  { id: "edits", label: "Edits" }, { id: "published", label: "Published" }, { id: "favorites", label: "★ Favorites" },
+  { id: "all", label: "All" }, { id: "published", label: "◉ Published" }, { id: "favorites", label: "★ Favorites" },
 ];
 const FAV_KEY = "pp_favs";
 const readFavs = () => { try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]")); } catch { return new Set(); } };
