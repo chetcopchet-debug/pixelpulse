@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import { prepareUpload, uploadRaw } from "./clientImage";
 import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
-import { FORMATS, FORMAT_LIST } from "../lib/formats";
+import { FORMATS, FORMAT_LIST, FORMAT_GROUPS } from "../lib/formats";
 import Thumb, { THUMB_CSS } from "./Thumb";
 import ImageActions, { IA_CSS } from "./ImageActions";
 import PricingModal from "./PricingModal";
@@ -62,6 +62,7 @@ export default function Home() {
   const [feedView, setFeedView] = useState("latest");
   const fmtDef = FORMATS[format] || FORMATS.free;
   const loadDaily = () => fetch("/api/daily", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (d?.theme) { setDaily(d); setStreak(d.streak || 0); } }).catch(() => {});
+  const [fmtQuery, setFmtQuery] = useState("");
   const selectFormat = (id, quiet) => {
     const f = FORMATS[id] || FORMATS.free;
     setFormat(f.id);
@@ -426,7 +427,7 @@ export default function Home() {
         setGalleryKey((k) => k + 1);
       }
       if (opts.download) { downloadImage(ni.url, fileName(ni)); showToast("⤓ HD image downloading (2x)"); return; }
-      showToast(opts.format === "sticker" ? "✂ Sticker ready — transparent PNG" : tool === "sharpen" ? "◇ Sharpened 2x" : "✂ Background removed");
+      showToast(FORMATS[opts.format]?.autoCutout ? `✂ ${FORMATS[opts.format].label} ready — transparent PNG` : tool === "sharpen" ? "◇ Sharpened 2x" : "✂ Background removed");
     } catch (e) { setError(e.message); }
     finally { setToolBusy(""); }
   };
@@ -498,7 +499,7 @@ export default function Home() {
       setCurrentItem(newItem);
       setRemixOf(null);
       if (data.daily) { setDailyJoin(false); showToast("◉ Daily entry made — Publish it to join the Pulse"); }
-      if (fmt === "sticker" && data.id) setTimeout(() => handleTool("cutout", newItem, { format: "sticker", replace: true }), 50);
+      if (FORMATS[fmt]?.autoCutout && data.id) setTimeout(() => handleTool("cutout", newItem, { format: fmt, replace: true }), 50);
       if (data.stored) {
         setHistory((prev) => [newItem, ...prev.filter((h) => h.id !== newItem.id)].slice(0, 24));
       } else {
@@ -861,14 +862,22 @@ export default function Home() {
           <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="pp-grab" />
             <h3>Format</h3>
-            <div className="pp-fmts">
-              {FORMAT_LIST.map((f) => (
-                <button key={f.id} className={`pp-fmt${format === f.id ? " on" : ""}`} onClick={() => selectFormat(f.id, true)}>
-                  <i className={`pp-fmtshape pp-fs-${f.id}`}>{f.icon}</i><b>{f.label}</b><small>{f.blurb}</small>
-                </button>
-              ))}
-            </div>
-            {format !== "free" && <p className="pp-sheetnote">{fmtDef.ratio} frame · recommended engine set{format === "sticker" ? " · auto Cutout is free" : ""} · <a className="pp-link" href={`/formats/${format}`}>About {fmtDef.label}</a></p>}
+            <input className="pp-fmtsearch" type="search" placeholder="Search 30 formats — logo, thumbnail, tattoo…" value={fmtQuery} onChange={(e) => setFmtQuery(e.target.value)} aria-label="Search formats" />
+            {Object.entries(FORMAT_GROUPS).map(([g, gl]) => {
+              const q = fmtQuery.trim().toLowerCase();
+              const list = FORMAT_LIST.filter((f) => f.group === g && (!q || `${f.label} ${f.blurb}`.toLowerCase().includes(q)));
+              if (!list.length) return null;
+              return (
+                <div key={g} className="pp-fmtgroup">
+                  <small>{gl}</small>
+                  <div className="pp-fmtrow">
+                    {g === "Social" && !q && <button className={`pp-chip${format === "free" ? " on" : ""}`} onClick={() => selectFormat("free", true)}>◌ Any</button>}
+                    {list.map((f) => <button key={f.id} title={f.blurb} className={`pp-chip${format === f.id ? " on" : ""}`} onClick={() => selectFormat(f.id, true)}>{f.icon} {f.label}</button>)}
+                  </div>
+                </div>
+              );
+            })}
+            {format !== "free" && <p className="pp-sheetnote">{fmtDef.ratio} frame · recommended engine set{fmtDef.autoCutout ? " · auto Cutout is free" : ""} · <a className="pp-link" href={`/formats/${format}`}>About {fmtDef.label}</a></p>}
             <h3>Engine</h3>
             {editTarget && <p className="pp-sheetnote">✎ Editing an image uses the Edit engine ({EDIT_COST}⚡). <button className="pp-link" onClick={() => setEditTarget(null)}>Stop editing</button> to pick an engine.</p>}
             {!editTarget && guide && <p className="pp-sheetnote">◎ A guide image is attached, so the Guide engine ({GUIDED_COST}⚡) is used. <button className="pp-link" onClick={() => setGuide(null)}>Remove guide</button> to pick an engine.</p>}
@@ -1093,6 +1102,12 @@ body{margin:0;background:var(--bg)}
 .pp-creditcard>b{font-size:34px;line-height:1;background:linear-gradient(90deg,#c084fc,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .pp-creditcard>b small{font-size:14px}
 .pp-creditcard span{font-size:12px;color:#cfcde0}
+.pp-fmtsearch{width:100%;padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:#0e0e16;color:#fff;font-size:14px;margin:2px 0 8px;outline:none}
+.pp-fmtsearch:focus{border-color:rgba(236,72,153,.6)}
+.pp-fmtgroup>small{display:block;font-size:11px;color:var(--mut);margin:6px 2px 4px;text-transform:uppercase;letter-spacing:.06em}
+.pp-fmtrow{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.pp-fmtrow::-webkit-scrollbar{display:none}
+.pp-fmtrow .pp-chip{flex:none;white-space:nowrap}
 .pp-creditcard em{font-style:normal;color:var(--mut)}
 .pp-getcr{margin-top:10px;width:100%;justify-content:center;background:linear-gradient(90deg,rgba(147,51,234,.35),rgba(236,72,153,.3));border-color:rgba(236,72,153,.5);color:#fff;font-weight:700}
 .pp-restore{display:flex;gap:14px;justify-content:center;margin-top:8px;font-size:12px}
