@@ -935,7 +935,7 @@ export default function Home() {
                 <span>credits left today<br /><em>resets in {resetIn}</em>{paid > 0 && <><br /><em>+ {paid}⚡ paid balance</em></>}</span>
               </>}
               <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 10) * 100)}%` }} /></div>
-              {!isAdmin && <button className="pp-chip pp-getcr" onClick={() => { setMenuOpen(false); openPricing(); }}>⚡ Get more credits</button>}
+              <button className="pp-chip pp-getcr" onClick={() => { setMenuOpen(false); openPricing(); }}>⚡ Get more credits</button>
               {!account && <button className="pp-chip pp-signin" onClick={() => { setMenuOpen(false); setAuthOpen({}); }}>✉ Sign in with email</button>}
               {!isAdmin && <div className="pp-restore">
                 {paid > 0 && <button className="pp-link" onClick={copyRestoreCode}>Copy purchase restore code</button>}

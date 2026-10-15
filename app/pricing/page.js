@@ -1,5 +1,6 @@
 import { LegalPage } from '../_legal/Legal';
 import { PLANS } from '../../lib/paid';
+import BuyButton from './BuyButton';
 export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: '10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
 const COSTS = [['⚡ Fast image', 1], ['🔤 Text image (lettering)', 3], ['◎ Guide (from an image)', 3], ['💎 Quality image', 4], ['✎ Edit with words', 4], ['◐ Repaint an area', 5], ['◇ HD download (2x)', 1], ['✂ Cutout (remove background)', 0], ['✦ Amplify prompt', 0]];
@@ -10,7 +11,7 @@ const FAQ = [
   ['How do I cancel Pulse Pro?', 'Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.'],
   ['Can I get a refund?', 'Yes — unused purchased credits can be refunded within 14 days. See the Refund Policy.'],
   ['Who processes payments?', 'Lemon Squeezy, our Merchant of Record. They handle the payment, VAT/sales tax and your receipt. We never see your card details.'],
-  ['I changed phone or cleared my browser. Where are my credits?', 'There are no accounts yet, so credits live on your device. Copy your restore code from the profile menu after buying, or contact us with your order email and we will restore them.'],
+  ['I changed phone or cleared my browser. Where are my credits?', 'Sign in with Google or email from the profile menu and your credits follow your account on any device. If you bought without signing in, use the restore code from the profile menu or contact us with your order email.'],
 ];
 export default function Pricing() {
   return (
@@ -18,10 +19,10 @@ export default function Pricing() {
       <p>Start free every day. Buy more only if you need it.</p>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', marginTop: 16 }}>
         <div style={card}><b>Free</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>$0</div><p style={{ margin: 0 }}>10 credits every day, refilled at midnight UTC. No signup.</p></div>
-        <div style={card}><b>{PLANS.pack.name}</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>{PLANS.pack.price} <small style={{ fontSize: 12, color: '#a1a1b5' }}>one-time</small></div><p style={{ margin: 0 }}>{PLANS.pack.credits} credits that never expire.</p></div>
-        <div style={{ ...card, borderColor: 'rgba(236,72,153,.7)' }}><b>{PLANS.pro.name}</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>{PLANS.pro.price} <small style={{ fontSize: 12, color: '#a1a1b5' }}>/ month</small></div><p style={{ margin: 0 }}>{PLANS.pro.credits.toLocaleString('en-US')} credits every month. Cancel anytime.</p></div>
+        <div style={card}><b>{PLANS.pack.name}</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>{PLANS.pack.price} <small style={{ fontSize: 12, color: '#a1a1b5' }}>one-time</small></div><p style={{ margin: 0 }}>{PLANS.pack.credits} credits that never expire.</p><BuyButton plan="pack" label={`Buy ${PLANS.pack.name}`} /></div>
+        <div style={{ ...card, borderColor: 'rgba(236,72,153,.7)' }}><b>{PLANS.pro.name}</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>{PLANS.pro.price} <small style={{ fontSize: 12, color: '#a1a1b5' }}>/ month</small></div><p style={{ margin: 0 }}>{PLANS.pro.credits.toLocaleString('en-US')} credits every month. Cancel anytime.</p><BuyButton plan="pro" label={`Get ${PLANS.pro.name}`} /></div>
       </div>
-      <p style={{ fontSize: 12.5, color: '#8a8aa3' }}>Prices in USD. Taxes may be added at checkout depending on your country. Buy from the ⚡ menu in the <a href="/">Studio</a>.</p>
+      <p style={{ fontSize: 12.5, color: '#8a8aa3' }}>Prices in USD. Taxes may be added at checkout depending on your country. Sign in from the profile menu in the <a href="/">Studio</a> first so your credits are saved to your account.</p>
       <h2>What things cost</h2>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}><tbody>
         {COSTS.map(([k, v]) => <tr key={k} style={{ borderBottom: '1px solid #22223a' }}><td style={{ padding: '9px 2px', color: '#cfcde0' }}>{k}</td><td style={{ textAlign: 'right', fontWeight: 700 }}>{v ? `${v}⚡` : 'Free'}</td></tr>)}
