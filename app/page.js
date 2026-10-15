@@ -12,6 +12,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [credits, setCredits] = useState(5);
   const [history, setHistory] = useState([]);
+  const [communityFeed, setCommunityFeed] = useState([]);
   const [activeTab, setActiveTab] = useState("create"); // "create" או "community"
 
   const stylesList = [
@@ -39,8 +40,8 @@ export default function Home() {
     "Hyper-realistic close-up of a sleek black panther with glowing emerald eyes walking through a misty bamboo forest at dawn"
   ];
 
-  // יצירות קהילה גלובליות להשראה מיידית עם Remix
-  const communityFeed = [
+  // ברירת מחדל לקהילה גלובלית
+  const initialCommunity = [
     {
       url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop",
       prompt: "Abstract 3D fluid neon waves glowing in dark space, futuristic digital art",
@@ -61,13 +62,6 @@ export default function Home() {
       style: "Fantasy",
       aspectRatio: "16:9",
       author: "MasterAI"
-    },
-    {
-      url: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=1000&auto=format&fit=crop",
-      prompt: "Oil painting of a majestic lion looking over the savannah, rich textures",
-      style: "Oil Painting",
-      aspectRatio: "1:1",
-      author: "LucasArt"
     }
   ];
 
@@ -83,6 +77,14 @@ export default function Home() {
 
       const savedHistory = localStorage.getItem("pp_history");
       if (savedHistory) setHistory(JSON.parse(savedHistory));
+
+      const savedCommunity = localStorage.getItem("pp_community");
+      if (savedCommunity) {
+        setCommunityFeed(JSON.parse(savedCommunity));
+      } else {
+        setCommunityFeed(initialCommunity);
+        localStorage.setItem("pp_community", JSON.stringify(initialCommunity));
+      }
     } catch (e) {
       console.error(e);
     }
@@ -162,7 +164,8 @@ export default function Home() {
         prompt: prompt.trim(),
         style,
         aspectRatio,
-        date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        author: "You"
       };
       const updatedHistory = [newItem, ...history].slice(0, 12);
       setHistory(updatedHistory);
@@ -200,6 +203,19 @@ export default function Home() {
     } finally {
       setDownloading(false);
     }
+  };
+
+  // פרסום תמונה לפיד הקהילה הציבורי
+  const handlePublishToCommunity = (item) => {
+    const exists = communityFeed.some(c => c.url === item.url);
+    if (exists) {
+      alert("This masterpiece is already published in the Community Feed!");
+      return;
+    }
+    const updatedCommunity = [item, ...communityFeed];
+    setCommunityFeed(updatedCommunity);
+    localStorage.setItem("pp_community", JSON.stringify(updatedCommunity));
+    alert("🚀 Successfully published to Community Feed!");
   };
 
   const handleRemix = (item) => {
@@ -267,7 +283,7 @@ export default function Home() {
             >
               PixelPulse AI
             </h1>
-            <span style={{ fontSize: "11px", color: "#6b6b80", fontWeight: "500" }}>PRO STUDIO V3</span>
+            <span style={{ fontSize: "11px", color: "#6b6b80", fontWeight: "500" }}>PRO STUDIO V3.1</span>
           </div>
         </div>
 
@@ -310,7 +326,7 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Navigation Tabs (Create vs Community Feed) */}
+      {/* Navigation Tabs */}
       <div
         style={{
           width: "100%",
@@ -355,7 +371,7 @@ export default function Home() {
             transition: "all 0.2s",
           }}
         >
-          🌍 Community Feed
+          🌍 Community Feed ({communityFeed.length})
         </button>
       </div>
 
@@ -553,23 +569,47 @@ export default function Home() {
                 <img src={image} alt="Generated AI Art" style={{ width: "100%", height: "auto", display: "block" }} />
               </div>
 
-              <button
-                onClick={() => handleDownload(image)}
-                disabled={downloading}
-                style={{
-                  width: "100%",
-                  backgroundColor: "#1a1a26",
-                  border: "1px solid #2d2d42",
-                  color: "#ffffff",
-                  padding: "13px",
-                  borderRadius: "12px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-              >
-                {downloading ? "Downloading to device..." : "⬇️ Download High-Res Image"}
-              </button>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  onClick={() => handleDownload(image)}
+                  disabled={downloading}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "#1a1a26",
+                    border: "1px solid #2d2d42",
+                    color: "#ffffff",
+                    padding: "12px",
+                    borderRadius: "12px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                >
+                  {downloading ? "Downloading..." : "⬇️ Download"}
+                </button>
+                <button
+                  onClick={() => handlePublishToCommunity({
+                    url: image,
+                    prompt: prompt.trim(),
+                    style,
+                    aspectRatio,
+                    author: "You"
+                  })}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "rgba(147, 51, 234, 0.25)",
+                    border: "1px solid rgba(147, 51, 234, 0.5)",
+                    color: "#d8b4fe",
+                    padding: "12px",
+                    borderRadius: "12px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                >
+                  🌍 Publish to Feed
+                </button>
+              </div>
             </div>
           )}
         </main>
@@ -577,7 +617,7 @@ export default function Home() {
         /* Community Feed View */
         <div style={{ width: "100%", maxWidth: "540px" }}>
           <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px", color: "#e2e2f0" }}>
-            🌍 Global Community Creations
+            🌍 Global Community Feed
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
             {communityFeed.map((item, idx) => (
@@ -597,7 +637,7 @@ export default function Home() {
                     "{item.prompt}"
                   </p>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "11px", color: "#7c7c94" }}>By {item.author} • {item.style}</span>
+                    <span style={{ fontSize: "11px", color: "#7c7c94" }}>By {item.author || "Creator"} • {item.style}</span>
                     <button
                       onClick={() => handleRemix(item)}
                       style={{
@@ -621,7 +661,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* History Section (when in create mode) */}
+      {/* History Section */}
       {activeTab === "create" && history.length > 0 && (
         <section style={{ width: "100%", maxWidth: "540px", marginTop: "36px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
@@ -661,7 +701,21 @@ export default function Home() {
                     {item.prompt}
                   </p>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "10px", color: "#7c7c94" }}>{item.style}</span>
+                    <button
+                      onClick={() => handlePublishToCommunity(item)}
+                      style={{
+                        backgroundColor: "rgba(52, 211, 153, 0.15)",
+                        border: "1px solid rgba(52, 211, 153, 0.4)",
+                        color: "#34d399",
+                        padding: "3px 6px",
+                        borderRadius: "6px",
+                        fontSize: "10px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      🌍 Publish
+                    </button>
                     <button
                       onClick={() => handleRemix(item)}
                       style={{
