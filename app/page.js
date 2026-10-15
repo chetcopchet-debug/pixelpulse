@@ -114,13 +114,16 @@ export default function Home() {
     }
   };
 
-  // תיקון קריטי להורדה ישירה שמונע פתיחת כרטיסייה ומוריד פיזית את הקובץ
+  // מנגנון הורדה שעוקף חסימות CORS באמצעות נתיב צד שלישי מאובטח (CORS proxy / fetch blob)
   const handleDownload = async (imgUrl) => {
     try {
       setDownloading(true);
-      const response = await fetch(imgUrl);
+      // שימוש בפרוקסי פתוח להורדת קבצים שמונע פתיחת כרטיסייה
+      const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl.replace('https://', ''))}&output=webp`;
+      const response = await fetch(proxyUrl);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
+      
       const link = document.createElement("a");
       link.href = blobUrl;
       link.download = `pixelpulse-${Date.now()}.webp`;
@@ -129,8 +132,12 @@ export default function Home() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      // גיבוי למקרה חריג
-      window.open(imgUrl, "_blank");
+      // גיבוי למקרה קיצוני
+      const link = document.createElement("a");
+      link.href = imgUrl;
+      link.target = "_blank";
+      link.download = "pixelpulse.webp";
+      link.click();
     } finally {
       setDownloading(false);
     }
