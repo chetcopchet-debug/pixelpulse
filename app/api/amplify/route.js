@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { reserveSpend } from '../../../lib/usage';
 import { getClientIp } from '../../../lib/credits';
 import { getCreatorId } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
@@ -31,13 +32,15 @@ export async function POST(request) {
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
 
-  if (!isAdmin(request) && !rateLimit(`amp:${creator.isNew ? ip : creator.id}`, 20, 60 * 60_000)) {
+  if (!isAdmin(request) && !await rateLimit(`amp:${creator.isNew ? ip : creator.id}`, 20, 60 * 60_000)) {
     return NextResponse.json({ error: 'Amplify limit reached (20/hour). Try again later.' }, { status: 429 });
   }
   const seed = prompt || 'a surprising, beautiful scene';
+  // Counted in the global daily spend cap (Llama 3 8B ≈ $0.0005/call). When the cap is hit, fall back to free rule-based ideas.
+  const spend = await reserveSpend(0.0005, { admin: isAdmin(request) });
   const english = await translateIfHebrew(seed);
 
-  if (process.env.REPLICATE_API_TOKEN) {
+  if (process.env.REPLICATE_API_TOKEN && spend.ok) {
     const r = await runReplicate({
       model: TOOLS.amplify.model, budgetMs: 40_000,
       input: {
@@ -49,6 +52,7 @@ export async function POST(request) {
     const text = Array.isArray(r.output) ? r.output.join('') : r.output;
     const suggestions = parseSuggestions(text);
     if (suggestions.length >= 2) return NextResponse.json({ suggestions, source: 'llm', intensity });
+    if (r.error) await spend.release();
     console.error('Amplify LLM fallback:', r.error || 'unparseable output');
   }
   return NextResponse.json({ suggestions: ruleEnhance(english, intensity), source: 'rules', intensity });

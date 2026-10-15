@@ -12,7 +12,7 @@ export async function POST(request) {
   if (!supabase) return NextResponse.json({ error: 'Not available.' }, { status: 503 });
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
-  if (!rateLimit(`rep:${ip}`, 15, 60 * 60_000)) return NextResponse.json({ error: 'Too many reports. Try later.' }, { status: 429 });
+  if (!await rateLimit(`rep:${ip}`, 15, 60 * 60_000)) return NextResponse.json({ error: 'Too many reports. Try later.' }, { status: 429 });
   const body = await request.json().catch(() => ({}));
   if (!isUuid(body?.id)) return NextResponse.json({ error: 'Invalid image.' }, { status: 400 });
   const reason = typeof body.reason === 'string' ? body.reason.slice(0, 200) : 'unspecified';

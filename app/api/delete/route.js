@@ -13,7 +13,7 @@ export async function POST(request) {
   if (!supabase) return NextResponse.json({ error: 'Cloud storage is not available.' }, { status: 503 });
   const creator = getCreatorId(request);
   if (creator.isNew) return NextResponse.json({ error: 'Nothing to delete.' }, { status: 403 });
-  if (!rateLimit(`del:${creator.id}:${getClientIp(request)}`, 30, 60_000)) return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
+  if (!await rateLimit(`del:${creator.id}:${getClientIp(request)}`, 30, 60_000)) return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
   const body = await request.json().catch(() => ({}));
   const ids = [...new Set((Array.isArray(body?.ids) ? body.ids : [body?.id]).filter(isUuid))].slice(0, 100);
   if (!ids.length) return NextResponse.json({ error: 'No images selected.' }, { status: 400 });
