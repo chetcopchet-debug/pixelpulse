@@ -55,13 +55,31 @@ export default function Home() {
     setPrompt(random);
   };
 
-  // פיצ'ר חדש: משדרג פרומפטים חכם (Magic Enhance)
+  // מנוע חכם שמשדרג את הפרומפט לפי תוכן הטקסט הספציפי של המשתמש (ולא סתם טקסט קבוע)
   const handleEnhancePrompt = () => {
     if (!prompt.trim()) {
-      setPrompt("A breathtaking cinematic masterpiece with ultra-realistic details, dramatic lighting, 8k resolution");
+      setPrompt("A stunning cinematic masterpiece, perfect composition, professional lighting, photorealistic details");
       return;
     }
-    setPrompt(`${prompt.trim()}, breathtaking cinematic composition, ultra-realistic details, dramatic lighting, 8k resolution, shot on 35mm lens, masterpiece`);
+
+    const currentText = prompt.trim().toLowerCase();
+    let enhanced = prompt.trim();
+
+    // התאמה חכמה לפי מילות מפתח שהמשתמש כתב
+    if (currentText.includes("car") || currentText.includes("vehicle") || currentText.includes("bike")) {
+      enhanced = `${prompt.trim()}, dynamic motion shot, glossy metallic reflections, wet asphalt road, automotive commercial lighting, shot on 35mm lens`;
+    } else if (currentText.includes("portrait") || currentText.includes("man") || currentText.includes("woman") || currentText.includes("face") || currentText.includes("person")) {
+      enhanced = `${prompt.trim()}, professional portrait photography, detailed skin texture, natural soft lighting, shallow depth of field, sharp focus on eyes`;
+    } else if (currentText.includes("cyberpunk") || currentText.includes("neon") || currentText.includes("future")) {
+      enhanced = `${prompt.trim()}, intricate cyberpunk aesthetics, glowing neon reflections, volumetric fog, moody atmospheric lighting, futuristic details`;
+    } else if (currentText.includes("nature") || currentText.includes("forest") || currentText.includes("mountain") || currentText.includes("animal")) {
+      enhanced = `${prompt.trim()}, National Geographic wildlife photography, hyper-realistic textures, natural morning sunlight, breathtaking environment details`;
+    } else {
+      // ברירת מחדל חכמה ועשירה שמתאימה לכל נושא
+      enhanced = `${prompt.trim()}, highly detailed professional art composition, volumetric lighting, rich textures, award-winning visual depth`;
+    }
+
+    setPrompt(enhanced);
   };
 
   const generateImage = async () => {
@@ -79,10 +97,10 @@ export default function Home() {
     setImage(null);
 
     const textIntervals = [
-      setTimeout(() => setLoadingText("Translating & optimizing prompt..."), 2000),
-      setTimeout(() => setLoadingText("Connecting to Flux AI neural network..."), 6000),
-      setTimeout(() => setLoadingText("Rendering pixels and lighting..."), 12000),
-      setTimeout(() => setLoadingText("Finalizing masterpiece, almost ready..."), 25000),
+      setTimeout(() => setLoadingText("Analyzing prompt context..."), 2000),
+      setTimeout(() => setLoadingText("Optimizing neural pathways..."), 6000),
+      setTimeout(() => setLoadingText("Rendering lighting and textures..."), 12000),
+      setTimeout(() => setLoadingText("Finalizing masterpiece..."), 25000),
     ];
 
     try {
@@ -123,7 +141,6 @@ export default function Home() {
     }
   };
 
-  // הורדה ישירה שעוקפת CORS באמצעות פרוקסי
   const handleDownload = async (imgUrl) => {
     try {
       setDownloading(true);
@@ -150,7 +167,6 @@ export default function Home() {
     }
   };
 
-  // Remix: טעינה חוזרת של יצירה מההיסטוריה
   const handleRemix = (item) => {
     setPrompt(item.prompt);
     setStyle(item.style || "Cinematic");
@@ -172,7 +188,6 @@ export default function Home() {
         alignItems: "center",
       }}
     >
-      {/* Header */}
       <header
         style={{
           width: "100%",
@@ -238,7 +253,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Studio Card */}
       <main
         style={{
           width: "100%",
@@ -251,7 +265,6 @@ export default function Home() {
           boxShadow: "0 20px 40px rgba(0,0,0,0.7)",
         }}
       >
-        {/* Prompt Header + Actions */}
         <div
           style={{
             display: "flex",
@@ -277,7 +290,7 @@ export default function Home() {
                 cursor: "pointer",
               }}
             >
-              🪄 Magic Enhance
+              🪄 Smart Enhance
             </button>
             <button
               onClick={handleSurpriseMe}
@@ -318,7 +331,6 @@ export default function Home() {
           }}
         />
 
-        {/* Aspect Ratio Selector */}
         <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
           Aspect Ratio:
         </label>
@@ -352,7 +364,6 @@ export default function Home() {
           })}
         </div>
 
-        {/* Art Style Selector */}
         <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
           Choose Art Style:
         </label>
@@ -382,7 +393,6 @@ export default function Home() {
           })}
         </div>
 
-        {/* Generate Button */}
         <button
           onClick={generateImage}
           disabled={loading}
@@ -404,7 +414,6 @@ export default function Home() {
           {loading ? `✨ ${loadingText}` : "Generate Masterpiece (1 Credit)"}
         </button>
 
-        {/* Error Box */}
         {error && (
           <div
             style={{
@@ -422,7 +431,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Generated Result */}
         {image && (
           <div style={{ marginTop: "28px", textAlign: "center" }}>
             <p style={{ color: "#34d399", fontWeight: "600", fontSize: "14px", marginBottom: "12px" }}>
@@ -461,7 +469,6 @@ export default function Home() {
         )}
       </main>
 
-      {/* History & Remix Section */}
       {history.length > 0 && (
         <section style={{ width: "100%", maxWidth: "540px", marginTop: "36px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
