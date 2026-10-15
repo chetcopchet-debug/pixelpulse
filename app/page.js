@@ -94,32 +94,39 @@ export default function Home() {
     dailyDay: r.daily_day || null,
   });
 
-  // Browser-only history items (cloud save failed / pre-cloud era) can point to temporary Replicate URLs (expire ~1h)
-  // or to pre-rekey storage paths ("images/<uuid>/...") that were moved. Treat those as dead.
-  const isStaleLocalUrl = (u) => /\/storage\/v1\/object\/public\/images\/(?!i\/|t\/)/.test(u);
+  // Browser-only history (cloud save failed / pre-cloud): Replicate delivery URLs expire ~1h;
+  // pre-rekey paths ("images/<uuid>/...") were moved by /api/admin/rekey. Never keep them.
+  const isStaleLocalUrl = (u) => {
+    if (typeof u !== "string" || !u) return true;
+    if (/replicate\.delivery|pbxt\.replicate/.test(u)) return true;
+    if (/\/storage\/v1\/object\/public\/images\/(?!i\/|t\/)/.test(u)) return true;
+    return false;
+  };
+  const writeLocalHistory = (arr) => { try { localStorage.setItem("pp_history", JSON.stringify(arr.filter((h) => h && !h.id).slice(0, 12))); } catch {} };
   const dropDeadLocal = (item) => {
     if (!item || item.id) return;
     setHistory((prev) => prev.filter((h) => h !== item && h.url !== item.url));
-    try { const s = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && h.url !== item.url); localStorage.setItem("pp_history", JSON.stringify(s)); } catch {}
+    try { writeLocalHistory((JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && h.url !== item.url)); } catch {}
   };
   const loadHistory = async () => {
     try {
       const d = await fetch("/api/history").then((r) => r.json());
-      if (d.enabled === false) {
-        setStorageEnabled(false);
-        const saved = localStorage.getItem("pp_history");
-        if (saved) setHistory(JSON.parse(saved));
-        return;
-      }
-      setStorageEnabled(true);
-      // Keep images whose cloud save failed (stored only in this browser)
       let local = [];
       try { local = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && !h.id && typeof h.url === "string" && !isStaleLocalUrl(h.url)); } catch {}
+      // Actively drop browser-only URLs that 404 (covers anything isStaleLocalUrl missed)
+      if (local.length) {
+        const ok = await Promise.all(local.map(async (h) => {
+          try { const r = await fetch(h.url, { method: "HEAD", mode: "cors", cache: "no-store" }); return r.ok ? h : null; }
+          catch { return null; }
+        }));
+        local = ok.filter(Boolean);
+      }
+      writeLocalHistory(local);
+      if (d.enabled === false) { setStorageEnabled(false); setHistory(local); return; }
+      setStorageEnabled(true);
       if (Array.isArray(d.items)) { const seen = new Set(); setHistory([...local, ...d.items.map(toItem)].filter((h) => !h.id || (!seen.has(h.id) && seen.add(h.id))).slice(0, 36)); }
-      else if (local.length) setHistory(local);
-    } catch (e) {
-      console.error(e);
-    }
+      else setHistory(local);
+    } catch (e) { console.error(e); }
   };
 
   const loadFeed = async (cursor = null) => {
@@ -661,7 +668,7 @@ export default function Home() {
               <div className="pp-recent">
                 {recentList.map((item, idx) => (
                   <button key={item.id || idx} className={image && item.url === image ? "on" : ""} onClick={() => { setImage(item.url); setCurrentItem(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-                    <Thumb src={item.url} ratio="1:1" alt={item.prompt} onFail={() => dropDeadLocal(item)} />
+                    <Thumb src={item.url} ratio="1:1" alt="" onFail={() => dropDeadLocal(item)} />
                   </button>
                 ))}
                 {storageEnabled && <button className="pp-seeall" onClick={() => setActiveTab("me")}>See all</button>}
