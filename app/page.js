@@ -163,7 +163,7 @@ export default function Home() {
     if (params.get("format") && FORMATS[params.get("format")]) { const f0 = params.get("format"); window.__ppVibe = true; setTimeout(() => selectFormat(f0), 0); params.delete("format"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : "")); }
     if (params.get("vibe")) {
       const st = params.get("style"), ra = params.get("ratio"), ti = params.get("tier"), pr = params.get("p");
-      if (pr) setPrompt(pr.slice(0, 500));
+      if (pr) setPrompt(pr.slice(0, 1500));
       if (/^[0-9a-f-]{36}$/i.test(params.get("vibe"))) setRemixOf(params.get("vibe"));
       if (st && stylesList.includes(st)) setStyle(st);
       if (ra && ratiosList.some((r) => r.id === ra)) setAspectRatio(ra);
@@ -790,9 +790,10 @@ export default function Home() {
           {remixOf && <div className="pp-remixnote">✦ Remixing a vibe <button className="pp-link" onClick={() => setRemixOf(null)}>clear</button></div>}
           <div className="pp-inputrow">
             <div className="pp-field">
-              <textarea id="pp-prompt" maxLength={500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+              <textarea id="pp-prompt" maxLength={1500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); generateImage(); } }}
                 placeholder="Describe a vision — any language…" />
+              {prompt.length > 1200 && <span className="pp-count" aria-live="polite">{prompt.length}/1500</span>}
               <button className={`pp-amp-btn${ampOpen ? " on" : ""}`} onClick={handleEnhancePrompt} title="Amplify prompt" aria-label="Amplify prompt">✦</button>
             </div>
             <button className="pp-go" onClick={() => generateImage()} disabled={loading}>
@@ -891,6 +892,7 @@ export default function Home() {
 const CSS = `
 :root{--bg:#07070a;--panel:#101018;--line:#1f1f2e;--v:#9333ea;--v2:#a855f7;--p:#ec4899;--txt:#e9e7f5;--mut:#7c7c94}
 body{margin:0;background:var(--bg)}
+.pp-count{position:absolute;right:44px;bottom:4px;font-size:10px;color:var(--mut);pointer-events:none}
 .pp-root{min-height:100vh;background:radial-gradient(1200px 500px at 50% -200px,rgba(147,51,234,.18),transparent),var(--bg);color:var(--txt);font-family:system-ui,-apple-system,sans-serif;padding:16px 14px 190px;box-sizing:border-box}
 .pp-root *{box-sizing:border-box}
 .pp-root button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -1011,7 +1013,7 @@ body{margin:0;background:var(--bg)}
 .pp-summary i{font-style:normal;opacity:.6}
 .pp-icon{width:40px;justify-content:center;padding:0}
 .pp-remixnote{font-size:11px;color:#f0abfc;padding:0 6px 6px;display:flex;gap:8px;align-items:center}
-.pp-field{flex:1;display:flex;align-items:flex-end;min-width:0;background:#0b0b12;border:1px solid #23233a;border-radius:22px;padding-right:4px}
+.pp-field{position:relative;flex:1;display:flex;align-items:flex-end;min-width:0;background:#0b0b12;border:1px solid #23233a;border-radius:22px;padding-right:4px}
 .pp-field textarea{flex:1;min-width:0;padding-left:14px!important}
 .pp-amp-btn{flex:none;width:36px;height:36px;margin:3px 0;border-radius:50%;border:none;background:linear-gradient(135deg,rgba(147,51,234,.35),rgba(236,72,153,.35));color:#fff;font-size:15px}
 .pp-amp-btn.on{background:linear-gradient(135deg,var(--v),var(--p));box-shadow:0 0 14px rgba(236,72,153,.6)}
