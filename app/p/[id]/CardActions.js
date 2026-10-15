@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 
-export default function CardActions({ id, prompt, style, ratio, tier }) {
+export default function CardActions({ id, prompt, style, ratio, tier, url }) {
   const [toast, setToast] = useState('');
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2200); };
   const qs = new URLSearchParams({ vibe: id, ...(style ? { style } : {}), ...(ratio ? { ratio } : {}), ...(tier ? { tier } : {}) });
@@ -19,6 +19,7 @@ export default function CardActions({ id, prompt, style, ratio, tier }) {
     <>
       <div className="pc-actions">
         <a className="pc-btn pc-go" href={`/?${qs}`}>✦ Pulse this vibe</a>
+        <a className="pc-btn" href={`/?${new URLSearchParams({ repaint: id, src: url })}`}>◐ Repaint</a>
         <button className="pc-btn" onClick={() => copy(prompt, 'Prompt copied')}>✎ Copy prompt</button>
         <button className="pc-btn" onClick={share}>↗ Share</button>
       </div>

@@ -53,7 +53,7 @@ export default async function PulseCard({ params }) {
           <span>♥ {img.likes || 0}</span>
           {img.remix_of && <a href={`/p/${img.remix_of}`}>↺ Remix of</a>}
         </div>
-        <CardActions id={img.id} prompt={img.prompt} style={img.style} ratio={img.aspect_ratio} tier={img.model} />
+        <CardActions id={img.id} prompt={img.prompt} style={img.style} ratio={img.aspect_ratio} tier={img.model} url={img.public_url} />
       </main>
     </div>
   );
