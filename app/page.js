@@ -936,12 +936,13 @@ export default function Home() {
               </>}
               <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 10) * 100)}%` }} /></div>
               {!isAdmin && <button className="pp-chip pp-getcr" onClick={() => { setMenuOpen(false); openPricing(); }}>⚡ Get more credits</button>}
-              {!isAdmin && !account && <button className="pp-chip pp-signin" onClick={() => { setMenuOpen(false); setAuthOpen({}); }}>✉ Sign in with email</button>}
+              {!account && <button className="pp-chip pp-signin" onClick={() => { setMenuOpen(false); setAuthOpen({}); }}>✉ Sign in with email</button>}
               {!isAdmin && <div className="pp-restore">
                 {paid > 0 && <button className="pp-link" onClick={copyRestoreCode}>Copy purchase restore code</button>}
                 <button className="pp-link" onClick={restorePurchase}>Restore a purchase</button>
                 {account && <button className="pp-link" onClick={signOut}>Sign out</button>}
               </div>}
+              {isAdmin && account && <div className="pp-restore"><button className="pp-link" onClick={signOut}>Sign out</button></div>}
             </div>
             <div className="pp-streak"><b>🔥{streak}</b><span>{streak ? `day${streak === 1 ? "" : "s"} Daily Pulse streak` : "Join today's Daily Pulse to start a streak"}</span><button className="pp-chip" onClick={() => { setMenuOpen(false); setActiveTab("community"); }}>◉ Daily</button></div>
             <nav className="pp-menulist">
