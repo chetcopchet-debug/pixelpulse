@@ -13,7 +13,12 @@ export default function Home() {
   const [credits, setCredits] = useState(5);
   const [history, setHistory] = useState([]);
   const [communityFeed, setCommunityFeed] = useState([]);
-  const [activeTab, setActiveTab] = useState("create"); // "create" או "community"
+  const [activeTab, setActiveTab] = useState("create"); // "create" or "community"
+  const [currentItem, setCurrentItem] = useState(null); // last generated item (with id)
+  const [remixOf, setRemixOf] = useState(null);
+  const [storageEnabled, setStorageEnabled] = useState(true);
+  const [feedCursor, setFeedCursor] = useState(null);
+  const [feedLoading, setFeedLoading] = useState(false);
 
   const stylesList = [
     "Cinematic",
@@ -40,53 +45,68 @@ export default function Home() {
     "Hyper-realistic close-up of a sleek black panther with glowing emerald eyes walking through a misty bamboo forest at dawn"
   ];
 
-  // ברירת מחדל לקהילה גלובלית
-  const initialCommunity = [
-    {
-      url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop",
-      prompt: "Abstract 3D fluid neon waves glowing in dark space, futuristic digital art",
-      style: "3D Render",
-      aspectRatio: "1:1",
-      author: "Alex_Dev"
-    },
-    {
-      url: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1000&auto=format&fit=crop",
-      prompt: "Cyberpunk street in Tokyo at night with neon signs and heavy rain reflections",
-      style: "Cyberpunk",
-      aspectRatio: "9:16",
-      author: "Elena_V"
-    },
-    {
-      url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop",
-      prompt: "Epic fantasy castle on a floating mountain in the clouds at golden sunset",
-      style: "Fantasy",
-      aspectRatio: "16:9",
-      author: "MasterAI"
+  // Normalize API rows into UI items
+  const toItem = (r) => ({
+    id: r.id,
+    url: r.public_url,
+    prompt: r.prompt,
+    style: r.style,
+    aspectRatio: r.aspect_ratio,
+    likes: r.likes || 0,
+    liked: Boolean(r.liked),
+    isPublic: Boolean(r.is_public),
+    remixOf: r.remix_of || null,
+  });
+
+  const loadHistory = async () => {
+    try {
+      const d = await fetch("/api/history").then((r) => r.json());
+      if (d.enabled === false) {
+        setStorageEnabled(false);
+        const saved = localStorage.getItem("pp_history");
+        if (saved) setHistory(JSON.parse(saved));
+        return;
+      }
+      setStorageEnabled(true);
+      if (Array.isArray(d.items)) setHistory(d.items.map(toItem));
+    } catch (e) {
+      console.error(e);
     }
-  ];
+  };
+
+  const loadFeed = async (cursor = null) => {
+    setFeedLoading(true);
+    try {
+      const qs = cursor ? `?before=${encodeURIComponent(cursor)}` : "";
+      const d = await fetch(`/api/feed${qs}`).then((r) => r.json());
+      if (Array.isArray(d.items)) {
+        const items = d.items.map(toItem);
+        setCommunityFeed((prev) => (cursor ? [...prev, ...items] : items));
+      }
+      setFeedCursor(d.nextCursor || null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setFeedLoading(false);
+    }
+  };
 
   useEffect(() => {
     try {
       localStorage.removeItem("pp_credits");
-      fetch("/api/credits")
-        .then((r) => r.json())
-        .then((d) => { if (typeof d.credits === "number") setCredits(d.credits); })
-        .catch(() => {});
-
-      const savedHistory = localStorage.getItem("pp_history");
-      if (savedHistory) setHistory(JSON.parse(savedHistory));
-
-      const savedCommunity = localStorage.getItem("pp_community");
-      if (savedCommunity) {
-        setCommunityFeed(JSON.parse(savedCommunity));
-      } else {
-        setCommunityFeed(initialCommunity);
-        localStorage.setItem("pp_community", JSON.stringify(initialCommunity));
-      }
-    } catch (e) {
-      console.error(e);
-    }
+      localStorage.removeItem("pp_community");
+    } catch {}
+    fetch("/api/credits")
+      .then((r) => r.json())
+      .then((d) => { if (typeof d.credits === "number") setCredits(d.credits); })
+      .catch(() => {});
+    loadHistory();
+    loadFeed();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "community") loadFeed();
+  }, [activeTab]);
 
   const handleSurpriseMe = () => {
     const random = surprisePrompts[Math.floor(Math.random() * surprisePrompts.length)];
@@ -142,7 +162,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, style, aspectRatio }),
+        body: JSON.stringify({ prompt, style, aspectRatio, remixOf }),
       });
 
       const data = await res.json();
@@ -155,16 +175,25 @@ export default function Home() {
       setImage(data.imageUrl);
 
       const newItem = {
+        id: data.id || null,
         url: data.imageUrl,
         prompt: prompt.trim(),
         style,
         aspectRatio,
-        date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        author: "You"
+        likes: 0,
+        isPublic: false,
+        remixOf,
       };
-      const updatedHistory = [newItem, ...history].slice(0, 12);
-      setHistory(updatedHistory);
-      localStorage.setItem("pp_history", JSON.stringify(updatedHistory));
+      setCurrentItem(newItem);
+      setRemixOf(null);
+      if (data.stored) {
+        setHistory((prev) => [newItem, ...prev.filter((h) => h.id !== newItem.id)].slice(0, 24));
+      } else {
+        // Fallback (no Supabase configured): keep local history as before
+        const updatedHistory = [newItem, ...history].slice(0, 12);
+        setHistory(updatedHistory);
+        try { localStorage.setItem("pp_history", JSON.stringify(updatedHistory)); } catch {}
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -200,23 +229,56 @@ export default function Home() {
     }
   };
 
-  // פרסום תמונה לפיד הקהילה הציבורי
-  const handlePublishToCommunity = (item) => {
-    const exists = communityFeed.some(c => c.url === item.url);
-    if (exists) {
+  // Publish an image to the shared community feed
+  const handlePublishToCommunity = async (item) => {
+    if (!item?.id) {
+      alert("Publishing is not available for this image (cloud storage is not set up).");
+      return;
+    }
+    if (item.isPublic) {
       alert("This masterpiece is already published in the Community Feed!");
       return;
     }
-    const updatedCommunity = [item, ...communityFeed];
-    setCommunityFeed(updatedCommunity);
-    localStorage.setItem("pp_community", JSON.stringify(updatedCommunity));
-    alert("🚀 Successfully published to Community Feed!");
+    try {
+      const res = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Could not publish.");
+      const mark = (x) => (x.id === item.id ? { ...x, isPublic: true } : x);
+      setHistory((prev) => prev.map(mark));
+      setCurrentItem((c) => (c && c.id === item.id ? { ...c, isPublic: true } : c));
+      loadFeed();
+      alert("🚀 Successfully published to Community Feed!");
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
+  const handleLike = async (item) => {
+    if (!item.id || item.liked) return;
+    setCommunityFeed((prev) => prev.map((x) => (x.id === item.id ? { ...x, liked: true, likes: x.likes + 1 } : x)));
+    try {
+      const res = await fetch("/api/like", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error);
+      setCommunityFeed((prev) => prev.map((x) => (x.id === item.id ? { ...x, liked: true, likes: d.likes } : x)));
+    } catch {
+      setCommunityFeed((prev) => prev.map((x) => (x.id === item.id ? { ...x, liked: false, likes: Math.max(0, x.likes - 1) } : x)));
+    }
   };
 
   const handleRemix = (item) => {
     setPrompt(item.prompt);
     setStyle(item.style || "Cinematic");
     setAspectRatio(item.aspectRatio || "1:1");
+    setRemixOf(item.id || null);
     setActiveTab("create");
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -566,13 +628,7 @@ export default function Home() {
                   {downloading ? "Downloading..." : "⬇️ Download"}
                 </button>
                 <button
-                  onClick={() => handlePublishToCommunity({
-                    url: image,
-                    prompt: prompt.trim(),
-                    style,
-                    aspectRatio,
-                    author: "You"
-                  })}
+                  onClick={() => handlePublishToCommunity(currentItem)}
                   style={{
                     flex: 1,
                     backgroundColor: "rgba(147, 51, 234, 0.25)",
@@ -585,7 +641,7 @@ export default function Home() {
                     cursor: "pointer",
                   }}
                 >
-                  🌍 Publish to Feed
+                  {currentItem?.isPublic ? "✅ Published" : "🌍 Publish to Feed"}
                 </button>
               </div>
             </div>
@@ -598,9 +654,14 @@ export default function Home() {
             🌍 Global Community Feed
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
+            {communityFeed.length === 0 && !feedLoading && (
+              <p style={{ color: "#7c7c94", fontSize: "13px", textAlign: "center" }}>
+                {storageEnabled ? "No public creations yet. Be the first to publish!" : "The community feed is coming soon."}
+              </p>
+            )}
             {communityFeed.map((item, idx) => (
               <div
-                key={idx}
+                key={item.id || idx}
                 style={{
                   backgroundColor: "#101018",
                   border: "1px solid #1f1f2e",
@@ -615,7 +676,24 @@ export default function Home() {
                     "{item.prompt}"
                   </p>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "11px", color: "#7c7c94" }}>By {item.author || "Creator"} • {item.style}</span>
+                    <span style={{ fontSize: "11px", color: "#7c7c94" }}>{item.style}{item.remixOf ? " • Remix" : ""}</span>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      onClick={() => handleLike(item)}
+                      disabled={item.liked}
+                      style={{
+                        backgroundColor: item.liked ? "rgba(236, 72, 153, 0.25)" : "transparent",
+                        border: "1px solid rgba(236, 72, 153, 0.5)",
+                        color: "#f9a8d4",
+                        padding: "6px 12px",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        cursor: item.liked ? "default" : "pointer",
+                      }}
+                    >
+                      {item.liked ? "❤️" : "🤍"} {item.likes}
+                    </button>
                     <button
                       onClick={() => handleRemix(item)}
                       style={{
@@ -631,11 +709,21 @@ export default function Home() {
                     >
                       🔄 Remix Style
                     </button>
+                    </div>
                   </div>
                 </div>
               </div>
             ))}
           </div>
+          {feedCursor && (
+            <button
+              onClick={() => loadFeed(feedCursor)}
+              disabled={feedLoading}
+              style={{ marginTop: "16px", width: "100%", padding: "12px", borderRadius: "12px", background: "#101018", border: "1px solid #1f1f2e", color: "#e2e2f0", cursor: "pointer" }}
+            >
+              {feedLoading ? "Loading..." : "Load more"}
+            </button>
+          )}
         </div>
       )}
 
@@ -646,7 +734,7 @@ export default function Home() {
             <h2 style={{ fontSize: "17px", fontWeight: "700", margin: 0, color: "#e2e2f0" }}>
               🖼️ Your Recent Creations
             </h2>
-            <button
+            {!storageEnabled && <button
               onClick={() => {
                 setHistory([]);
                 localStorage.removeItem("pp_history");
@@ -654,13 +742,13 @@ export default function Home() {
               style={{ background: "none", border: "none", color: "#6b6b80", fontSize: "12px", cursor: "pointer", textDecoration: "underline" }}
             >
               Clear History
-            </button>
+            </button>}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             {history.map((item, idx) => (
               <div
-                key={idx}
+                key={item.id || idx}
                 style={{
                   backgroundColor: "#101018",
                   border: "1px solid #1f1f2e",
@@ -671,7 +759,7 @@ export default function Home() {
                   justify: "space-between"
                 }}
               >
-                <div onClick={() => setImage(item.url)} style={{ cursor: "pointer" }}>
+                <div onClick={() => { setImage(item.url); setCurrentItem(item); }} style={{ cursor: "pointer" }}>
                   <img src={item.url} alt={item.prompt} style={{ width: "100%", height: "140px", objectFit: "cover", display: "block" }} />
                 </div>
                 <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
@@ -692,7 +780,7 @@ export default function Home() {
                         cursor: "pointer",
                       }}
                     >
-                      🌍 Publish
+                      {item.isPublic ? "✅ Public" : "🌍 Publish"}
                     </button>
                     <button
                       onClick={() => handleRemix(item)}

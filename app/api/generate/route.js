@@ -3,6 +3,8 @@ import {
   readCreditsCookie, setCreditsCookie, getClientIp, ipRemaining,
   chargeIp, refundIp, COOKIE_NAME,
 } from '../../../lib/credits';
+import { getSupabase, BUCKET } from '../../../lib/supabase';
+import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -10,6 +12,41 @@ export const dynamic = 'force-dynamic';
 const MAX_PROMPT_LENGTH = 500;
 const VALID_STYLES = ["Cinematic", "Photorealistic", "3D Render", "Anime", "Cyberpunk", "Fantasy", "Oil Painting", "Watercolor"];
 const VALID_RATIOS = ["1:1", "16:9", "9:16"];
+
+// Download the Replicate output and store it permanently in Supabase.
+// Returns { id, url } or null on any failure (caller falls back to the temporary URL).
+async function persistImage({ sourceUrl, prompt, style, ratio, creatorId, remixOf }) {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  try {
+    const imgRes = await fetch(sourceUrl);
+    if (!imgRes.ok) throw new Error(`download ${imgRes.status}`);
+    const contentType = imgRes.headers.get('content-type') || 'image/webp';
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('jpeg') ? 'jpg' : 'webp';
+    // Only link remixes to images that exist and are public or owned by this creator
+    if (remixOf) {
+      const { data: parent } = await supabase.from('images').select('id, is_public, creator_id').eq('id', remixOf).maybeSingle();
+      if (!parent || (!parent.is_public && parent.creator_id !== creatorId)) remixOf = null;
+    }
+    const bytes = Buffer.from(await imgRes.arrayBuffer());
+    const path = `${creatorId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, bytes, { contentType, upsert: false });
+    if (upErr) throw upErr;
+    const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const { data: row, error: insErr } = await supabase.from('images').insert({
+      prompt, style, aspect_ratio: ratio, storage_path: path, public_url: pub.publicUrl,
+      creator_id: creatorId, remix_of: remixOf || null,
+    }).select('id, public_url').single();
+    if (insErr) {
+      await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
+      throw insErr;
+    }
+    return { id: row.id, url: row.public_url };
+  } catch (err) {
+    console.error('Persist image failed:', err);
+    return null;
+  }
+}
 
 function jsonError(message, status, credits) {
   return NextResponse.json({ error: message, ...(credits !== undefined ? { credits } : {}) }, { status });
@@ -66,7 +103,8 @@ export async function POST(request) {
   } catch {
     return jsonError('Invalid request. / בקשה לא תקינה.', 400);
   }
-  const { prompt, style, aspectRatio } = body || {};
+  const { prompt, style, aspectRatio, remixOf } = body || {};
+  const creator = getCreatorId(request);
 
   if (typeof prompt !== 'string' || prompt.trim() === '') {
     return jsonError('Please provide a valid prompt. / נא להזין תיאור לתמונה.', 400);
@@ -135,8 +173,20 @@ export async function POST(request) {
       return res;
     }
 
-    const res = NextResponse.json({ success: true, imageUrl: result.url, credits: currentCredits() });
+    const stored = await persistImage({
+      sourceUrl: result.url, prompt: prompt.trim(), style: selectedStyle, ratio: selectedRatio,
+      creatorId: creator.id, remixOf: isUuid(remixOf) ? remixOf : null,
+    });
+
+    const res = NextResponse.json({
+      success: true,
+      imageUrl: stored?.url || result.url,
+      id: stored?.id || null,
+      stored: Boolean(stored),
+      credits: currentCredits(),
+    });
     setCreditsCookie(res, state);
+    setCreatorCookie(res, creator);
     return res;
   } catch (error) {
     console.error('Server Error:', error);
