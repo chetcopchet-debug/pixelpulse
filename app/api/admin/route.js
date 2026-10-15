@@ -4,6 +4,7 @@ import { getClientIp } from '../../../lib/credits';
 import { rateLimit } from '../../../lib/ratelimit';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 export async function POST(request) {
   if (!adminEnabled()) return NextResponse.json({ error: 'Not found.' }, { status: 404 });

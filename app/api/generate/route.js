@@ -10,6 +10,7 @@ import { isAdmin } from '../../../lib/admin';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 const MAX_PROMPT_LENGTH = 500;
 const VALID_STYLES = ["Cinematic", "Photorealistic", "3D Render", "Anime", "Cyberpunk", "Fantasy", "Oil Painting", "Watercolor"];

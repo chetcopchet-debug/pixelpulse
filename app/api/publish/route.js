@@ -7,6 +7,7 @@ import { rateLimit } from '../../../lib/ratelimit';
 import { isAdmin } from '../../../lib/admin';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 export async function POST(request) {
   const supabase = getSupabase();

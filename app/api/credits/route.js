@@ -4,6 +4,7 @@ import { readCreditsCookie, setCreditsCookie, getClientIp, ipRemaining, COOKIE_N
 import { isAdmin } from '../../../lib/admin';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 export async function GET(request) {
   if (isAdmin(request)) return NextResponse.json({ credits: null, admin: true });
