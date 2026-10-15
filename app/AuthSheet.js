@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function AuthSheet({ reason, onClose, onSignedIn }) {
   const [step, setStep] = useState("email");
@@ -7,6 +7,17 @@ export default function AuthSheet({ reason, onClose, onSignedIn }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [showCode, setShowCode] = useState(false);
+  // Same-browser link flow: the link opens in a new tab and signs in this browser; notice it here.
+  useEffect(() => {
+    if (step !== "code") return;
+    let stop = false;
+    const check = () => fetch("/api/credits", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (!stop && d.account) onSignedIn(d); }).catch(() => {});
+    const t = setInterval(() => { if (document.visibilityState === "visible") check(); }, 4000);
+    const onVis = () => document.visibilityState === "visible" && check();
+    document.addEventListener("visibilitychange", onVis); window.addEventListener("focus", onVis);
+    return () => { stop = true; clearInterval(t); document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", onVis); };
+  }, [step, onSignedIn]);
   const post = async (url, body) => { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return { ok: r.ok, d: await r.json().catch(() => ({})) }; };
   const send = async (e) => {
     e?.preventDefault(); if (busy) return; setBusy(true); setErr("");
@@ -20,19 +31,23 @@ export default function AuthSheet({ reason, onClose, onSignedIn }) {
   };
   return (
     <div className="as-scrim" onClick={onClose} role="dialog" aria-modal="true" aria-label="Sign in">
-      <form className="as-sheet" onClick={(e) => e.stopPropagation()} onSubmit={step === "email" ? send : verify}>
+      <form className="as-sheet" onClick={(e) => e.stopPropagation()} onSubmit={step === "email" ? send : (e) => { e.preventDefault(); if (showCode) verify(e); }}>
         <div className="as-grab" />
         <div className="as-dot"><i /></div>
-        <h3>{step === "email" ? "Sign in to PixelPulse" : "Check your email"}</h3>
+        <h3>{step === "email" ? "Sign in to PixelPulse" : "Check your inbox"}</h3>
         {step === "email" ? <>
           <p className="as-sub">{reason || "Keep your credits and gallery safe, on every device. No password."}</p>
           <input className="as-in" type="email" inputMode="email" autoComplete="email" autoFocus placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button className="as-go" disabled={busy || !email.includes("@")}>{busy ? "Sending…" : "Email me a code"}</button>
+          <button className="as-go" disabled={busy || !email.includes("@")}>{busy ? "Sending…" : "Email me a sign-in link"}</button>
         </> : <>
-          <p className="as-sub">We sent a code to <b>{email}</b>. Enter it below, or tap the link in the email.</p>
-          <input className="as-in as-code" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={10} placeholder="••••••" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
-          <button className="as-go" disabled={busy || code.length < 6}>{busy ? "Checking…" : "Sign in"}</button>
-          <p className="as-sub as-small"><button type="button" className="as-link" onClick={send} disabled={busy}>Send a new code</button> · <button type="button" className="as-link" onClick={() => { setStep("email"); setErr(""); }}>Change email</button></p>
+          <div className="as-mail">✉</div>
+          <p className="as-sub">We sent a sign-in link to <b>{email}</b>.<br />Open the email and <b>tap the link</b> — you'll be signed in automatically.</p>
+          <p className="as-sub as-small">If the link opens in another app or browser, you'll be signed in there. Use the same browser to keep this device's pulses.</p>
+          {!showCode ? <button type="button" className="as-link" onClick={() => setShowCode(true)}>Have a code?</button> : <>
+            <input className="as-in as-code" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={10} placeholder="••••••" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
+            <button className="as-go" disabled={busy || code.length < 6}>{busy ? "Checking…" : "Sign in with code"}</button>
+          </>}
+          <p className="as-sub as-small"><button type="button" className="as-link" onClick={send} disabled={busy}>Resend email</button> · <button type="button" className="as-link" onClick={() => { setStep("email"); setErr(""); setShowCode(false); }}>Change email</button></p>
         </>}
         {err && <p className="as-err">{err}</p>}
         <p className="as-fine">Your current gallery and credits on this device move into your account.</p>
@@ -54,6 +69,8 @@ export default function AuthSheet({ reason, onClose, onSignedIn }) {
 .as-go{width:100%;margin-top:10px;padding:14px;border-radius:999px;border:0;font-weight:800;font-size:15px;color:#fff;background:linear-gradient(90deg,#9333ea,#ec4899)}
 .as-go:disabled{opacity:.5}
 .as-link{background:none;border:0;color:#d8b4fe;text-decoration:underline;font-size:12.5px;padding:0}
+.as-mail{font-size:34px;margin:2px 0 6px;animation:asPulse 1.6s ease-in-out infinite}
+@keyframes asPulse{50%{transform:scale(1.12)}}
 .as-err{color:#fda4af;font-size:13px;margin:10px 0 0}
 .as-fine{font-size:11px;color:#7c7c94;margin:14px 0 0}
 `}</style>
