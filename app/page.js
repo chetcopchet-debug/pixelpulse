@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -130,6 +131,13 @@ export default function Home() {
       window.history.replaceState(null, "", window.location.pathname + (q ? `?${q}` : ""));
       setTimeout(() => { setToast("✦ Vibe loaded — describe your own idea"); setTimeout(() => setToast(""), 2600); document.getElementById("pp-prompt")?.focus(); }, 300);
     }
+    const rpId = params.get("repaint"), rpSrc = params.get("src");
+    if (rpId && rpSrc && /^https:\/\/[a-z0-9]+\.supabase\.co\//.test(rpSrc)) {
+      setRepaintItem({ id: rpId, url: rpSrc });
+      ["repaint", "src"].forEach((k) => params.delete(k));
+      const q2 = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (q2 ? `?${q2}` : ""));
+    }
     const adminKey = params.get("admin");
     if (adminKey) {
       params.delete("admin");
@@ -218,6 +226,16 @@ export default function Home() {
     showToast(`Vibe loaded from “${short}”`);
   };
 
+  const [repaintItem, setRepaintItem] = useState(null);
+  const handleRepaintDone = (d, ok) => {
+    if (d.admin) setIsAdmin(true); else if (typeof d.credits === "number") setCredits(d.credits);
+    if (!ok) return;
+    const ni = toItem(d.item);
+    setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
+    setRepaintItem(null); setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
+    window.scrollTo({ top: 0, behavior: "smooth" }); showToast("◐ Repainted");
+  };
+  const openRepaint = (item) => { if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; } setRepaintItem(item); };
   const [toolBusy, setToolBusy] = useState(""); // "<tool>:<id>"
   const handleShare = async (item) => {
     if (!item?.id) { showToast("Save failed for this image, can't share"); return; }
@@ -420,6 +438,7 @@ export default function Home() {
       <button className="pp-cap" onClick={() => handleUsePrompt(item)} title="Use prompt">✎<span>Use prompt</span></button>
       <button className="pp-cap" onClick={() => handleDownload(item.url)} disabled={downloading} title="Download">⤓<span>Download</span></button>
       <button className="pp-cap" onClick={() => handleTool("sharpen", item)} disabled={!!toolBusy || !item.id} title="Sharpen 2x (1 credit)">{toolBusy === `sharpen:${item.id}` ? "…" : "◇"}<span>Sharpen</span></button>
+      <button className="pp-cap" onClick={() => openRepaint(item)} disabled={!!toolBusy || !item.id} title="Repaint an area (2 credits)">◐<span>Repaint</span></button>
       <button className="pp-cap" onClick={() => handleTool("cutout", item)} disabled={!!toolBusy || !item.id} title="Remove background (free)">{toolBusy === `cutout:${item.id}` ? "…" : "✂"}<span>Cutout</span></button>
       {item.isPublic && <button className="pp-cap" onClick={() => handleShare(item)} title="Share">↗<span>Share</span></button>}
       <button className={`pp-cap${item.isPublic ? " pp-on" : " pp-accent"}`} onClick={() => handlePublishToCommunity(item)} title="Publish">{item.isPublic ? "✓" : "◉"}<span>{item.isPublic ? "Live" : "Publish"}</span></button>
@@ -428,7 +447,7 @@ export default function Home() {
 
   return (
     <div dir="ltr" className="pp-root">
-      <style>{CSS}</style>
+      <style>{CSS + REPAINT_CSS}</style>
       <header className="pp-header">
         <div className="pp-brand">
           <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
@@ -499,6 +518,7 @@ export default function Home() {
                     <button className="pp-cap" onClick={() => handleVariation(item)} disabled={loading}>≈<span>Variation</span></button>
                     <button className="pp-cap" onClick={() => handleShare({ ...item, isPublic: true })}>↗<span>Share</span></button>
                     <button className="pp-cap" onClick={() => handleTool("sharpen", item)} disabled={!!toolBusy}>◇<span>Sharpen</span></button>
+                    <button className="pp-cap" onClick={() => openRepaint(item)} disabled={!!toolBusy}>◐<span>Repaint</span></button>
                     <button className="pp-cap" onClick={() => handleTool("cutout", item)} disabled={!!toolBusy}>✂<span>Cutout</span></button>
                     <button className="pp-cap" onClick={() => handleDownload(item.url)}>⤓<span>Download</span></button>
                   </div>
@@ -582,6 +602,7 @@ export default function Home() {
         </div>
       )}
 
+      {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
       {toast && <div className="pp-toast" key={toast}>{toast}</div>}
     </div>
   );
