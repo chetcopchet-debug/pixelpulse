@@ -4,6 +4,7 @@ import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import { prepareUpload, uploadRaw } from "./clientImage";
 import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
 import { FORMATS, FORMAT_LIST } from "../lib/formats";
+import Thumb from "./Thumb";
 import ImageActions, { IA_CSS } from "./ImageActions";
 
 export default function Home() {
@@ -627,7 +628,7 @@ export default function Home() {
                   <div className="pp-insp">
                     {communityFeed.slice(0, 9).map((x) => (
                       <button key={x.id} onClick={() => handlePulseVibe(x)} aria-label={`Use vibe: ${x.prompt}`}>
-                        <img src={x.url} alt="" loading="lazy" /><span>✦ Pulse this</span>
+                        <Thumb src={x.url} ratio="1:1" /><span>✦ Pulse this</span>
                       </button>
                     ))}
                   </div>
@@ -647,7 +648,7 @@ export default function Home() {
               <div className="pp-recent">
                 {recentList.map((item, idx) => (
                   <button key={item.id || idx} className={image && item.url === image ? "on" : ""} onClick={() => { setImage(item.url); setCurrentItem(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-                    <img src={item.url} alt={item.prompt} loading="lazy" />
+                    <Thumb src={item.url} ratio="1:1" alt={item.prompt} />
                   </button>
                 ))}
                 {storageEnabled && <button className="pp-seeall" onClick={() => setActiveTab("me")}>See all</button>}
@@ -678,7 +679,7 @@ export default function Home() {
           )}
           {daily?.winner && (
             <section className="pp-winner">
-              <a href={`/p/${daily.winner.id}`}><img src={daily.winner.public_url} alt={daily.winner.prompt} /></a>
+              <a href={`/p/${daily.winner.id}`}><Thumb src={daily.winner.public_url} ratio="1:1" alt={daily.winner.prompt} /></a>
               <div>
                 <small>👑 Yesterday’s winner · “{daily.winner.theme}”</small>
                 <p>“{daily.winner.prompt}”</p>
@@ -697,7 +698,7 @@ export default function Home() {
               <div className="pp-grid pp-feed">
                 {(daily?.entries || []).map((r0, idx) => { const item = toItem(r0); return (
                   <div className="pp-card" key={item.id}>
-                    <a href={`/p/${item.id}`}><span className="pp-rank">{idx === 0 ? "👑" : `#${idx + 1}`}</span><img src={item.url} alt={item.prompt} /></a>
+                    <a href={`/p/${item.id}`}><span className="pp-rank">{idx === 0 ? "👑" : `#${idx + 1}`}</span><Thumb src={item.url} ratio="1:1" alt={item.prompt} /></a>
                     <div className="pp-cardbody"><p>“{item.prompt}”</p><Actions item={item} ctx="feed" compact /></div>
                   </div>
                 ); })}
@@ -709,7 +710,7 @@ export default function Home() {
           <div className="pp-grid pp-feed">
             {communityFeed.map((item, idx) => (
               <div className="pp-card" key={item.id || idx}>
-                <a href={`/p/${item.id}`}><img src={item.url} alt={item.prompt} /></a>
+                <a href={`/p/${item.id}`}><Thumb src={item.url} ratio="1:1" alt={item.prompt} eager={idx < 2} /></a>
                 <div className="pp-cardbody">
                   <p>“{item.prompt}”</p>
                   <span className="pp-meta">{[item.style === "None" ? "No style" : item.style, tierLabel(item.tier), item.aspectRatio || "1:1", item.remixOf ? "Remix" : ""].filter(Boolean).join(" · ")}</span>
@@ -848,7 +849,7 @@ export default function Home() {
                   {modList.length === 0 && <p>No reports. 🎉</p>}
                   {modList.map((x) => (
                     <div key={x.id} className="pp-moditem">
-                      <a href={`/p/${x.id}`}><img src={x.public_url} alt="" /></a>
+                      <a href={`/p/${x.id}`}><Thumb src={x.public_url} ratio="1:1" /></a>
                       <span>⚑ {x.report_count} · {x.hidden ? "hidden" : "visible"}</span>
                       <button className="pp-chip" onClick={() => adminHide(x, !x.hidden)}>{x.hidden ? "Unhide" : "Hide"}</button>
                       {x.report_count > 0 && <button className="pp-chip" onClick={async () => { await fetch("/api/admin/hide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: x.id, resetReports: true }) }); setModList((l) => l.map((y) => (y.id === x.id ? { ...y, report_count: 0 } : y))); }}>Clear</button>}

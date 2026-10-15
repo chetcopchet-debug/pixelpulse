@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Thumb from "./Thumb";
 
 const FILTERS = [
   { id: "all", label: "All" }, { id: "created", label: "Created" }, { id: "uploads", label: "Uploads" },
@@ -148,7 +149,7 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
           {filter === "all" && inspiration.length > 0 && (
             <div className="pg-insp">
               {inspiration.slice(0, 6).map((x) => (
-                <button key={x.id} onClick={() => onStealVibe(x)}><img src={x.url} alt="" loading="lazy" /><span>✦ Pulse this</span></button>
+                <button key={x.id} onClick={() => onStealVibe(x)}><Thumb src={x.url} ratio="1:1" /><span>✦ Pulse this</span></button>
               ))}
             </div>
           )}
@@ -163,7 +164,7 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
               <button key={it.id} className={`pg-tile${sel.has(it.id) ? " pg-sel" : ""}`}
                 onPointerDown={() => startPress(it.id)} onPointerUp={endPress} onPointerLeave={endPress} onPointerCancel={endPress}
                 onContextMenu={(e) => e.preventDefault()} onClick={() => tap(idx, it.id)}>
-                <img src={it.url} alt={it.prompt} loading="lazy" draggable={false} />
+                <Thumb src={it.url} ratio="1:1" alt={it.prompt} draggable={false} />
                 <span className="pg-badges">
                   <i>{KIND_ICON[it.kind] || "✦"}</i>
                   {it.isPublic && <i className="pg-live">◉</i>}
