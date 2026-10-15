@@ -61,7 +61,8 @@ export async function POST(request) {
     let imageUrl = prediction.output ? prediction.output[0] : null;
     let getUrl = prediction.urls?.get;
 
-    for (let i = 0; i < 20; i++) {
+    // הארכת זמן ההמתנה ל-60 שניות מלאות למניעת שגיאות Timeout
+    for (let i = 0; i < 60; i++) {
       if (imageUrl || !getUrl) break;
       await new Promise(res => setTimeout(res, 1000));
       
