@@ -4,7 +4,7 @@ import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import { prepareUpload, uploadRaw } from "./clientImage";
 import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
 import { FORMATS, FORMAT_LIST } from "../lib/formats";
-import Thumb from "./Thumb";
+import Thumb, { THUMB_CSS } from "./Thumb";
 import ImageActions, { IA_CSS } from "./ImageActions";
 
 export default function Home() {
@@ -94,6 +94,14 @@ export default function Home() {
     dailyDay: r.daily_day || null,
   });
 
+  // Browser-only history items (cloud save failed / pre-cloud era) can point to temporary Replicate URLs (expire ~1h)
+  // or to pre-rekey storage paths ("images/<uuid>/...") that were moved. Treat those as dead.
+  const isStaleLocalUrl = (u) => /\/storage\/v1\/object\/public\/images\/(?!i\/|t\/)/.test(u);
+  const dropDeadLocal = (item) => {
+    if (!item || item.id) return;
+    setHistory((prev) => prev.filter((h) => h !== item && h.url !== item.url));
+    try { const s = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && h.url !== item.url); localStorage.setItem("pp_history", JSON.stringify(s)); } catch {}
+  };
   const loadHistory = async () => {
     try {
       const d = await fetch("/api/history").then((r) => r.json());
@@ -106,7 +114,7 @@ export default function Home() {
       setStorageEnabled(true);
       // Keep images whose cloud save failed (stored only in this browser)
       let local = [];
-      try { local = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && !h.id); } catch {}
+      try { local = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && !h.id && typeof h.url === "string" && !isStaleLocalUrl(h.url)); } catch {}
       if (Array.isArray(d.items)) { const seen = new Set(); setHistory([...local, ...d.items.map(toItem)].filter((h) => !h.id || (!seen.has(h.id) && seen.add(h.id))).slice(0, 36)); }
       else if (local.length) setHistory(local);
     } catch (e) {
@@ -586,7 +594,7 @@ export default function Home() {
 
   return (
     <div dir="ltr" className="pp-root">
-      <style>{CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS}</style>
+      <style>{CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
       <header className="pp-header">
         <div className="pp-brand">
           <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
@@ -653,7 +661,7 @@ export default function Home() {
               <div className="pp-recent">
                 {recentList.map((item, idx) => (
                   <button key={item.id || idx} className={image && item.url === image ? "on" : ""} onClick={() => { setImage(item.url); setCurrentItem(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-                    <Thumb src={item.url} ratio="1:1" alt={item.prompt} />
+                    <Thumb src={item.url} ratio="1:1" alt={item.prompt} onFail={() => dropDeadLocal(item)} />
                   </button>
                 ))}
                 {storageEnabled && <button className="pp-seeall" onClick={() => setActiveTab("me")}>See all</button>}
