@@ -10,6 +10,8 @@ import { isAdmin } from '../../../lib/admin';
 import { MODEL_TIERS, DEFAULT_TIER, guidedTier } from '../../../lib/models';
 import { getSupabase } from '../../../lib/supabase';
 import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
+import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
+import { getTheme } from '../../../lib/daily';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -32,7 +34,8 @@ export async function POST(request) {
   } catch {
     return jsonError('Invalid request. / בקשה לא תקינה.', 400);
   }
-  const { prompt, style, aspectRatio, remixOf, tier, guideId, guideFollow } = body || {};
+  const { prompt, style, aspectRatio, remixOf, tier, guideId, guideFollow, daily } = body || {};
+  const format = isFormat(body?.format) ? body.format : 'free';
   const creator = getCreatorId(request);
 
   if (typeof prompt !== 'string' || prompt.trim() === '') {
@@ -45,7 +48,7 @@ export async function POST(request) {
   if (!VALID_STYLES.includes(selectedStyle)) {
     return jsonError('Invalid style. / סגנון לא תקין.', 400);
   }
-  const selectedRatio = aspectRatio === undefined ? '1:1' : aspectRatio;
+  const selectedRatio = FORMATS[format].ratio || (aspectRatio === undefined ? '1:1' : aspectRatio);
   if (!VALID_RATIOS.includes(selectedRatio)) {
     return jsonError('Invalid aspect ratio. / יחס תמונה לא תקין.', 400);
   }
@@ -109,7 +112,8 @@ export async function POST(request) {
       }
     }
 
-    const finalPrompt = buildFinalPrompt(englishPrompt, selectedStyle);
+    const finalPrompt = buildFinalPrompt(applyFormat(englishPrompt, format), selectedStyle);
+    const dailyTheme = daily === true ? await getTheme() : null;
     const result = await runPrediction(finalPrompt, selectedRatio, tierDef);
 
     if (result.error) {
@@ -126,6 +130,7 @@ export async function POST(request) {
     const stored = await persistImage({
       sourceUrl: result.url, prompt: prompt.trim(), style: selectedStyle, ratio: selectedRatio,
       creatorId: creator.id, remixOf: guideParent || (isUuid(remixOf) ? remixOf : null), tier: storedTier,
+      extra: { ...(format !== 'free' ? { format } : {}), ...(dailyTheme ? { daily_day: dailyTheme.day, daily_theme: dailyTheme.text } : {}) },
     });
 
     const res = NextResponse.json({
@@ -134,7 +139,7 @@ export async function POST(request) {
       id: stored?.id || null,
       stored: Boolean(stored?.id),
       ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
-      tier: storedTier,
+      tier: storedTier, format, ...(dailyTheme ? { daily: dailyTheme.day } : {}),
       credits: currentCredits(),
       ...(admin ? { admin: true } : {}),
     });

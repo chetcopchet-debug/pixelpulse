@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import { prepareUpload, uploadRaw } from "./clientImage";
 import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
+import { FORMATS, FORMAT_LIST } from "../lib/formats";
 import ImageActions, { IA_CSS } from "./ImageActions";
 
 export default function Home() {
@@ -34,6 +35,21 @@ export default function Home() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [notice, setNotice] = useState("");
+  const [format, setFormat] = useState("free");
+  const [dailyJoin, setDailyJoin] = useState(false);
+  const [daily, setDaily] = useState(null);
+  const [streak, setStreak] = useState(0);
+  const [feedView, setFeedView] = useState("latest");
+  const fmtDef = FORMATS[format] || FORMATS.free;
+  const loadDaily = () => fetch("/api/daily", { cache: "no-store" }).then((r) => r.json()).then((d) => { if (d?.theme) { setDaily(d); setStreak(d.streak || 0); } }).catch(() => {});
+  const selectFormat = (id, quiet) => {
+    const f = FORMATS[id] || FORMATS.free;
+    setFormat(f.id);
+    if (f.ratio) setAspectRatio(f.ratio);
+    if (f.engine) setTier(f.engine);
+    if (!quiet && f.id !== "free") { setToast(`${f.icon} ${f.label} · ${f.blurb}`); clearTimeout(window.__ppToast); window.__ppToast = setTimeout(() => setToast(""), 2600); }
+  };
+  const fileName = (item) => `pixelpulse-${item?.format && item.format !== "free" ? item.format : "image"}-${(item?.id || String(Date.now())).slice(0, 8)}`;
 
   const stylesList = [
     "None",
@@ -73,6 +89,8 @@ export default function Home() {
     liked: Boolean(r.liked),
     isPublic: Boolean(r.is_public),
     remixOf: r.remix_of || null,
+    format: r.format || null,
+    dailyDay: r.daily_day || null,
   });
 
   const loadHistory = async () => {
@@ -126,6 +144,7 @@ export default function Home() {
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
     if (["me", "community", "create"].includes(params.get("tab"))) setActiveTab(params.get("tab"));
+    if (params.get("format") && FORMATS[params.get("format")]) { const f0 = params.get("format"); window.__ppVibe = true; setTimeout(() => selectFormat(f0), 0); params.delete("format"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : "")); }
     if (params.get("vibe")) {
       const st = params.get("style"), ra = params.get("ratio"), ti = params.get("tier"), pr = params.get("p");
       if (pr) setPrompt(pr.slice(0, 500));
@@ -134,7 +153,8 @@ export default function Home() {
       if (ra && ratiosList.some((r) => r.id === ra)) setAspectRatio(ra);
       if (ti && TIERS.some((t) => t.id === ti)) setTier(ti);
       window.__ppVibe = true;
-      ["vibe", "style", "ratio", "tier", "p"].forEach((k) => params.delete(k));
+      if (FORMATS[params.get("format")]) setFormat(params.get("format"));
+      ["vibe", "style", "ratio", "tier", "p", "format"].forEach((k) => params.delete(k));
       const q = params.toString();
       window.history.replaceState(null, "", window.location.pathname + (q ? `?${q}` : ""));
       setTimeout(() => { setToast("✦ Vibe loaded — describe your own idea"); setTimeout(() => setToast(""), 2600); document.getElementById("pp-prompt")?.focus(); }, 300);
@@ -161,10 +181,11 @@ export default function Home() {
     // Upgrade legacy (unsigned) identity cookie before loading private history
     fetch("/api/session", { method: "POST" }).catch(() => {}).finally(loadHistory);
     loadFeed();
+    loadDaily();
   }, []);
 
   useEffect(() => {
-    if (activeTab === "community") loadFeed();
+    if (activeTab === "community") { loadFeed(); loadDaily(); }
     try {
       const u = new URL(window.location.href);
       if (activeTab === "create") u.searchParams.delete("tab"); else u.searchParams.set("tab", activeTab);
@@ -208,13 +229,14 @@ export default function Home() {
       if (p.tier && TIERS.some((t) => t.id === p.tier)) setTier(p.tier);
       if (p.style && stylesList.includes(p.style)) setStyle(p.style);
       if (p.aspectRatio && ratiosList.some((r) => r.id === p.aspectRatio)) setAspectRatio(p.aspectRatio);
+      if (p.format && FORMATS[p.format]) setFormat(p.format);
     } catch {}
     setPrefsLoaded(true);
   }, []);
   useEffect(() => {
     if (!prefsLoaded) return;
-    try { localStorage.setItem("pp_prefs", JSON.stringify({ tier, style, aspectRatio })); } catch {}
-  }, [tier, style, aspectRatio, prefsLoaded]);
+    try { localStorage.setItem("pp_prefs", JSON.stringify({ tier, style, aspectRatio, format })); } catch {}
+  }, [tier, style, aspectRatio, format, prefsLoaded]);
 
   const VARIATION_TWISTS = ["alternate composition", "different camera angle", "shifted color palette", "new lighting mood", "closer framing", "wider framing"];
   const handleAgain = (item) => {
@@ -241,6 +263,7 @@ export default function Home() {
     if (item.style && stylesList.includes(item.style)) setStyle(item.style);
     if (item.aspectRatio && ratiosList.some((r) => r.id === item.aspectRatio)) setAspectRatio(item.aspectRatio);
     if (item.tier && TIERS.some((t) => t.id === item.tier)) setTier(item.tier);
+    setFormat(item.format && FORMATS[item.format] ? item.format : "free");
     setRemixOf(item.id || null);
     setActiveTab("create");
     showToast("✦ Vibe loaded — tweak it and Pulse");
@@ -334,7 +357,7 @@ export default function Home() {
     }
     try { await navigator.clipboard.writeText(url); showToast("↗ Link copied"); } catch { window.prompt("Copy link:", url); }
   };
-  const handleTool = async (tool, item) => {
+  const handleTool = async (tool, item, opts = {}) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
     if (toolBusy) return;
     if (tool === "sharpen" && !isAdmin && credits < 1) { setError("Sharpen costs 1 credit — you're out for today."); return; }
@@ -345,11 +368,11 @@ export default function Home() {
       const d = await res.json();
       if (d.admin) setIsAdmin(true); else if (typeof d.credits === "number") setCredits(d.credits);
       if (!res.ok || !d.item) throw new Error(d.error || "Failed.");
-      const ni = toItem(d.item);
+      const ni = { ...toItem(d.item), ...(opts.format ? { format: opts.format } : item.format ? { format: item.format } : {}) };
       setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
       setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
       window.scrollTo({ top: 0, behavior: "smooth" });
-      showToast(tool === "sharpen" ? "◇ Sharpened 2x" : "✂ Background removed");
+      showToast(opts.format === "sticker" ? "✂ Sticker ready — transparent PNG" : tool === "sharpen" ? "◇ Sharpened 2x" : "✂ Background removed");
     } catch (e) { setError(e.message); }
     finally { setToolBusy(""); }
   };
@@ -361,6 +384,8 @@ export default function Home() {
     const tier = ov.tier ?? tierState;
     const remixOf = ov.remixOf !== undefined ? ov.remixOf : remixState;
     const useGuide = ov.guide !== undefined ? ov.guide : guide;
+    const fmt = ov.format ?? format;
+    const isDaily = ov.daily ?? dailyJoin;
     const tierCost = useGuide ? GUIDED_COST : (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
     if (!prompt.trim()) {
       setError("Please enter a prompt to generate an image.");
@@ -387,7 +412,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, style, aspectRatio, remixOf, tier, ...(useGuide ? { guideId: useGuide.id, guideFollow: guideFollow / 100 } : {}) }),
+        body: JSON.stringify({ prompt, style, aspectRatio, remixOf, tier, format: fmt, ...(isDaily ? { daily: true } : {}), ...(useGuide ? { guideId: useGuide.id, guideFollow: guideFollow / 100 } : {}) }),
       });
 
       const data = await res.json();
@@ -410,10 +435,14 @@ export default function Home() {
         likes: 0,
         isPublic: false,
         remixOf: useGuide ? useGuide.id : remixOf,
+        format: fmt !== "free" ? fmt : null,
+        dailyDay: data.daily || null,
         persistError: data.stored ? null : (data.persistError || "unknown error"),
       };
       setCurrentItem(newItem);
       setRemixOf(null);
+      if (data.daily) { setDailyJoin(false); showToast("◉ Daily entry made — Publish it to join the Pulse"); }
+      if (fmt === "sticker" && data.id) setTimeout(() => handleTool("cutout", newItem, { format: "sticker" }), 50);
       if (data.stored) {
         setHistory((prev) => [newItem, ...prev.filter((h) => h.id !== newItem.id)].slice(0, 24));
       } else {
@@ -483,7 +512,12 @@ export default function Home() {
       setHistory((prev) => prev.map(mark));
       setCurrentItem((c) => (c && c.id === item.id ? { ...c, isPublic: true } : c));
       loadFeed();
-      showToast("🚀 Published to the Community Feed");
+      if (d.daily) {
+        setStreak(d.daily.streak || 0);
+        if (typeof d.daily.credits === "number") setCredits(d.daily.credits);
+        showToast(`◉ You're in today's Pulse · 🔥${d.daily.streak}${d.daily.bonus ? ` · +${d.daily.bonus}⚡` : ""}`);
+        loadDaily();
+      } else showToast("🚀 Published to the Community Feed");
       return true;
     } catch (e) {
       alert(e.message);
@@ -539,7 +573,7 @@ export default function Home() {
       guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => useAsGuide(item), disabled: !item.id, hint: "3⚡ · new image from it" },
       sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "Sharpen 2x", onClick: () => handleTool("sharpen", item), disabled: !!toolBusy || !item.id, hint: "1⚡" },
       cutout: { key: "cutout", icon: busyTool("cutout") ? "…" : "✂", label: "Cutout", onClick: () => handleTool("cutout", item), disabled: !!toolBusy || !item.id, hint: "Free · remove background" },
-      download: { key: "dl", icon: "⤓", label: "Download", onClick: () => downloadImage(item.url) },
+      download: { key: "dl", icon: "⤓", label: "Download", onClick: () => downloadImage(item.url, fileName(item)) },
       share: { key: "share", icon: "↗", label: "Share", onClick: () => handleShare(ctx === "feed" ? { ...item, isPublic: true } : item) },
       card: { key: "card", icon: "▢", label: "Open Pulse Card", onClick: () => { window.location.href = `/p/${item.id}`; } },
       publish: { key: "pub", icon: item.isPublic ? "✓" : "◉", label: item.isPublic ? "Live" : "Publish", tone: item.isPublic ? "on" : "accent", onClick: () => handlePublishToCommunity(item), disabled: !item.id },
@@ -567,7 +601,18 @@ export default function Home() {
     { icon: "🏙️", text: "Rainy neon street market at night, reflections, cinematic" },
     { icon: "🍰", text: "Isometric miniature bakery made of candy, soft pastel colors" },
   ];
-  const settingsSummary = `${curTier.icon} ${curTier.label} · ${style === "None" ? "No style" : style} · ${aspectRatio}`;
+  const settingsSummary = `${curTier.icon} ${curTier.label} · ${style === "None" ? "No style" : style}${fmtDef.ratio ? "" : ` · ${aspectRatio}`}`;
+  useEffect(() => { if (activeTab !== "community") return; setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, [activeTab]);
+  const pulseIn = (() => { const m = Math.max(0, Math.round(((daily?.nextAt || 0) - now) / 60000)); return `${Math.floor(m / 60)}h ${m % 60}m`; })();
+  const joinPulse = () => {
+    if (!daily?.theme) return;
+    selectFormat(daily.theme.format, true);
+    setPrompt(daily.theme.text.replace(/"/g, "").trim() === daily.theme.text ? `${daily.theme.text}, ` : `${daily.theme.text}, `);
+    setRemixOf(null); setGuide(null); setDailyJoin(true); setActiveTab("create"); setImage(null); setCurrentItem(null);
+    showToast(`◉ Daily Pulse loaded · ${FORMATS[daily.theme.format].label}`);
+    setTimeout(() => { const el = document.getElementById("pp-prompt"); el?.focus(); el?.setSelectionRange?.(el.value.length, el.value.length); }, 60);
+  };
+  const stageFmt = image ? (currentItem?.format || null) : (format !== "free" ? format : null);
 
   return (
     <div dir="ltr" className="pp-root">
@@ -592,7 +637,8 @@ export default function Home() {
       <div className="pp-layout">
       {activeTab === "create" ? (
         <main className="pp-main">
-          <section className={`pp-stage${loading ? " pp-generating" : ""}`} style={{ aspectRatio: image ? "auto" : aspectRatio.replace(":", " / ") }}>
+          <section className={`pp-stage${loading ? " pp-generating" : ""}${stageFmt ? ` pp-fmt-${stageFmt}` : ""}`} style={{ aspectRatio: image && stageFmt !== "avatar" ? "auto" : (stageFmt === "avatar" ? "1 / 1" : aspectRatio.replace(":", " / ")) }}>
+            {stageFmt === "wallpaper" && <div className="pp-lock" aria-hidden="true"><small>Thursday</small><b>09:41</b></div>}
             {loading ? (
               <div className="pp-ripple"><i /><i /><i /><b>{loadingText}</b></div>
             ) : image ? (
@@ -657,6 +703,43 @@ export default function Home() {
           }} />
       ) : (
         <main className="pp-main">
+          {daily?.theme && (
+            <section className="pp-daily">
+              <div className="pp-dailyring" aria-hidden="true"><i /><i /><i /></div>
+              <small className="pp-dk">◉ DAILY PULSE · {daily.day}</small>
+              <h2>Today’s {FORMATS[daily.theme.format].label.toLowerCase()}: <span>{daily.theme.text}</span></h2>
+              <div className="pp-dailymeta"><span>next pulse in {pulseIn}</span>{streak > 0 && <span>🔥{streak}</span>}<span>{daily.entries?.length || 0} entries</span></div>
+              <button className="pp-join" onClick={joinPulse}>✦ Join the Pulse <em>+2⚡ bonus</em></button>
+            </section>
+          )}
+          {daily?.winner && (
+            <section className="pp-winner">
+              <a href={`/p/${daily.winner.id}`}><img src={daily.winner.public_url} alt={daily.winner.prompt} /></a>
+              <div>
+                <small>👑 Yesterday’s winner · “{daily.winner.theme}”</small>
+                <p>“{daily.winner.prompt}”</p>
+                <span className="pp-meta">♥ {daily.winner.likes || 0} · ⛓ {daily.winner.chain} in the chain</span>
+                <button className="pp-chip on" onClick={() => handlePulseVibe(toItem({ ...daily.winner, is_public: true }))}>✦ Pulse this vibe</button>
+              </div>
+            </section>
+          )}
+          <div className="pp-seg">
+            <button className={feedView === "latest" ? "on" : ""} onClick={() => setFeedView("latest")}>Latest</button>
+            <button className={feedView === "daily" ? "on" : ""} onClick={() => setFeedView("daily")}>◉ Today’s top</button>
+          </div>
+          {feedView === "daily" ? (
+            <>
+              {(!daily?.entries || daily.entries.length === 0) && <p className="pp-muted">{daily?.migrated === false ? "Daily entries open very soon — create one now and it will count once entries are live." : "No entries yet. Be the first to join today’s Pulse!"}</p>}
+              <div className="pp-grid pp-feed">
+                {(daily?.entries || []).map((r0, idx) => { const item = toItem(r0); return (
+                  <div className="pp-card" key={item.id}>
+                    <a href={`/p/${item.id}`}><span className="pp-rank">{idx === 0 ? "👑" : `#${idx + 1}`}</span><img src={item.url} alt={item.prompt} /></a>
+                    <div className="pp-cardbody"><p>“{item.prompt}”</p><Actions item={item} ctx="feed" compact /></div>
+                  </div>
+                ); })}
+              </div>
+            </>
+          ) : (<>
           <div className="pp-sechead"><h2>Pulse Feed</h2></div>
           {communityFeed.length === 0 && !feedLoading && <p className="pp-muted">{storageEnabled ? "No public creations yet. Be the first to publish!" : "The community feed is coming soon."}</p>}
           <div className="pp-grid pp-feed">
@@ -672,6 +755,7 @@ export default function Home() {
             ))}
           </div>
           {feedCursor && <button className="pp-more" onClick={() => loadFeed(feedCursor)} disabled={feedLoading}>{feedLoading ? "Loading..." : "Load more"}</button>}
+          </>)}
         </main>
       )}
 
@@ -711,11 +795,13 @@ export default function Home() {
               {uploading ? "…" : "⇪"} <span>Upload</span>
               <input type="file" accept="image/*,.heic,.heif" hidden disabled={uploading} onChange={(e) => { handleUploadFile(e.target.files?.[0]); e.target.value = ""; }} />
             </label>
+            <button className={`pp-chip pp-fmtchip${format !== "free" ? " on" : ""}`} onClick={() => setSheetOpen(true)} aria-label="Format">{fmtDef.icon} <span>{fmtDef.label}</span></button>
             <button className="pp-chip pp-summary" onClick={() => setSheetOpen(true)} aria-label="Engine, style and shape">
               <span>{settingsSummary}</span><i>▾</i>
             </button>
             <button className="pp-chip pp-ghost pp-icon" onClick={handleSurpriseMe} title="Surprise me" aria-label="Surprise me">🎲</button>
           </div>
+          {dailyJoin && daily?.theme && <div className="pp-remixnote pp-dailynote">◉ Daily Pulse · {FORMATS[daily.theme.format].label}: “{daily.theme.text}” <button className="pp-link" onClick={() => setDailyJoin(false)}>leave</button></div>}
           {remixOf && <div className="pp-remixnote">✦ Remixing a vibe <button className="pp-link" onClick={() => setRemixOf(null)}>clear</button></div>}
           <div className="pp-inputrow">
             <div className="pp-field">
@@ -737,6 +823,15 @@ export default function Home() {
         <div className="pp-scrim" onClick={() => setSheetOpen(false)}>
           <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="pp-grab" />
+            <h3>Format</h3>
+            <div className="pp-fmts">
+              {FORMAT_LIST.map((f) => (
+                <button key={f.id} className={`pp-fmt${format === f.id ? " on" : ""}`} onClick={() => selectFormat(f.id, true)}>
+                  <i className={`pp-fmtshape pp-fs-${f.id}`}>{f.icon}</i><b>{f.label}</b><small>{f.blurb}</small>
+                </button>
+              ))}
+            </div>
+            {format !== "free" && <p className="pp-sheetnote">{fmtDef.ratio} frame · recommended engine set{format === "sticker" ? " · auto Cutout is free" : ""} · <a className="pp-link" href={`/formats/${format}`}>About {fmtDef.label}</a></p>}
             <h3>Engine</h3>
             <div className="pp-chips">
               {TIERS.map((t) => (
@@ -752,7 +847,7 @@ export default function Home() {
             <h3>Shape</h3>
             <div className="pp-chips">
               {ratiosList.map((r) => (
-                <button key={r.id} className={`pp-chip pp-big${aspectRatio === r.id ? " on" : ""}`} onClick={() => setAspectRatio(r.id)}>
+                <button key={r.id} disabled={!!fmtDef.ratio && fmtDef.ratio !== r.id} className={`pp-chip pp-big${aspectRatio === r.id ? " on" : ""}`} onClick={() => setAspectRatio(r.id)}>
                   <i className="pp-ar" style={{ width: ratioBox(r.id)[0] * 1.4, height: ratioBox(r.id)[1] * 1.4 }} /><small>{r.label}</small>
                 </button>
               ))}
@@ -779,6 +874,7 @@ export default function Home() {
               </>}
               <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 10) * 100)}%` }} /></div>
             </div>
+            <div className="pp-streak"><b>🔥{streak}</b><span>{streak ? `day${streak === 1 ? "" : "s"} Daily Pulse streak` : "Join today's Daily Pulse to start a streak"}</span><button className="pp-chip" onClick={() => { setMenuOpen(false); setActiveTab("community"); }}>◉ Daily</button></div>
             <nav className="pp-menulist">
               <button onClick={() => { setMenuOpen(false); setActiveTab("me"); }}><b>▦</b>My Pulses</button>
               <button onClick={() => { setMenuOpen(false); setSheetOpen(true); }}><b>⚙</b>Settings<small>Default engine, style & shape</small></button>
@@ -964,6 +1060,44 @@ body{margin:0;background:var(--bg)}
 .pp-moditem{display:flex;align-items:center;gap:10px;font-size:12px;color:#cfcde0}
 .pp-moditem img{width:44px;height:44px;border-radius:12px;object-fit:cover}
 .pp-moditem span{flex:1}
+.pp-fmtchip{flex:0 0 auto}.pp-fmtchip.on{border-color:rgba(236,72,153,.7);color:#fff;background:rgba(236,72,153,.14)}
+.pp-fmts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pp-fmt{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-radius:20px;border:1px solid var(--line);background:#12121c;color:var(--txt);font-family:inherit;cursor:pointer;text-align:center}
+.pp-fmt b{font-size:13px}.pp-fmt small{font-size:10.5px;color:var(--mut);line-height:1.3}
+.pp-fmt.on{border-color:var(--p);background:linear-gradient(180deg,rgba(147,51,234,.22),rgba(236,72,153,.1));box-shadow:0 0 0 1px rgba(236,72,153,.4)}
+.pp-fmtshape{display:grid;place-items:center;font-style:normal;font-size:13px;width:26px;height:26px;border:2px solid #4a4a66;border-radius:8px;color:#f0abfc}
+.pp-fs-wallpaper,.pp-fs-story,.pp-fs-poster{width:18px;height:30px;border-radius:6px}.pp-fs-avatar{border-radius:50%}.pp-fs-sticker{border-style:dashed}
+.pp-fmt.on .pp-fmtshape{border-color:var(--p)}
+.pp-chip:disabled{opacity:.35}
+.pp-stage.pp-fmt-wallpaper{max-width:280px;margin-left:auto;margin-right:auto;border:9px solid #1a1a26;border-radius:42px;box-shadow:0 0 0 1px #33334a,0 18px 50px rgba(147,51,234,.25);position:relative}
+.pp-stage.pp-fmt-wallpaper::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:70px;height:20px;border-radius:99px;background:#050507;z-index:3}
+.pp-lock{position:absolute;top:34px;left:0;right:0;text-align:center;z-index:2;pointer-events:none;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.5)}
+.pp-lock small{display:block;font-size:12px;opacity:.85}.pp-lock b{font-size:46px;font-weight:300;letter-spacing:-.02em}
+.pp-stage.pp-fmt-avatar{max-width:300px;margin-left:auto;margin-right:auto;border-radius:50%;box-shadow:0 0 0 3px rgba(236,72,153,.55),0 0 0 10px rgba(147,51,234,.14)}
+.pp-stage.pp-fmt-avatar img{width:100%;height:100%;object-fit:cover;max-height:none}
+.pp-stage.pp-fmt-sticker{background:repeating-conic-gradient(#191926 0 25%,#12121c 0 50%) 0 0/22px 22px}
+.pp-stage.pp-fmt-story,.pp-stage.pp-fmt-poster{max-width:320px;margin-left:auto;margin-right:auto}
+.pp-dailynote{border-color:rgba(236,72,153,.5)!important;color:#f9a8d4}
+.pp-daily{position:relative;overflow:hidden;padding:18px 16px 16px;border-radius:28px;background:radial-gradient(420px 220px at 100% 0,rgba(236,72,153,.28),transparent),linear-gradient(160deg,#1a1030,#0f0f19);border:1px solid rgba(168,85,247,.35);margin-bottom:12px}
+.pp-daily h2{font-size:21px;line-height:1.25;margin:6px 0 10px;max-width:85%}.pp-daily h2 span{background:linear-gradient(90deg,#f0abfc,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.pp-dk{font-size:11px;letter-spacing:.12em;color:#c4b5fd;font-weight:700}
+.pp-dailymeta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}.pp-dailymeta span{padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.06);font-size:12px;color:#d8d6ea}
+.pp-join{width:100%;padding:13px;border-radius:999px;border:none;background:linear-gradient(90deg,#9333ea,#ec4899);color:#fff;font-weight:800;font-size:15px;font-family:inherit;cursor:pointer;box-shadow:0 8px 24px rgba(236,72,153,.35)}
+.pp-join em{font-style:normal;font-size:12px;opacity:.85;margin-left:6px}
+.pp-dailyring{position:absolute;right:-30px;top:-30px;width:130px;height:130px;pointer-events:none}
+.pp-dailyring i{position:absolute;inset:0;border-radius:50%;border:2px solid rgba(236,72,153,.45);animation:ppDailyRing 3.6s ease-out infinite}
+.pp-dailyring i:nth-child(2){animation-delay:1.2s}.pp-dailyring i:nth-child(3){animation-delay:2.4s}
+@keyframes ppDailyRing{0%{transform:scale(.3);opacity:.9}100%{transform:scale(1.4);opacity:0}}
+.pp-winner{display:flex;gap:12px;align-items:center;padding:10px;border-radius:24px;background:#12121c;border:1px solid rgba(250,204,21,.4);margin-bottom:12px}
+.pp-winner img{width:88px;height:88px;border-radius:18px;object-fit:cover;display:block;box-shadow:0 0 0 2px rgba(250,204,21,.6)}
+.pp-winner div{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.pp-winner small{color:#fde68a;font-weight:700;font-size:12px}.pp-winner p{margin:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.pp-seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:#12121c;border:1px solid var(--line);margin:4px 0 12px}
+.pp-seg button{flex:1;padding:9px;border:none;border-radius:999px;background:none;color:var(--mut);font-weight:700;font-family:inherit;font-size:13px;cursor:pointer}
+.pp-seg button.on{background:linear-gradient(90deg,rgba(147,51,234,.5),rgba(236,72,153,.4));color:#fff}
+.pp-card a{position:relative;display:block}.pp-rank{position:absolute;top:8px;left:8px;z-index:2;padding:3px 9px;border-radius:999px;background:rgba(7,7,10,.75);font-size:12px;font-weight:800}
+.pp-streak{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:20px;background:#12121c;border:1px solid rgba(236,72,153,.3);margin:10px 0}
+.pp-streak b{font-size:20px}.pp-streak span{flex:1;font-size:12px;color:#cfcde0}
 .pp-legal{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
 .pp-legal a{color:var(--mut)}
 .pp-card .ia-row{max-width:none}

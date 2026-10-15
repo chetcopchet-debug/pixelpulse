@@ -2,6 +2,9 @@ import { notFound } from 'next/navigation';
 import { getSupabase } from '../../../lib/supabase';
 import { isUuid } from '../../../lib/identity';
 import CardActions from './CardActions';
+import { FORMATS } from '../../../lib/formats';
+import { topEntries } from '../../../lib/daily';
+import { dayKey } from '../../../lib/dailyThemes';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -19,6 +22,8 @@ async function getImage(id) {
   if (data) {
     const { data: h, error: he } = await supabase.from('images').select('hidden').eq('id', id).maybeSingle();
     if (!he && h?.hidden) return null;
+    const { data: x, error: xe } = await supabase.from('images').select('format, daily_day, daily_theme').eq('id', id).maybeSingle();
+    if (!xe && x) Object.assign(data, x);
   }
   return data;
 }
@@ -42,23 +47,29 @@ export default async function PulseCard({ params }) {
   const img = await getImage(params.id);
   if (!img) notFound();
   const ratio = (img.aspect_ratio || '1:1').replace(':', ' / ');
+  let winner = false;
+  if (img.daily_day && img.daily_day < dayKey()) { const t = await topEntries(img.daily_day, 1); winner = t.items[0]?.id === img.id; }
+  const fmt = img.format && FORMATS[img.format];
   return (
     <div className="pc-root">
       <style>{CSS}</style>
       <a href="/" className="pc-brand"><span className="pc-logo"><i /></span><b>PixelPulse</b></a>
       <main className="pc-main">
-        <div className="pc-frame" style={{ aspectRatio: ratio }}>
+        {winner && <div className="pc-crown">👑 Daily Pulse winner · {img.daily_day}{img.daily_theme ? ` · “${img.daily_theme}”` : ''}</div>}
+        <div className={`pc-frame${img.format === 'avatar' ? ' pc-round' : ''}`} style={{ aspectRatio: ratio }}>
           <img src={img.public_url} alt={img.prompt} />
         </div>
         <p className="pc-prompt">“{img.prompt}”</p>
         <div className="pc-meta">
           {img.model && TIER_LABEL[img.model] && <span>{TIER_LABEL[img.model]}</span>}
+          {fmt && fmt.id !== 'free' && <a href={`/formats/${fmt.id}`}>{fmt.icon} {fmt.label}</a>}
+          {img.daily_day && !winner && <span>◉ Daily Pulse {img.daily_day}</span>}
           {img.style && <span>{img.style}</span>}
           <span>{img.aspect_ratio || '1:1'}</span>
           <span>♥ {img.likes || 0}</span>
           {img.remix_of && <a href={`/p/${img.remix_of}`}>↺ Remix of</a>}
         </div>
-        <CardActions id={img.id} prompt={img.prompt} style={img.style} ratio={img.aspect_ratio} tier={img.model} url={img.public_url} />
+        <CardActions format={img.format} id={img.id} prompt={img.prompt} style={img.style} ratio={img.aspect_ratio} tier={img.model} url={img.public_url} />
       </main>
     </div>
   );
@@ -76,6 +87,9 @@ body{margin:0;background:#07070a}
 .pc-main{max-width:620px;margin:0 auto}
 .pc-frame{width:100%;max-height:78vh;border-radius:28px;overflow:hidden;background:#101018;border:1px solid #1f1f2e;box-shadow:0 0 0 1px rgba(168,85,247,.25),0 20px 60px rgba(147,51,234,.25)}
 .pc-frame img{width:100%;height:100%;object-fit:contain;display:block;animation:pcReveal .7s ease}
+.pc-crown{display:inline-flex;margin:0 0 10px;padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,rgba(250,204,21,.18),rgba(236,72,153,.18));border:1px solid rgba(250,204,21,.55);color:#fde68a;font-size:13px;font-weight:700}
+.pc-round{max-width:420px;margin:0 auto;border-radius:50%;box-shadow:0 0 0 3px rgba(236,72,153,.6),0 20px 60px rgba(147,51,234,.3)}
+.pc-round img{object-fit:cover}
 .pc-prompt{font-size:15px;line-height:1.5;margin:16px 4px 10px}
 .pc-meta{display:flex;flex-wrap:wrap;gap:6px;margin:0 2px 16px}
 .pc-meta span,.pc-meta a{padding:5px 11px;border-radius:999px;background:#151520;border:1px solid #2a2a40;font-size:12px;color:#cfcde0;text-decoration:none}
