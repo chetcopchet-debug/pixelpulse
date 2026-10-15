@@ -3,7 +3,7 @@ import {
   readCreditsCookie, setCreditsCookie, getClientIp, ipRemaining,
   chargeIp, refundIp, COOKIE_NAME,
 } from '../../../lib/credits';
-import { persistImage, runPrediction, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RATIOS } from '../../../lib/generation';
+import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RATIOS } from '../../../lib/generation';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
 import { isAdmin } from '../../../lib/admin';
@@ -103,7 +103,7 @@ export async function POST(request) {
       }
     }
 
-    const finalPrompt = `${englishPrompt}, ${selectedStyle} style, masterpiece, highly detailed, 8k resolution, sharp focus`;
+    const finalPrompt = buildFinalPrompt(englishPrompt, selectedStyle);
     const result = await runPrediction(finalPrompt, selectedRatio, tierDef);
 
     if (result.error) {

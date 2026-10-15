@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import { prepareUpload, uploadRaw } from "./clientImage";
 import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
+import ImageActions, { IA_CSS } from "./ImageActions";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -35,6 +36,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
 
   const stylesList = [
+    "None",
     "Cinematic",
     "Photorealistic",
     "3D Render",
@@ -125,12 +127,14 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     if (["me", "community", "create"].includes(params.get("tab"))) setActiveTab(params.get("tab"));
     if (params.get("vibe")) {
-      const st = params.get("style"), ra = params.get("ratio"), ti = params.get("tier");
+      const st = params.get("style"), ra = params.get("ratio"), ti = params.get("tier"), pr = params.get("p");
+      if (pr) setPrompt(pr.slice(0, 500));
+      if (/^[0-9a-f-]{36}$/i.test(params.get("vibe"))) setRemixOf(params.get("vibe"));
       if (st && stylesList.includes(st)) setStyle(st);
       if (ra && ratiosList.some((r) => r.id === ra)) setAspectRatio(ra);
       if (ti && TIERS.some((t) => t.id === ti)) setTier(ti);
       window.__ppVibe = true;
-      ["vibe", "style", "ratio", "tier"].forEach((k) => params.delete(k));
+      ["vibe", "style", "ratio", "tier", "p"].forEach((k) => params.delete(k));
       const q = params.toString();
       window.history.replaceState(null, "", window.location.pathname + (q ? `?${q}` : ""));
       setTimeout(() => { setToast("✦ Vibe loaded — describe your own idea"); setTimeout(() => setToast(""), 2600); document.getElementById("pp-prompt")?.focus(); }, 300);
@@ -230,12 +234,28 @@ export default function Home() {
     showToast("Prompt loaded into the Pulse Bar");
     setTimeout(() => document.getElementById("pp-prompt")?.focus(), 50);
   };
+  // Primary vibe action: load prompt + style + engine + shape, linked as a remix.
+  const handlePulseVibe = (item) => {
+    if (!item) return;
+    setPrompt(item.prompt && item.prompt !== "Uploaded image" ? item.prompt : "");
+    if (item.style && stylesList.includes(item.style)) setStyle(item.style);
+    if (item.aspectRatio && ratiosList.some((r) => r.id === item.aspectRatio)) setAspectRatio(item.aspectRatio);
+    if (item.tier && TIERS.some((t) => t.id === item.tier)) setTier(item.tier);
+    setRemixOf(item.id || null);
+    setActiveTab("create");
+    showToast("✦ Vibe loaded — tweak it and Pulse");
+    setTimeout(() => { const el = document.getElementById("pp-prompt"); el?.focus(); el?.setSelectionRange?.(el.value.length, el.value.length); }, 60);
+  };
+  const copyPrompt = async (item) => {
+    try { await navigator.clipboard.writeText(item.prompt || ""); showToast("✎ Prompt copied"); } catch { window.prompt("Copy prompt:", item.prompt || ""); }
+  };
   const handleStealVibe = (item) => {
     if (item.style && stylesList.includes(item.style)) setStyle(item.style);
     if (item.aspectRatio && ratiosList.some((r) => r.id === item.aspectRatio)) setAspectRatio(item.aspectRatio);
     if (item.tier && TIERS.some((t) => t.id === item.tier)) setTier(item.tier);
     const short = (item.prompt || "").slice(0, 28) + ((item.prompt || "").length > 28 ? "…" : "");
-    showToast(`Vibe loaded from “${short}”`);
+    setActiveTab("create");
+    showToast(`Style loaded from “${short}”`);
   };
 
   const [repaintItem, setRepaintItem] = useState(null);
@@ -465,17 +485,6 @@ export default function Home() {
     }
   };
 
-  const handleRemix = (item) => {
-    setPrompt(item.prompt);
-    setStyle(item.style || "Cinematic");
-    setAspectRatio(item.aspectRatio || "1:1");
-    if (item.tier) setTier(item.tier);
-    setRemixOf(item.id || null);
-    setActiveTab("create");
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-
   const curTier = TIERS.find((t) => t.id === tier) || TIERS[0];
   const curRatio = ratiosList.find((r) => r.id === aspectRatio) || ratiosList[0];
   const ratioBox = (id) => ({ "1:1": [16, 16], "9:16": [11, 18], "16:9": [20, 12] }[id] || [16, 16]);
@@ -493,40 +502,65 @@ export default function Home() {
 
   const recentList = (() => { const seen = new Set(); return history.filter((h) => !h.id || (!seen.has(h.id) && seen.add(h.id))).slice(0, 8); })();
 
-  const Actions = ({ item, compact }) => (
-    <div className={`pp-actions${compact ? " pp-compact" : ""}`}>
-      {item.tier !== "upload" && <>
-      <button className="pp-cap" onClick={() => handleAgain(item)} disabled={loading} title="Again">↻<span>Again</span></button>
-      <button className="pp-cap" onClick={() => handleVariation(item)} disabled={loading} title="Variation">≈<span>Variation</span></button>
-      <button className="pp-cap" onClick={() => handleUsePrompt(item)} title="Use prompt">✎<span>Use prompt</span></button>
-      </>}
-      <button className={`pp-cap${item.tier === "upload" ? " pp-vibe" : ""}`} onClick={() => useAsGuide(item)} disabled={!item.id} title="Use as guide">◎<span>Use as guide</span></button>
-      <button className="pp-cap" onClick={() => downloadImage(item.url)} title="Download">⤓<span>Download</span></button>
-      <button className="pp-cap" onClick={() => handleTool("sharpen", item)} disabled={!!toolBusy || !item.id} title="Sharpen 2x (1 credit)">{toolBusy === `sharpen:${item.id}` ? "…" : "◇"}<span>Sharpen</span></button>
-      <button className="pp-cap" onClick={() => openRepaint(item)} disabled={!!toolBusy || !item.id} title="Repaint an area (2 credits)">◐<span>Repaint</span></button>
-      <button className="pp-cap" onClick={() => handleTool("cutout", item)} disabled={!!toolBusy || !item.id} title="Remove background (free)">{toolBusy === `cutout:${item.id}` ? "…" : "✂"}<span>Cutout</span></button>
-      {item.isPublic && <button className="pp-cap" onClick={() => handleShare(item)} title="Share">↗<span>Share</span></button>}
-      {item.tier !== "upload" && <button className={`pp-cap${item.isPublic ? " pp-on" : " pp-accent"}`} onClick={() => handlePublishToCommunity(item)} title="Publish">{item.isPublic ? "✓" : "◉"}<span>{item.isPublic ? "Live" : "Publish"}</span></button>}
-    </div>
-  );
+  // Consistent actions: 3 primary + ⋯ sheet. ctx: "own" (Studio/history) | "feed"
+  const buildActions = (item, ctx = "own", extra = []) => {
+    const busyTool = (t) => toolBusy === `${t}:${item.id}`;
+    const isUpload = item.tier === "upload";
+    const A = {
+      variation: { key: "var", icon: "≈", label: "Variation", onClick: () => handleVariation(item), disabled: loading, hint: "New take, same idea" },
+      vibe: { key: "vibe", icon: "✦", label: "Pulse this vibe", onClick: () => handlePulseVibe(item), hint: "Prompt + style into the Pulse Bar", tone: ctx === "feed" ? "accent" : undefined },
+      styleOnly: { key: "style", icon: "◈", label: "Style only", onClick: () => handleStealVibe(item), hint: "Keep your prompt" },
+      again: { key: "again", icon: "↻", label: "Again", onClick: () => handleAgain(item), disabled: loading, hint: "Same prompt, new seed" },
+      copy: { key: "copy", icon: "✎", label: "Copy prompt", onClick: () => copyPrompt(item) },
+      repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "2⚡ · paint an area" },
+      guide: { key: "guide", icon: "◎", label: "Use as guide", onClick: () => useAsGuide(item), disabled: !item.id, hint: "2⚡ · new image from it" },
+      sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "Sharpen 2x", onClick: () => handleTool("sharpen", item), disabled: !!toolBusy || !item.id, hint: "1⚡" },
+      cutout: { key: "cutout", icon: busyTool("cutout") ? "…" : "✂", label: "Cutout", onClick: () => handleTool("cutout", item), disabled: !!toolBusy || !item.id, hint: "Free · remove background" },
+      download: { key: "dl", icon: "⤓", label: "Download", onClick: () => downloadImage(item.url) },
+      share: { key: "share", icon: "↗", label: "Share", onClick: () => handleShare(ctx === "feed" ? { ...item, isPublic: true } : item) },
+      card: { key: "card", icon: "▢", label: "Open Pulse Card", onClick: () => { window.location.href = `/p/${item.id}`; } },
+      publish: { key: "pub", icon: item.isPublic ? "✓" : "◉", label: item.isPublic ? "Live" : "Publish", tone: item.isPublic ? "on" : "accent", onClick: () => handlePublishToCommunity(item), disabled: !item.id },
+      like: { key: "like", icon: item.liked ? "♥" : "♡", label: String(item.likes || 0), tone: item.liked ? "liked" : undefined, onClick: () => handleLike(item), disabled: item.liked },
+    };
+    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.variation, A.styleOnly, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.cutout, A.download, ...extra] };
+    if (isUpload) return { primary: [A.guide, A.repaint, A.download], more: [A.sharpen, A.cutout, ...extra] };
+    return {
+      primary: [A.variation, A.repaint, item.isPublic ? A.share : A.publish],
+      more: [A.again, A.vibe, A.guide, A.sharpen, A.cutout, A.download, A.copy, item.isPublic ? A.card : null, ...extra],
+    };
+  };
+  const Actions = ({ item, ctx = "own", compact, extra }) => { const a = buildActions(item, ctx, extra); return <ImageActions {...a} compact={compact} title={item.prompt} />; };
+
+  // Profile / credits
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { if (!menuOpen) return; const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, [menuOpen]);
+  const resetIn = (() => { const d = new Date(now); const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1); const m = Math.max(0, Math.round((next - now) / 60000)); return `${Math.floor(m / 60)}h ${m % 60}m`; })();
+  const STARTERS = [
+    { icon: "🌌", text: "A lighthouse on a floating island above a sea of clouds at dawn" },
+    { icon: "🐈", text: "Portrait of a fluffy cat wearing a tiny astronaut helmet, studio light" },
+    { icon: "🏙️", text: "Rainy neon street market at night, reflections, cinematic" },
+    { icon: "🍰", text: "Isometric miniature bakery made of candy, soft pastel colors" },
+  ];
+  const settingsSummary = `${curTier.icon} ${curTier.label} · ${style === "None" ? "No style" : style} · ${aspectRatio}`;
 
   return (
     <div dir="ltr" className="pp-root">
-      <style>{CSS + REPAINT_CSS + GALLERY_CSS}</style>
+      <style>{CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS}</style>
       <header className="pp-header">
         <div className="pp-brand">
           <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
-          <div>
-            <h1>PixelPulse</h1>
-            <small>feel the pulse · make the pixel</small>
-          </div>
+          <h1>PixelPulse</h1>
         </div>
-        <div className="pp-credits">{isAdmin ? "∞ Admin" : `${credits} credits`}</div>
+        <button className="pp-profile" onClick={() => setMenuOpen(true)} aria-label="Open menu">
+          <span className="pp-avatar">◉</span>
+          <b>{isAdmin ? "∞" : credits}</b><small>{isAdmin ? "admin" : "⚡"}</small>
+        </button>
       </header>
 
       <nav className="pp-tabs">
         <button className={activeTab === "create" ? "on" : ""} onClick={() => setActiveTab("create")}>Studio</button>
-        <button className={activeTab === "community" ? "on" : ""} onClick={() => setActiveTab("community")}>Pulse Feed <em>{communityFeed.length}</em></button>
+        <button className={activeTab === "community" ? "on" : ""} onClick={() => setActiveTab("community")}>Feed</button>
         <button className={activeTab === "me" ? "on" : ""} onClick={() => setActiveTab("me")}>My Pulses</button>
       </nav>
 
@@ -539,10 +573,33 @@ export default function Home() {
             ) : image ? (
               <img src={image} alt="Generated AI Art" />
             ) : (
-              <div className="pp-empty"><div className="pp-ripple pp-idle"><i /><i /></div><p>Describe it in the Pulse Bar and hit <b>Pulse</b>.</p></div>
+              <div className="pp-empty"><div className="pp-ripple pp-idle"><i /><i /></div><p>Type an idea below and hit <b>Pulse</b>,<br />or start from a spark.</p></div>
             )}
           </section>
           {image && currentItem && !loading && <Actions item={currentItem} />}
+          {!image && !loading && (
+            <section className="pp-start">
+              <div className="pp-starters">
+                {STARTERS.map((st) => (
+                  <button key={st.text} className="pp-starter" onClick={() => { setPrompt(st.text); setRemixOf(null); setTimeout(() => document.getElementById("pp-prompt")?.focus(), 30); }}>
+                    <b>{st.icon}</b><span>{st.text}</span>
+                  </button>
+                ))}
+              </div>
+              {communityFeed.length > 0 && (
+                <>
+                  <div className="pp-sechead"><h2>Pulse a vibe</h2><button className="pp-link" onClick={() => setActiveTab("community")}>Feed →</button></div>
+                  <div className="pp-insp">
+                    {communityFeed.slice(0, 9).map((x) => (
+                      <button key={x.id} onClick={() => handlePulseVibe(x)} aria-label={`Use vibe: ${x.prompt}`}>
+                        <img src={x.url} alt="" loading="lazy" /><span>✦ Pulse this</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
           {notice && <div className="pp-notice">{notice}</div>}
           {error && <div className="pp-error">{error}</div>}
 
@@ -565,7 +622,8 @@ export default function Home() {
         </main>
       ) : activeTab === "me" ? (
         <Gallery toItem={toItem} refreshKey={galleryKey} inspiration={communityFeed} tierLabel={tierLabel} notify={showToast}
-          onStealVibe={(x) => { handleStealVibe(x); setActiveTab("create"); }}
+          onStealVibe={handlePulseVibe}
+          renderActions={(it, extra) => <Actions item={it} extra={extra} />}
           actions={{
             repaint: openRepaint, guide: useAsGuide, sharpen: (it) => handleTool("sharpen", it), cutout: (it) => handleTool("cutout", it),
             again: handleAgain, variation: handleVariation, usePrompt: handleUsePrompt, publish: handlePublishToCommunity, share: handleShare,
@@ -582,18 +640,8 @@ export default function Home() {
                 <a href={`/p/${item.id}`}><img src={item.url} alt={item.prompt} /></a>
                 <div className="pp-cardbody">
                   <p>“{item.prompt}”</p>
-                  <span className="pp-meta">{item.style}{item.tier ? ` · ${tierLabel(item.tier)}` : ""} · {item.aspectRatio || "1:1"}{item.remixOf ? " · Remix" : ""}</span>
-                  <div className="pp-actions pp-compact">
-                    <button className="pp-cap pp-vibe" onClick={() => handleStealVibe(item)}>✦<span>Steal the Vibe</span></button>
-                    <button className={`pp-cap${item.liked ? " pp-liked" : ""}`} onClick={() => handleLike(item)} disabled={item.liked}>{item.liked ? "♥" : "♡"}<span>{item.likes}</span></button>
-                    <button className="pp-cap" onClick={() => handleUsePrompt(item)}>✎<span>Use prompt</span></button>
-                    <button className="pp-cap" onClick={() => handleVariation(item)} disabled={loading}>≈<span>Variation</span></button>
-                    <button className="pp-cap" onClick={() => handleShare({ ...item, isPublic: true })}>↗<span>Share</span></button>
-                    <button className="pp-cap" onClick={() => handleTool("sharpen", item)} disabled={!!toolBusy}>◇<span>Sharpen</span></button>
-                    <button className="pp-cap" onClick={() => openRepaint(item)} disabled={!!toolBusy}>◐<span>Repaint</span></button>
-                    <button className="pp-cap" onClick={() => handleTool("cutout", item)} disabled={!!toolBusy}>✂<span>Cutout</span></button>
-                    <button className="pp-cap" onClick={() => handleDownload(item.url)}>⤓<span>Download</span></button>
-                  </div>
+                  <span className="pp-meta">{[item.style === "None" ? "No style" : item.style, tierLabel(item.tier), item.aspectRatio || "1:1", item.remixOf ? "Remix" : ""].filter(Boolean).join(" · ")}</span>
+                  <Actions item={item} ctx="feed" compact />
                 </div>
               </div>
             ))}
@@ -635,23 +683,24 @@ export default function Home() {
           )}
           <div className="pp-chiprow">
             <label className={`pp-chip pp-upload${uploading ? " pp-generating" : ""}`} title="Upload a photo">
-              {uploading ? "…" : "⇪"} Upload
+              {uploading ? "…" : "⇪"} <span>Upload</span>
               <input type="file" accept="image/*,.heic,.heif" hidden disabled={uploading} onChange={(e) => { handleUploadFile(e.target.files?.[0]); e.target.value = ""; }} />
             </label>
-            <button className="pp-chip" onClick={() => setSheetOpen(true)}>{curTier.icon} {curTier.label}</button>
-            <button className="pp-chip" onClick={() => setSheetOpen(true)}>{style}</button>
-            <button className="pp-chip" onClick={() => setSheetOpen(true)}><i className="pp-ar" style={{ width: ratioBox(aspectRatio)[0], height: ratioBox(aspectRatio)[1] }} />{aspectRatio}</button>
-            <span className="pp-spacer" />
-            <button className="pp-chip pp-ghost" onClick={handleEnhancePrompt} title="Amplify">🪄 Amplify</button>
-            <button className="pp-chip pp-ghost" onClick={handleSurpriseMe} title="Surprise">🎲</button>
+            <button className="pp-chip pp-summary" onClick={() => setSheetOpen(true)} aria-label="Engine, style and shape">
+              <span>{settingsSummary}</span><i>▾</i>
+            </button>
+            <button className="pp-chip pp-ghost pp-icon" onClick={handleSurpriseMe} title="Surprise me" aria-label="Surprise me">🎲</button>
           </div>
+          {remixOf && <div className="pp-remixnote">✦ Remixing a vibe <button className="pp-link" onClick={() => setRemixOf(null)}>clear</button></div>}
           <div className="pp-inputrow">
-            <button className="pp-tune" onClick={() => setSheetOpen(true)} aria-label="Tune">◐</button>
-            <textarea id="pp-prompt" maxLength={500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); generateImage(); } }}
-              placeholder="Describe a vision — any language…" />
+            <div className="pp-field">
+              <textarea id="pp-prompt" maxLength={500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); generateImage(); } }}
+                placeholder="Describe a vision — any language…" />
+              <button className={`pp-amp-btn${ampOpen ? " on" : ""}`} onClick={handleEnhancePrompt} title="Amplify prompt" aria-label="Amplify prompt">✦</button>
+            </div>
             <button className="pp-go" onClick={() => generateImage()} disabled={loading}>
-              <span className="pp-go-label">{loading ? "…" : "Pulse"}</span>
+              <span className="pp-go-label">{loading ? <i className="pp-spin" /> : "Pulse"}</span>
               <span className="pp-cost">{isAdmin ? "∞" : `${guide ? GUIDED_COST : curTier.cost}⚡`}</span>
             </button>
           </div>
@@ -673,7 +722,7 @@ export default function Home() {
             </div>
             <h3>Style</h3>
             <div className="pp-chips">
-              {stylesList.map((s) => <button key={s} className={`pp-chip${style === s ? " on" : ""}`} onClick={() => setStyle(s)}>{s}</button>)}
+              {stylesList.map((s) => <button key={s} className={`pp-chip${style === s ? " on" : ""}`} onClick={() => setStyle(s)}>{s === "None" ? "∅ No style" : s}</button>)}
             </div>
             <h3>Shape</h3>
             <div className="pp-chips">
@@ -683,12 +732,39 @@ export default function Home() {
                 </button>
               ))}
             </div>
+            <p className="pp-sheetnote">Your choices are remembered as defaults on this device.</p>
             <button className="pp-done" onClick={() => setSheetOpen(false)}>Done</button>
           </div>
         </div>
       )}
 
       {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
+      {menuOpen && (
+        <div className="pp-scrim pp-menuscrim" onClick={() => setMenuOpen(false)}>
+          <aside className="pp-menu" onClick={(e) => e.stopPropagation()} aria-label="Menu">
+            <div className="pp-menuhead">
+              <span className="pp-avatar pp-avatar-lg">◉</span>
+              <div><b>Guest pulser</b><small>{isAdmin ? "Admin mode · unlimited" : "Anonymous · saved on this device"}</small></div>
+              <button className="pp-chip pp-ghost pp-icon" onClick={() => setMenuOpen(false)} aria-label="Close">✕</button>
+            </div>
+            <div className="pp-creditcard">
+              {isAdmin ? <><b>∞</b><span>Admin · credits not counted</span></> : <>
+                <b>{credits}<small>/5</small></b>
+                <span>credits left today<br /><em>resets in {resetIn}</em></span>
+              </>}
+              <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 5) * 100)}%` }} /></div>
+            </div>
+            <nav className="pp-menulist">
+              <button onClick={() => { setMenuOpen(false); setActiveTab("me"); }}><b>▦</b>My Pulses</button>
+              <button onClick={() => { setMenuOpen(false); setSheetOpen(true); }}><b>⚙</b>Settings<small>Default engine, style & shape</small></button>
+              <button disabled><b>⇥</b>Sign in<em>Coming soon</em></button>
+              <button disabled><b>⚡</b>Get credits<em>Coming soon</em></button>
+            </nav>
+            <div className="pp-legal"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/content-policy">Content Policy</a></div>
+          </aside>
+        </div>
+      )}
+
       {toast && <div className="pp-toast" key={toast}>{toast}</div>}
     </div>
   );
@@ -790,6 +866,64 @@ body{margin:0;background:var(--bg)}
 .pp-ampwait i{width:7px;height:7px;border-radius:50%;background:var(--p);animation:ppBreathe 1s infinite,ppDot 1s ease-in-out infinite}
 .pp-ampwait i:nth-child(2){animation-delay:.15s}.pp-ampwait i:nth-child(3){animation-delay:.3s}
 @keyframes ppDot{50%{transform:scale(.4);opacity:.4}}
+.pp-header{max-width:1100px;margin:0 auto 12px;display:flex;justify-content:space-between;align-items:center;min-height:48px}
+.pp-brand h1{font-size:22px}
+.pp-profile{display:flex;align-items:center;gap:6px;height:44px;padding:0 12px 0 4px;border-radius:999px;border:1px solid #2a2a40;background:#12121c;color:#e9d5ff}
+.pp-profile b{font-size:15px}.pp-profile small{font-size:11px;color:var(--mut)}
+.pp-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2a1748,#3b1230);color:#f0abfc;font-size:16px;box-shadow:inset 0 0 0 1px rgba(236,72,153,.45)}
+.pp-avatar-lg{width:48px;height:48px;font-size:22px}
+.pp-tabs{gap:4px;padding:4px;border-radius:999px;background:#0e0e16;border:1px solid var(--line);width:fit-content;max-width:100%}
+.pp-tabs button{min-height:40px;padding:0 18px;border:none;font-size:14px}
+.pp-tabs button.on{background:linear-gradient(90deg,var(--v),var(--p));color:#fff;box-shadow:0 0 18px rgba(168,85,247,.4)}
+.pp-start{max-width:560px;margin:16px auto 0}
+.pp-starters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px}
+.pp-starter{display:flex;gap:8px;align-items:flex-start;text-align:left;min-height:64px;padding:10px 12px;border-radius:20px;border:1px solid #2a2a40;background:linear-gradient(160deg,#141420,#101018);color:#cfcde0;font-size:12px;line-height:1.35}
+.pp-starter b{font-size:18px;line-height:1}
+.pp-starter span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pp-starter:active{transform:scale(.97);border-color:rgba(236,72,153,.6)}
+.pp-insp{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pp-insp button{position:relative;padding:0;border:none;border-radius:16px;overflow:hidden;aspect-ratio:1;background:#101018}
+.pp-insp img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.pp-insp button:active img{transform:scale(1.06)}
+.pp-insp span{position:absolute;left:6px;right:6px;bottom:6px;font-size:10.5px;font-weight:700;color:#fff;background:rgba(147,51,234,.78);border-radius:999px;padding:4px 0;backdrop-filter:blur(4px)}
+.pp-chiprow{align-items:center}
+.pp-chip{min-height:36px}
+.pp-summary{flex:1;min-width:0;justify-content:space-between}
+.pp-summary span{overflow:hidden;text-overflow:ellipsis}
+.pp-summary i{font-style:normal;opacity:.6}
+.pp-icon{width:40px;justify-content:center;padding:0}
+.pp-remixnote{font-size:11px;color:#f0abfc;padding:0 6px 6px;display:flex;gap:8px;align-items:center}
+.pp-field{flex:1;display:flex;align-items:flex-end;min-width:0;background:#0b0b12;border:1px solid #23233a;border-radius:22px;padding-right:4px}
+.pp-field textarea{flex:1;min-width:0;padding-left:14px!important}
+.pp-amp-btn{flex:none;width:36px;height:36px;margin:3px 0;border-radius:50%;border:none;background:linear-gradient(135deg,rgba(147,51,234,.35),rgba(236,72,153,.35));color:#fff;font-size:15px}
+.pp-amp-btn.on{background:linear-gradient(135deg,var(--v),var(--p));box-shadow:0 0 14px rgba(236,72,153,.6)}
+.pp-go{height:44px;min-width:96px}
+.pp-spin{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:ppSpin .8s linear infinite}
+@keyframes ppSpin{to{transform:rotate(360deg)}}
+.pp-sheetnote{font-size:11px;color:var(--mut);text-align:center;margin:16px 0 0}
+.pp-menuscrim{align-items:stretch;justify-content:flex-end}
+.pp-menu{width:min(340px,88vw);height:100%;background:#0f0f18;border-left:1px solid #2a2a40;padding:calc(16px + env(safe-area-inset-top)) 16px 20px;display:flex;flex-direction:column;gap:16px;animation:ppSlide .26s cubic-bezier(.2,.9,.3,1.1);overflow:auto}
+@keyframes ppSlide{from{transform:translateX(100%)}}
+.pp-menuhead{display:flex;align-items:center;gap:10px}
+.pp-menuhead div{flex:1;display:flex;flex-direction:column}
+.pp-menuhead small{font-size:11px;color:var(--mut)}
+.pp-creditcard{position:relative;padding:16px;border-radius:22px;background:radial-gradient(260px 120px at 0 0,rgba(147,51,234,.35),transparent),#151522;border:1px solid rgba(168,85,247,.35);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pp-creditcard>b{font-size:34px;line-height:1;background:linear-gradient(90deg,#c084fc,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.pp-creditcard>b small{font-size:14px}
+.pp-creditcard span{font-size:12px;color:#cfcde0}
+.pp-creditcard em{font-style:normal;color:var(--mut)}
+.pp-creditbar{flex-basis:100%;height:6px;border-radius:9px;background:#22223a;overflow:hidden}
+.pp-creditbar i{display:block;height:100%;background:linear-gradient(90deg,var(--v),var(--p));border-radius:9px}
+.pp-menulist{display:flex;flex-direction:column;gap:6px}
+.pp-menulist button{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;border-radius:18px;border:1px solid #23233a;background:#141420;color:var(--txt);font-size:14.5px;font-weight:600;text-align:left;flex-wrap:wrap}
+.pp-menulist button b{width:22px;text-align:center;color:#d8b4fe}
+.pp-menulist small{flex-basis:100%;margin:-10px 0 8px 34px;font-size:11px;color:var(--mut);font-weight:500}
+.pp-menulist em{margin-left:auto;font-style:normal;font-size:10px;padding:3px 8px;border-radius:999px;background:#22223a;color:var(--mut)}
+.pp-menulist button:disabled{opacity:.65}
+.pp-legal{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
+.pp-legal a{color:var(--mut)}
+.pp-card .ia-row{max-width:none}
+.pp-toast{bottom:170px}
 @keyframes ppRipple{0%{transform:scale(.4);opacity:.9}100%{transform:scale(2.2);opacity:0}}
 @keyframes ppRing{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.7);opacity:0}}
 @keyframes ppGlow{50%{box-shadow:0 0 0 1px rgba(236,72,153,.7),0 0 60px rgba(236,72,153,.35)}}
@@ -806,7 +940,7 @@ body{margin:0;background:var(--bg)}
  .pp-bar{border-radius:30px;padding:14px}
  .pp-chiprow{flex-wrap:wrap;overflow:visible}
  .pp-inputrow{flex-wrap:wrap}
- .pp-inputrow textarea{min-height:110px;flex-basis:calc(100% - 50px);background:#0b0b12;border-radius:20px;padding:12px 14px}
+ .pp-field{flex-basis:100%}.pp-inputrow textarea{min-height:110px;padding:12px 14px}
  .pp-go{width:100%;justify-content:center;height:48px}
  .pp-toast{bottom:40px}
  .pp-grid{grid-template-columns:repeat(3,1fr)}

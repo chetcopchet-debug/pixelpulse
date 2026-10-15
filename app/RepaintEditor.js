@@ -116,7 +116,7 @@ export default function RepaintEditor({ item, isAdmin, credits, onClose, onDone 
 }
 
 export const REPAINT_CSS = `
-.rp-scrim{position:fixed;inset:0;z-index:60;background:rgba(5,5,9,.86);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;animation:ppFade .2s}
+.rp-scrim{position:fixed;inset:0;z-index:90;background:rgba(5,5,9,.86);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;animation:ppFade .2s}
 .rp-sheet{width:100%;max-width:640px;max-height:100vh;overflow:auto;background:#11111a;border:1px solid #2a2a40;border-bottom:none;border-radius:28px 28px 0 0;padding:12px 12px calc(14px + env(safe-area-inset-bottom));animation:ppUp .28s cubic-bezier(.2,.9,.3,1.2)}
 .rp-top{display:flex;align-items:center;gap:8px;padding:0 4px 10px}
 .rp-top b{background:linear-gradient(90deg,#c084fc,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:16px}
