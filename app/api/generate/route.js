@@ -2,47 +2,46 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    // 1. קרא את הבקשה מהלקוח (הפרומפט והסגנון)
     const { prompt, style } = await request.json();
 
-    // 2. וודא שיש פרומפט
     if (!prompt || prompt.trim() === "") {
-      return NextResponse.json({ error: 'יש לספק הנחיה (פרומפט) חוקית.' }, { status: 400 });
+      return NextResponse.json({ error: 'יש להזין תיאור לתמונה.' }, { status: 400 });
     }
 
     if (!process.env.REPLICATE_API_TOKEN) {
-      return NextResponse.json({ error: 'חסר מפתח API של Replicate בשרת.' }, { status: 500 });
+      return NextResponse.json({ error: 'חסר מפתח API בשרת.' }, { status: 500 });
     }
 
-    // 3. בניית הפרומפט הסופי - הנה השינוי המרכזי!
-    // במקום רק לצרף את הטקסט, אנחנו בונים תיאור מפורט ל-AI.
-    // אנחנו נותנים לו הוראות ברורות איך לממש את הבקשה שלך.
-    const detailedPrompt = `
-      A detailed, high-resolution portrait of a unique anthropomorphic character:
-      A realistic human-cat hybrid, with features of a green-furred, humanoid-shaped cat (feline head with human facial structure and proportions),
-      dressed in high-detail cinematic attire.
-      The character looks 'cruel' (intense, malevolent gaze, perhaps scarred, powerful build) and is surrounded by a soft, radiant, and magical 'aura' (glowing energy particles, soft light emission).
-      The style must be ${style}. Include realistic textures, dramatic lighting, and depth of field.
-      Original description: ${prompt}
-    `;
+    // 1. תרגום אוטומטי מעברית לאנגלית כדי שמודל ה-AI יבין כל מילה!
+    let englishPrompt = prompt;
+    try {
+      const translateUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(prompt)}`;
+      const transRes = await fetch(translateUrl);
+      const transData = await transRes.json();
+      if (transData && transData[0]) {
+        englishPrompt = transData[0].map(item => item[0]).join('');
+      }
+    } catch (e) {
+      console.error("Translation fallback:", e);
+    }
 
-    // 4. קריאה ל-API של Replicate
-    const response = await fetch("https://api.replicate.com/v1/predictions", {
+    // 2. חיבור הפרומפט המתורגם עם הסגנון האמנותי שנבחר
+    const finalPrompt = `${englishPrompt}, ${style || 'Cinematic'} style, high quality, detailed`;
+
+    // 3. שליחה לכתובת הרשמית והישירה של מודל Flux-Schnell ב-Replicate
+    const response = await fetch("https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.REPLICATE_API_TOKEN}`,
         "Content-Type": "application/json",
+        "Prefer": "wait" // מבקש מהשרת להמתין ולהחזיר את התמונה המוכנה מיד!
       },
       body: JSON.stringify({
-        // נשתמש במודל העדכני והמהיר של Flux.1
-        version: "black-forest-labs/flux-schnell",
         input: {
-          // הנה השינוי: אנחנו שולחים למודל את ה-detailedPrompt שבנינו
-          prompt: detailedPrompt,
+          prompt: finalPrompt,
           aspect_ratio: "1:1",
           output_format: "webp",
-          // אם המודל תומך ב-negative prompt, נוסיף כאן כדי להימנע מנופים
-          // (כרגע נשאיר את זה ככה כדי לא לסבך את הקריאה)
+          output_quality: 90
         }
       })
     });
@@ -50,43 +49,42 @@ export async function POST(request) {
     const prediction = await response.json();
 
     if (!response.ok) {
-      return NextResponse.json({ error: prediction.detail || 'שגיאה בתקשורת עם מנוע ה-AI.' }, { status: 500 });
+      return NextResponse.json({ error: prediction.detail || 'שגיאה מול שרת התמונות.' }, { status: 500 });
     }
 
-    let imageUrl = null;
+    let imageUrl = prediction.output ? prediction.output[0] : null;
     let getUrl = prediction.urls?.get;
 
-    // 5. לולאת המתנה לקבלת התמונה (Polling)
+    // 4. אם התמונה עוד לא מוכנה מיד, נמתין לה בלולאה
     for (let i = 0; i < 20; i++) {
-      if (!getUrl) break;
+      if (imageUrl || !getUrl) break;
+      await new Promise(res => setTimeout(res, 1000));
+      
       const statusRes = await fetch(getUrl, {
         headers: { "Authorization": `Bearer ${process.env.REPLICATE_API_TOKEN}` }
       });
       const statusData = await statusRes.json();
       
       if (statusData.status === "succeeded") {
-        imageUrl = statusData.output[0];
+        imageUrl = Array.isArray(statusData.output) ? statusData.output[0] : statusData.output;
         break;
       } else if (statusData.status === "failed") {
-        break;
+        return NextResponse.json({ error: 'יצירת התמונה נכשלה במודל.' }, { status: 500 });
       }
-      await new Promise(res => setTimeout(res, 1000));
     }
 
     if (!imageUrl) {
-      return NextResponse.json({ error: 'זמן ההמתנה ליצירת התמונה פג. נסה שוב.' }, { status: 500 });
+      return NextResponse.json({ error: 'תם זמן ההמתנה ליצירת התמונה.' }, { status: 500 });
     }
 
-    // 6. החזרת התמונה המוצלחת ללקוח
     return NextResponse.json({ 
       success: true, 
       imageUrl: imageUrl,
-      // נחזיר גם את הפרומפט ששימש ליצירה כדי לוודא שזה תקין
-      promptUsed: detailedPrompt
+      translatedPrompt: finalPrompt 
     });
 
   } catch (error) {
-    console.error('Generation Error:', error);
-    return NextResponse.json({ error: 'שגיאה חמורה בעיבוד השרת. אנא נסה מאוחר יותר.' }, { status: 500 });
+    console.error('Server Error:', error);
+    return NextResponse.json({ error: 'שגיאה פנימית בשרת.' }, { status: 500 });
   }
 }
