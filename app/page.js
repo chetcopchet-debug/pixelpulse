@@ -192,6 +192,8 @@ export default function Home() {
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
     if (["me", "community", "create"].includes(params.get("tab"))) setActiveTab(params.get("tab"));
+    if (params.get("invited") === "1") { params.delete("invited"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : "")); setTimeout(() => { setToast("🎁 You were invited — sign in to get +10⚡"); setTimeout(() => setToast(""), 4000); }, 400); }
+    if (params.get("bonus")) { params.delete("bonus"); setTimeout(() => { setToast("🎁 +10⚡ invite bonus added"); setTimeout(() => setToast(""), 4000); }, 3600); }
     if (params.get("signedin") === "1") { params.delete("signedin"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : "")); setTimeout(() => { setToast("✓ Signed in — your pulses are synced"); setTimeout(() => setToast(""), 3000); }, 300); }
     if (params.get("paid") === "1") {
       params.delete("paid"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : ""));
@@ -715,7 +717,18 @@ export default function Home() {
 
   // Profile / credits
   const [menuOpen, setMenuOpen] = useState(false);
+  // Invite friends: personal link (signed-in accounts), loaded when the menu or pricing opens.
+  const [invite, setInvite] = useState(null); // { enabled, signedIn, link, invites, bonus }
+  const loadInvite = () => fetch("/api/referral", { cache: "no-store" }).then((r) => r.json()).then(setInvite).catch(() => {});
+  const shareInvite = async () => {
+    if (!invite?.signedIn) { setMenuOpen(false); setPricing(null); setAuthOpen({ reason: "Sign in to get your personal invite link — you and each friend get +10⚡." }); return; }
+    if (!invite.link) { showToast("Invites open very soon"); return; }
+    const text = "Make AI images with me on PixelPulse — we both get +10⚡ when you sign in:";
+    if (navigator.share) { try { await navigator.share({ title: "PixelPulse", text, url: invite.link }); return; } catch (e) { if (e?.name === "AbortError") return; } }
+    try { await navigator.clipboard.writeText(invite.link); showToast("🎁 Invite link copied"); } catch { window.prompt("Copy your invite link:", invite.link); }
+  };
   const [now, setNow] = useState(Date.now());
+  useEffect(() => { if (menuOpen || pricing) loadInvite(); /* eslint-disable-next-line */ }, [menuOpen, !!pricing]);
   useEffect(() => { if (!menuOpen) return; const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, [menuOpen]);
   const resetIn = (() => { const d = new Date(now); const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1); const m = Math.max(0, Math.round((next - now) / 60000)); return `${Math.floor(m / 60)}h ${m % 60}m`; })();
   const STARTERS = [
@@ -1013,8 +1026,8 @@ export default function Home() {
         </div>
       )}
 
-      {authOpen && <AuthSheet reason={authOpen.reason} onClose={() => setAuthOpen(null)} onSignedIn={() => { setAuthOpen(null); window.location.replace("/?signedin=1"); }} />}
-      {pricing && <PricingModal signedIn={!!account} onSignIn={() => { setPricing(null); setAuthOpen({ reason: "Sign in first so the credits you buy are safe on every device." }); }} need={pricing.need} credits={credits} paid={paid} resetIn={resetIn} plans={plans} onClose={() => setPricing(null)} />}
+      {authOpen && <AuthSheet reason={authOpen.reason} onClose={() => setAuthOpen(null)} onSignedIn={(d) => { setAuthOpen(null); window.location.replace(d?.referral ? `/?signedin=1&bonus=${d.referral}` : "/?signedin=1"); }} />}
+      {pricing && <PricingModal invite={invite} onInvite={shareInvite} signedIn={!!account} onSignIn={() => { setPricing(null); setAuthOpen({ reason: "Sign in first so the credits you buy are safe on every device." }); }} need={pricing.need} credits={credits} paid={paid} resetIn={resetIn} plans={plans} onClose={() => setPricing(null)} />}
       {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits + paid} onNeedCredits={() => { setRepaintItem(null); openPricing("Repaint", 5); }} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
       {menuOpen && (
         <div className="pp-scrim pp-menuscrim" onClick={() => setMenuOpen(false)}>
@@ -1039,6 +1052,11 @@ export default function Home() {
               </div>}
               {isAdmin && account && <div className="pp-restore"><button className="pp-link" onClick={signOut}>Sign out</button></div>}
             </div>
+            {invite?.enabled !== false && (
+              <button className="pp-invite" onClick={shareInvite}>
+                <b>🎁</b><span>Invite friends<small>{invite?.signedIn ? `You both get +${invite.bonus || 10}⚡${invite.invites ? ` · ${invite.invites} joined` : ""}` : "Sign in to get your link · +10⚡ each"}</small></span><i>{invite?.signedIn ? "Share" : "Sign in"}</i>
+              </button>
+            )}
             <div className="pp-streak"><b>🔥{streak}</b><span>{streak ? `day${streak === 1 ? "" : "s"} Daily Pulse streak` : "Join today's Daily Pulse to start a streak"}</span><button className="pp-chip" onClick={() => { setMenuOpen(false); setActiveTab("community"); }}>◉ Daily</button></div>
             <nav className="pp-menulist">
               <button onClick={() => { setMenuOpen(false); setActiveTab("me"); }}><b>▦</b>My Pulses</button>
@@ -1322,4 +1340,8 @@ body{margin:0;background:var(--bg)}
 .pp-sw-oilpainting{background:repeating-linear-gradient(115deg,rgba(0,0,0,.12) 0 3px,transparent 3px 7px),radial-gradient(circle at 30% 35%,#e9b872,transparent 45%),radial-gradient(circle at 75% 70%,#7c2d12,transparent 50%),linear-gradient(140deg,#a16207,#5b2c0f)}
 .pp-sw-watercolor{background:radial-gradient(circle at 28% 32%,rgba(96,165,250,.75),transparent 34%),radial-gradient(circle at 70% 40%,rgba(244,114,182,.7),transparent 32%),radial-gradient(circle at 48% 74%,rgba(250,204,21,.6),transparent 34%),#f5f1ea}
 .pp-video{max-width:100%;max-height:58vh;display:block;margin:0 auto;background:#000}
+.pp-invite{display:flex;align-items:center;gap:12px;width:100%;margin:10px 0 0;padding:12px 14px;border-radius:20px;border:1px solid rgba(236,72,153,.35);background:linear-gradient(90deg,rgba(147,51,234,.16),rgba(236,72,153,.1));color:var(--txt);text-align:left;cursor:pointer}
+.pp-invite b{font-size:20px}.pp-invite span{flex:1;display:flex;flex-direction:column;font-weight:700;font-size:14px}
+.pp-invite small{font-size:11.5px;color:var(--mut);font-weight:500;margin-top:2px}
+.pp-invite i{font-style:normal;font-size:12px;font-weight:800;padding:6px 12px;border-radius:999px;background:linear-gradient(90deg,var(--v),var(--p));color:#fff}
 `;

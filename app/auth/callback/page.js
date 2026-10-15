@@ -11,7 +11,7 @@ export default function AuthCallback() {
     history.replaceState(null, "", "/auth/callback");
     fetch("/api/auth/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(code ? { code, oauth: true } : { access_token: token }) })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
-      .then(({ ok, d }) => { if (ok) window.location.replace("/?signedin=1"); else setMsg(d.error || "Sign-in failed."); })
+      .then(({ ok, d }) => { if (ok) window.location.replace(d.referral ? `/?signedin=1&bonus=${d.referral}` : "/?signedin=1"); else setMsg(d.error || "Sign-in failed."); })
       .catch(() => setMsg("Sign-in failed. Try again."));
   }, []);
   return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#07070a", color: "#e9e7f5", fontFamily: "system-ui", padding: 24, textAlign: "center" }}><div><p>{msg}</p><a href="/" style={{ color: "#f0abfc" }}>Back to PixelPulse</a></div></main>;
