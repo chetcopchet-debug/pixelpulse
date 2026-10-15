@@ -41,7 +41,13 @@ export default function Home() {
   useEffect(() => {
     try {
       const savedCredits = localStorage.getItem("pp_credits");
-      if (savedCredits !== null) setCredits(parseInt(savedCredits, 10));
+      // אם אין קרדיטים שמורים או שהם על 0, נאפס אותם אוטומטית ל-5 כדי שלא ייחסם בטעות
+      if (savedCredits === null || parseInt(savedCredits, 10) <= 0) {
+        setCredits(5);
+        localStorage.setItem("pp_credits", "5");
+      } else {
+        setCredits(parseInt(savedCredits, 10));
+      }
 
       const savedHistory = localStorage.getItem("pp_history");
       if (savedHistory) setHistory(JSON.parse(savedHistory));
@@ -55,7 +61,6 @@ export default function Home() {
     setPrompt(random);
   };
 
-  // מנוע חכם שמשדרג את הפרומפט לפי תוכן הטקסט הספציפי של המשתמש (ולא סתם טקסט קבוע)
   const handleEnhancePrompt = () => {
     if (!prompt.trim()) {
       setPrompt("A stunning cinematic masterpiece, perfect composition, professional lighting, photorealistic details");
@@ -65,7 +70,6 @@ export default function Home() {
     const currentText = prompt.trim().toLowerCase();
     let enhanced = prompt.trim();
 
-    // התאמה חכמה לפי מילות מפתח שהמשתמש כתב
     if (currentText.includes("car") || currentText.includes("vehicle") || currentText.includes("bike")) {
       enhanced = `${prompt.trim()}, dynamic motion shot, glossy metallic reflections, wet asphalt road, automotive commercial lighting, shot on 35mm lens`;
     } else if (currentText.includes("portrait") || currentText.includes("man") || currentText.includes("woman") || currentText.includes("face") || currentText.includes("person")) {
@@ -75,7 +79,6 @@ export default function Home() {
     } else if (currentText.includes("nature") || currentText.includes("forest") || currentText.includes("mountain") || currentText.includes("animal")) {
       enhanced = `${prompt.trim()}, National Geographic wildlife photography, hyper-realistic textures, natural morning sunlight, breathtaking environment details`;
     } else {
-      // ברירת מחדל חכמה ועשירה שמתאימה לכל נושא
       enhanced = `${prompt.trim()}, highly detailed professional art composition, volumetric lighting, rich textures, award-winning visual depth`;
     }
 
@@ -234,22 +237,43 @@ export default function Home() {
           </div>
         </div>
 
-        <div
-          style={{
-            backgroundColor: "#12121c",
-            border: "1px solid #262638",
-            padding: "6px 14px",
-            borderRadius: "20px",
-            fontSize: "13px",
-            fontWeight: "600",
-            color: "#c084fc",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          <span>⚡</span>
-          <span>{credits} Credits</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div
+            style={{
+              backgroundColor: "#12121c",
+              border: "1px solid #262638",
+              padding: "6px 14px",
+              borderRadius: "20px",
+              fontSize: "13px",
+              fontWeight: "600",
+              color: "#c084fc",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <span>⚡</span>
+            <span>{credits} Credits</span>
+          </div>
+          {/* כפתור איפוס מהיר לקרדיטים אם צריך */}
+          <button
+            onClick={() => {
+              setCredits(5);
+              localStorage.setItem("pp_credits", "5");
+            }}
+            title="Reset Credits"
+            style={{
+              backgroundColor: "#12121c",
+              border: "1px solid #262638",
+              color: "#8e8e9e",
+              padding: "6px 10px",
+              borderRadius: "20px",
+              fontSize: "12px",
+              cursor: "pointer",
+            }}
+          >
+            🔄
+          </button>
         </div>
       </header>
 
@@ -314,7 +338,7 @@ export default function Home() {
           rows="4"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Type what you want to create or pick a surprise idea..."
+          placeholder="Type what you want to create in Hebrew or English..."
           style={{
             width: "100%",
             backgroundColor: "#050508",
