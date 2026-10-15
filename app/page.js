@@ -19,6 +19,8 @@ export default function Home() {
   const [storageEnabled, setStorageEnabled] = useState(true);
   const [feedCursor, setFeedCursor] = useState(null);
   const [feedLoading, setFeedLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const stylesList = [
     "Cinematic",
@@ -68,7 +70,11 @@ export default function Home() {
         return;
       }
       setStorageEnabled(true);
-      if (Array.isArray(d.items)) setHistory(d.items.map(toItem));
+      // Keep images whose cloud save failed (stored only in this browser)
+      let local = [];
+      try { local = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && !h.id); } catch {}
+      if (Array.isArray(d.items)) setHistory([...local, ...d.items.map(toItem)].slice(0, 36));
+      else if (local.length) setHistory(local);
     } catch (e) {
       console.error(e);
     }
@@ -96,10 +102,26 @@ export default function Home() {
       localStorage.removeItem("pp_credits");
       localStorage.removeItem("pp_community");
     } catch {}
-    fetch("/api/credits")
+    const loadCredits = () => fetch("/api/credits")
       .then((r) => r.json())
-      .then((d) => { if (typeof d.credits === "number") setCredits(d.credits); })
+      .then((d) => {
+        if (d.admin) setIsAdmin(true);
+        else if (typeof d.credits === "number") setCredits(d.credits);
+      })
       .catch(() => {});
+    const params = new URLSearchParams(window.location.search);
+    const adminKey = params.get("admin");
+    if (adminKey) {
+      params.delete("admin");
+      const qs = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
+      fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: adminKey }) })
+        .then((r) => { if (!r.ok) setNotice("Admin key rejected."); })
+        .catch(() => {})
+        .finally(loadCredits);
+    } else {
+      loadCredits();
+    }
     loadHistory();
     loadFeed();
   }, []);
@@ -142,7 +164,7 @@ export default function Home() {
       setError("Please enter a prompt to generate an image.");
       return;
     }
-    if (credits <= 0) {
+    if (!isAdmin && credits <= 0) {
       setError("You are out of credits for today. Come back tomorrow!");
       return;
     }
@@ -150,6 +172,7 @@ export default function Home() {
     setLoading(true);
     setError("");
     setImage(null);
+    setNotice("");
 
     const textIntervals = [
       setTimeout(() => setLoadingText("Analyzing prompt context..."), 2000),
@@ -166,7 +189,8 @@ export default function Home() {
       });
 
       const data = await res.json();
-      if (typeof data.credits === "number") setCredits(data.credits);
+      if (data.admin) setIsAdmin(true);
+      else if (typeof data.credits === "number") setCredits(data.credits);
 
       if (!res.ok || data.error) {
         throw new Error(data.error || "Failed to generate image.");
@@ -189,10 +213,13 @@ export default function Home() {
       if (data.stored) {
         setHistory((prev) => [newItem, ...prev.filter((h) => h.id !== newItem.id)].slice(0, 24));
       } else {
-        // Fallback (no Supabase configured): keep local history as before
-        const updatedHistory = [newItem, ...history].slice(0, 12);
-        setHistory(updatedHistory);
-        try { localStorage.setItem("pp_history", JSON.stringify(updatedHistory)); } catch {}
+        // Not stored in the cloud (Supabase missing or save failed): keep it in this browser
+        setHistory((prev) => [newItem, ...prev].slice(0, 36));
+        try {
+          const saved = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && !h.id);
+          localStorage.setItem("pp_history", JSON.stringify([newItem, ...saved].slice(0, 12)));
+        } catch {}
+        if (storageEnabled) setNotice("Cloud save failed. This image is kept only in this browser and can't be published. Download it to keep it.");
       }
     } catch (err) {
       setError(err.message);
@@ -360,7 +387,7 @@ export default function Home() {
             }}
           >
             <span>⚡</span>
-            <span>{credits} Credits</span>
+            <span>{isAdmin ? "∞ Admin" : `${credits} Credits`}</span>
           </div>
         </div>
       </header>
@@ -575,6 +602,11 @@ export default function Home() {
             {loading ? `✨ ${loadingText}` : "Generate Masterpiece (1 Credit)"}
           </button>
 
+          {notice && (
+            <div style={{ marginTop: "12px", padding: "10px 14px", borderRadius: "10px", background: "rgba(234,179,8,0.12)", border: "1px solid rgba(234,179,8,0.4)", color: "#fde68a", fontSize: "13px" }}>
+              {notice}
+            </div>
+          )}
           {error && (
             <div
               style={{
