@@ -7,7 +7,7 @@ import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
 import { isAdmin } from '../../../lib/admin';
-import { MODEL_TIERS, DEFAULT_TIER, guidedTier } from '../../../lib/models';
+import { MODEL_TIERS, DEFAULT_TIER, guidedTier, TEXT_TIERS } from '../../../lib/models';
 import { getSupabase } from '../../../lib/supabase';
 import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
 import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
@@ -96,7 +96,7 @@ export async function POST(request) {
 
   try {
     // Transparent translation: any language -> descriptive English (on-image text kept verbatim in Text mode). Fails open.
-    const englishPrompt = await toEnglishPrompt(prompt.trim(), { keepText: selectedTier === 'text' && storedTier === 'text', admin });
+    const englishPrompt = await toEnglishPrompt(prompt.trim(), { keepText: TEXT_TIERS.includes(selectedTier) && storedTier === selectedTier, admin });
 
     const finalPrompt = buildFinalPrompt(applyFormat(englishPrompt, format), selectedStyle);
     const dailyTheme = daily === true ? await getTheme() : null;

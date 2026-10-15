@@ -9,6 +9,8 @@ import { FORMATS, FORMAT_LIST, FORMAT_GROUPS } from "../lib/formats";
 import Thumb, { THUMB_CSS } from "./Thumb";
 import ImageActions, { IA_CSS } from "./ImageActions";
 import PricingModal from "./PricingModal";
+import ModelPicker, { MP_CSS } from "./ModelPicker";
+import { IMAGE_MODELS, VIDEO_MODELS, isVideoModel } from "../lib/catalog";
 import AuthSheet from "./AuthSheet";
 
 export default function Home() {
@@ -16,13 +18,10 @@ export default function Home() {
   const [style, setStyle] = useState("Cinematic");
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [tier, setTier] = useState("fast");
-  const TIERS = [
-    { id: "fast", label: "Fast", icon: "⚡", cost: 1, desc: "Quick drafts" },
-    { id: "quality", label: "Quality", icon: "💎", cost: 4, desc: "Best detail" },
-    { id: "text", label: "Text", icon: "🔤", cost: 3, desc: "Text in images" },
-  ];
-  const tierCost = (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
-  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; if (id === "edit") return "✎ Edited"; if (id === "animate") return "▶ Video"; if (id === "facelock") return "◉ Face Lock"; const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
+  const TIERS = IMAGE_MODELS; // image models (best-first); video models live in VIDEO_MODELS
+  const ALL_TIERS = [...IMAGE_MODELS, ...VIDEO_MODELS];
+  const tierCost = (TIERS.find((t) => t.id === tier) || TIERS.find((t) => t.id === "fast")).cost;
+  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; if (id === "edit") return "✎ Edited"; if (id === "animate") return "▶ Video"; if (id === "facelock") return "◉ Face Lock"; if (String(id || "").startsWith("video:")) { const v = VIDEO_MODELS.find((x) => `video:${x.id}` === id); return `▶ ${v ? v.label : "Video"}`; } const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
   const safeTier = (id) => (TIERS.some((t) => t.id === id) ? id : "fast");
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -208,7 +207,7 @@ export default function Home() {
       if (/^[0-9a-f-]{36}$/i.test(params.get("vibe"))) setRemixOf(params.get("vibe"));
       if (st && stylesList.includes(st)) setStyle(st);
       if (ra && ratiosList.some((r) => r.id === ra)) setAspectRatio(ra);
-      if (ti && TIERS.some((t) => t.id === ti)) setTier(ti);
+      if (ti && ALL_TIERS.some((t) => t.id === ti)) setTier(ti);
       window.__ppVibe = true;
       if (FORMATS[params.get("format")]) setFormat(params.get("format"));
       ["vibe", "style", "ratio", "tier", "p", "format"].forEach((k) => params.delete(k));
@@ -273,7 +272,7 @@ export default function Home() {
   useEffect(() => {
     try {
       const p = window.__ppVibe ? {} : JSON.parse(localStorage.getItem("pp_prefs") || "{}");
-      if (p.tier && TIERS.some((t) => t.id === p.tier)) setTier(p.tier);
+      if (p.tier && ALL_TIERS.some((t) => t.id === p.tier)) setTier(p.tier);
       if (p.style && stylesList.includes(p.style)) setStyle(p.style);
       if (p.aspectRatio && ratiosList.some((r) => r.id === p.aspectRatio)) setAspectRatio(p.aspectRatio);
       if (p.format && FORMATS[p.format]) setFormat(p.format);
@@ -343,6 +342,40 @@ export default function Home() {
   const ANIMATE_COST = 15, FACE_COST = 6;
   // Animate: async video job (paid credits only). The server charges, we poll until the MP4 is stored.
   const [animating, setAnimating] = useState({}); // id -> true
+  // Poll a video job until the MP4 is stored, then show it on the stage.
+  const pollVideoJob = async (job) => {
+    const started = Date.now();
+    while (Date.now() - started < 15 * 60_000) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const s = await fetch(`/api/animate?job=${encodeURIComponent(job)}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ status: "processing" }));
+      if (s.status === "processing") continue;
+      if (typeof s.paid === "number") setPaid(s.paid);
+      if (s.status === "done" && s.item) {
+        const ni = toItem(s.item);
+        setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
+        setActiveTab("create"); setImage(ni.url); setCurrentItem(ni); setCompare(null); setGalleryKey((k) => k + 1);
+        window.scrollTo({ top: 0, behavior: "smooth" }); showToast("▶ Your video is ready");
+        return;
+      }
+      throw new Error(s.error || "The video failed.");
+    }
+    throw new Error("The video is taking long — it will appear in My Pulses when ready.");
+  };
+  // Text-to-video from the Model picker (paid credits only).
+  const runTextVideo = async (prompt, modelId, ratio) => {
+    const m = VIDEO_MODELS.find((x) => x.id === modelId);
+    if (!isAdmin && paid < m.cost) { openPricing(m.label, m.cost, true); return; }
+    setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText(`${m.label} is filming… about 1–3 min`);
+    try {
+      const res = await fetch("/api/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: modelId, prompt, aspectRatio: ratio }) });
+      const d = await res.json().catch(() => ({}));
+      syncCredits(d);
+      if (res.status === 402) { openPricing(m.label, m.cost, true); return; }
+      if (!res.ok || !d.job) throw new Error(d.error || "Could not start the video.");
+      await pollVideoJob(d.job);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); setLoadingText("Initializing AI studio..."); }
+  };
   const handleAnimate = async (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
     if (animating[item.id]) return;
@@ -356,23 +389,7 @@ export default function Home() {
       syncCredits(d);
       if (res.status === 402) { stop(); openPricing("Animate", ANIMATE_COST, true); return; }
       if (!res.ok || !d.job) throw new Error(d.error || "Could not start the video.");
-      const started = Date.now();
-      while (Date.now() - started < 15 * 60_000) {
-        await new Promise((r) => setTimeout(r, 4000));
-        const s = await fetch(`/api/animate?job=${encodeURIComponent(d.job)}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ status: "processing" }));
-        if (s.status === "processing") continue;
-        if (typeof s.paid === "number") setPaid(s.paid);
-        if (s.status === "failed") throw new Error(s.error || "The video failed.");
-        if (s.status === "done" && s.item) {
-          const ni = toItem(s.item);
-          setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
-          setActiveTab("create"); setImage(ni.url); setCurrentItem(ni); setCompare(null); setGalleryKey((k) => k + 1);
-          window.scrollTo({ top: 0, behavior: "smooth" }); showToast("▶ Your video is ready");
-          return;
-        }
-        throw new Error(s.error || "The video failed.");
-      }
-      throw new Error("The video is taking long — it will appear in My Pulses when ready.");
+      await pollVideoJob(d.job);
     } catch (e) { setError(e.message); }
     finally { stop(); }
   };
@@ -533,13 +550,14 @@ export default function Home() {
     const useGuide = ov.guide !== undefined ? ov.guide : guide;
     const fmt = ov.format ?? format;
     const isDaily = ov.daily ?? dailyJoin;
-    const tierCost = useGuide ? GUIDED_COST : (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
+    const tierCost = useGuide ? GUIDED_COST : (TIERS.find((t) => t.id === tier) || TIERS.find((t) => t.id === "fast")).cost;
     if (!prompt.trim()) {
       setError("Please enter a prompt to generate an image.");
       return;
     }
+    if (!useGuide && isVideoModel(tier)) { runTextVideo(prompt.trim(), tier, aspectRatio); return; }
     if (!isAdmin && credits + paid < tierCost) {
-      openPricing(useGuide ? "Guide" : (TIERS.find((t) => t.id === tier) || TIERS[0]).label, tierCost);
+      openPricing(useGuide ? "Guide" : (TIERS.find((t) => t.id === tier) || TIERS.find((t) => t.id === "fast")).label, tierCost);
       return;
     }
 
@@ -665,7 +683,7 @@ export default function Home() {
     }
   };
 
-  const curTier = TIERS.find((t) => t.id === tier) || TIERS[0];
+  const curTier = ALL_TIERS.find((t) => t.id === tier) || TIERS.find((t) => t.id === "fast");
   const curRatio = ratiosList.find((r) => r.id === aspectRatio) || ratiosList[0];
   const ratioBox = (id) => ({ "1:1": [16, 16], "9:16": [11, 18], "16:9": [20, 12] }[id] || [16, 16]);
 
@@ -752,7 +770,7 @@ export default function Home() {
 
   return (
     <div dir="ltr" className="pp-root">
-      <style>{CSS + COMPARE_CSS + MASONRY_CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
+      <style>{CSS + MP_CSS + COMPARE_CSS + MASONRY_CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
       <header className="pp-header">
         <div className="pp-brand">
           <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
@@ -993,16 +1011,10 @@ export default function Home() {
               );
             })}
             {format !== "free" && <p className="pp-sheetnote">{fmtDef.ratio} frame · recommended engine set{fmtDef.autoCutout ? " · auto Cutout is free" : ""} · <a className="pp-link" href={`/formats/${format}`}>About {fmtDef.label}</a></p>}
-            <h3>Engine</h3>
+            <h3>Model</h3>
             {editTarget && <p className="pp-sheetnote">✎ Editing an image uses the Edit engine ({EDIT_COST}⚡). <button className="pp-link" onClick={() => setEditTarget(null)}>Stop editing</button> to pick an engine.</p>}
             {!editTarget && guide && <p className="pp-sheetnote">◎ A guide image is attached, so the Guide engine ({GUIDED_COST}⚡) is used. <button className="pp-link" onClick={() => setGuide(null)}>Remove guide</button> to pick an engine.</p>}
-            <div className="pp-chips" style={guide || editTarget ? { opacity: .4, pointerEvents: "none" } : undefined} aria-disabled={!!(guide || editTarget)}>
-              {TIERS.map((t) => (
-                <button key={t.id} disabled={!!(guide || editTarget)} className={`pp-chip pp-big${tier === t.id && !guide && !editTarget ? " on" : ""}`} onClick={() => setTier(t.id)}>
-                  <b>{t.icon} {t.label}</b><small>{t.desc} · {t.cost}⚡</small>
-                </button>
-              ))}
-            </div>
+            <ModelPicker value={tier} onChange={setTier} disabled={!!(guide || editTarget)} isAdmin={isAdmin} />
             <h3>Style</h3>
             <div className="pp-styles" role="radiogroup" aria-label="Style">
               {stylesList.map((s) => (
