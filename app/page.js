@@ -207,6 +207,7 @@ export default function Home() {
         likes: 0,
         isPublic: false,
         remixOf,
+        persistError: data.stored ? null : (data.persistError || "unknown error"),
       };
       setCurrentItem(newItem);
       setRemixOf(null);
@@ -219,7 +220,7 @@ export default function Home() {
           const saved = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && !h.id);
           localStorage.setItem("pp_history", JSON.stringify([newItem, ...saved].slice(0, 12)));
         } catch {}
-        if (storageEnabled) setNotice("Cloud save failed. This image is kept only in this browser and can't be published. Download it to keep it.");
+        setNotice(`Cloud save failed (${newItem.persistError}). This image is kept only in this browser and can't be published. Download it to keep it.`);
       }
     } catch (err) {
       setError(err.message);
@@ -259,7 +260,7 @@ export default function Home() {
   // Publish an image to the shared community feed
   const handlePublishToCommunity = async (item) => {
     if (!item?.id) {
-      alert("Publishing is not available for this image (cloud storage is not set up).");
+      alert(`This image wasn't saved to the cloud, so it can't be published.\nReason: ${item?.persistError || "it was created before cloud saving was available or the save failed"}`);
       return;
     }
     if (item.isPublic) {
