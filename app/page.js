@@ -7,7 +7,7 @@ export default function Home() {
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [loadingText, setLoadingText] = useState("Initializing AI...");
+  const [loadingText, setLoadingText] = useState("Initializing AI studio...");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const [credits, setCredits] = useState(5);
@@ -53,6 +53,15 @@ export default function Home() {
   const handleSurpriseMe = () => {
     const random = surprisePrompts[Math.floor(Math.random() * surprisePrompts.length)];
     setPrompt(random);
+  };
+
+  // פיצ'ר חדש: משדרג פרומפטים חכם (Magic Enhance)
+  const handleEnhancePrompt = () => {
+    if (!prompt.trim()) {
+      setPrompt("A breathtaking cinematic masterpiece with ultra-realistic details, dramatic lighting, 8k resolution");
+      return;
+    }
+    setPrompt(`${prompt.trim()}, breathtaking cinematic composition, ultra-realistic details, dramatic lighting, 8k resolution, shot on 35mm lens, masterpiece`);
   };
 
   const generateImage = async () => {
@@ -110,15 +119,14 @@ export default function Home() {
     } finally {
       textIntervals.forEach(clearTimeout);
       setLoading(false);
-      setLoadingText("Initializing AI...");
+      setLoadingText("Initializing AI studio...");
     }
   };
 
-  // מנגנון הורדה שעוקף חסימות CORS באמצעות נתיב צד שלישי מאובטח (CORS proxy / fetch blob)
+  // הורדה ישירה שעוקפת CORS באמצעות פרוקסי
   const handleDownload = async (imgUrl) => {
     try {
       setDownloading(true);
-      // שימוש בפרוקסי פתוח להורדת קבצים שמונע פתיחת כרטיסייה
       const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl.replace('https://', ''))}&output=webp`;
       const response = await fetch(proxyUrl);
       const blob = await response.blob();
@@ -132,7 +140,6 @@ export default function Home() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      // גיבוי למקרה קיצוני
       const link = document.createElement("a");
       link.href = imgUrl;
       link.target = "_blank";
@@ -143,74 +150,108 @@ export default function Home() {
     }
   };
 
+  // Remix: טעינה חוזרת של יצירה מההיסטוריה
+  const handleRemix = (item) => {
+    setPrompt(item.prompt);
+    setStyle(item.style || "Cinematic");
+    setAspectRatio(item.aspectRatio || "1:1");
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div
       dir="ltr"
       style={{
         minHeight: "100vh",
-        backgroundColor: "#0a0a0f",
+        backgroundColor: "#07070a",
         color: "#ffffff",
         fontFamily: "system-ui, -apple-system, sans-serif",
-        padding: "24px 16px 60px 16px",
+        padding: "24px 16px 80px 16px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
       }}
     >
+      {/* Header */}
       <header
         style={{
           width: "100%",
-          maxWidth: "520px",
+          maxWidth: "540px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "24px",
+          marginBottom: "28px",
           paddingBottom: "16px",
-          borderBottom: "1px solid #222230",
+          borderBottom: "1px solid #1a1a26",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "24px" }}>✨</span>
-          <h1
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div
             style={{
-              fontSize: "24px",
-              fontWeight: "800",
-              margin: 0,
-              background: "linear-gradient(90deg, #a855f7, #ec4899)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
+              width: "36px",
+              height: "36px",
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #9333ea, #ec4899)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "18px",
+              boxShadow: "0 0 15px rgba(147, 51, 234, 0.5)",
             }}
           >
-            PixelPulse AI
-          </h1>
+            ✨
+          </div>
+          <div>
+            <h1
+              style={{
+                fontSize: "22px",
+                fontWeight: "800",
+                margin: 0,
+                background: "linear-gradient(90deg, #a855f7, #ec4899)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "-0.5px",
+              }}
+            >
+              PixelPulse AI
+            </h1>
+            <span style={{ fontSize: "11px", color: "#6b6b80", fontWeight: "500" }}>PRO STUDIO V2</span>
+          </div>
         </div>
+
         <div
           style={{
-            backgroundColor: "#181824",
-            border: "1px solid #2e2e42",
+            backgroundColor: "#12121c",
+            border: "1px solid #262638",
             padding: "6px 14px",
             borderRadius: "20px",
-            fontSize: "14px",
+            fontSize: "13px",
             fontWeight: "600",
             color: "#c084fc",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
           }}
         >
-          ⚡ Credits: {credits}
+          <span>⚡</span>
+          <span>{credits} Credits</span>
         </div>
       </header>
 
+      {/* Main Studio Card */}
       <main
         style={{
           width: "100%",
-          maxWidth: "520px",
-          backgroundColor: "#12121a",
-          border: "1px solid #222230",
-          borderRadius: "20px",
-          padding: "22px",
+          maxWidth: "540px",
+          backgroundColor: "#101018",
+          border: "1px solid #1f1f2e",
+          borderRadius: "24px",
+          padding: "24px",
           boxSizing: "border-box",
-          boxShadow: "0 12px 35px rgba(0,0,0,0.6)",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.7)",
         }}
       >
+        {/* Prompt Header + Actions */}
         <div
           style={{
             display: "flex",
@@ -219,36 +260,53 @@ export default function Home() {
             marginBottom: "10px",
           }}
         >
-          <label style={{ color: "#d1d1e0", fontSize: "15px", fontWeight: "600" }}>
+          <label style={{ color: "#d1d1e0", fontSize: "14px", fontWeight: "600" }}>
             Describe your vision:
           </label>
-          <button
-            onClick={handleSurpriseMe}
-            style={{
-              backgroundColor: "#1e1e2d",
-              border: "1px solid #34344e",
-              color: "#c084fc",
-              padding: "5px 12px",
-              borderRadius: "8px",
-              fontSize: "12px",
-              fontWeight: "600",
-              cursor: "pointer",
-            }}
-          >
-            🎲 Surprise Me
-          </button>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button
+              onClick={handleEnhancePrompt}
+              style={{
+                backgroundColor: "rgba(147, 51, 234, 0.15)",
+                border: "1px solid rgba(147, 51, 234, 0.4)",
+                color: "#d8b4fe",
+                padding: "5px 10px",
+                borderRadius: "8px",
+                fontSize: "11px",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
+            >
+              🪄 Magic Enhance
+            </button>
+            <button
+              onClick={handleSurpriseMe}
+              style={{
+                backgroundColor: "#191924",
+                border: "1px solid #2e2e42",
+                color: "#a0a0b8",
+                padding: "5px 10px",
+                borderRadius: "8px",
+                fontSize: "11px",
+                fontWeight: "600",
+                cursor: "pointer",
+              }}
+            >
+              🎲 Surprise
+            </button>
+          </div>
         </div>
 
         <textarea
           rows="4"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Describe what you want to create in detail..."
+          placeholder="Type what you want to create or pick a surprise idea..."
           style={{
             width: "100%",
-            backgroundColor: "#08080c",
-            border: "1px solid #2a2a3c",
-            borderRadius: "12px",
+            backgroundColor: "#050508",
+            border: "1px solid #222233",
+            borderRadius: "14px",
             padding: "14px",
             color: "#ffffff",
             fontSize: "15px",
@@ -260,7 +318,8 @@ export default function Home() {
           }}
         />
 
-        <label style={{ display: "block", color: "#d1d1e0", fontSize: "15px", marginBottom: "10px", fontWeight: "600" }}>
+        {/* Aspect Ratio Selector */}
+        <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
           Aspect Ratio:
         </label>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
@@ -272,17 +331,18 @@ export default function Home() {
                 onClick={() => setAspectRatio(r.id)}
                 style={{
                   padding: "10px 8px",
-                  borderRadius: "10px",
-                  fontSize: "13px",
+                  borderRadius: "12px",
+                  fontSize: "12px",
                   fontWeight: "600",
                   cursor: "pointer",
-                  border: isSelected ? "1px solid #a855f7" : "1px solid #252538",
-                  backgroundColor: isSelected ? "rgba(147, 51, 234, 0.25)" : "#181824",
-                  color: isSelected ? "#ffffff" : "#a0a0b8",
+                  border: isSelected ? "1px solid #a855f7" : "1px solid #222233",
+                  backgroundColor: isSelected ? "rgba(147, 51, 234, 0.25)" : "#151520",
+                  color: isSelected ? "#ffffff" : "#8e8e9e",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   gap: "6px",
+                  transition: "all 0.2s",
                 }}
               >
                 <span>{r.icon}</span>
@@ -292,10 +352,11 @@ export default function Home() {
           })}
         </div>
 
-        <label style={{ display: "block", color: "#d1d1e0", fontSize: "15px", marginBottom: "10px", fontWeight: "600" }}>
+        {/* Art Style Selector */}
+        <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
           Choose Art Style:
         </label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "24px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "26px" }}>
           {stylesList.map((s) => {
             const isSelected = style === s;
             return (
@@ -303,15 +364,16 @@ export default function Home() {
                 key={s}
                 onClick={() => setStyle(s)}
                 style={{
-                  padding: "9px 14px",
+                  padding: "8px 14px",
                   borderRadius: "10px",
                   fontSize: "13px",
                   fontWeight: "600",
                   cursor: "pointer",
                   border: "none",
-                  backgroundColor: isSelected ? "#9333ea" : "#1e1e2a",
-                  color: isSelected ? "#ffffff" : "#c4c4d4",
-                  boxShadow: isSelected ? "0 4px 12px rgba(147, 51, 234, 0.4)" : "none",
+                  backgroundColor: isSelected ? "#9333ea" : "#171722",
+                  color: isSelected ? "#ffffff" : "#b0b0c4",
+                  boxShadow: isSelected ? "0 4px 14px rgba(147, 51, 234, 0.4)" : "none",
+                  transition: "all 0.2s",
                 }}
               >
                 {s}
@@ -320,6 +382,7 @@ export default function Home() {
           })}
         </div>
 
+        {/* Generate Button */}
         <button
           onClick={generateImage}
           disabled={loading}
@@ -328,18 +391,20 @@ export default function Home() {
             background: "linear-gradient(90deg, #9333ea, #ec4899)",
             color: "#ffffff",
             fontWeight: "700",
-            fontSize: "17px",
+            fontSize: "16px",
             padding: "16px",
-            borderRadius: "12px",
+            borderRadius: "14px",
             border: "none",
             cursor: loading ? "not-allowed" : "pointer",
             opacity: loading ? 0.7 : 1,
-            boxShadow: "0 6px 20px rgba(147, 51, 234, 0.35)",
+            boxShadow: "0 8px 25px rgba(147, 51, 234, 0.4)",
+            transition: "transform 0.1s",
           }}
         >
-          {loading ? `✨ ${loadingText}` : "Generate Image (1 Credit)"}
+          {loading ? `✨ ${loadingText}` : "Generate Masterpiece (1 Credit)"}
         </button>
 
+        {/* Error Box */}
         {error && (
           <div
             style={{
@@ -350,24 +415,25 @@ export default function Home() {
               borderRadius: "10px",
               color: "#f87171",
               textAlign: "center",
-              fontSize: "14px",
+              fontSize: "13px",
             }}
           >
             {error}
           </div>
         )}
 
+        {/* Generated Result */}
         {image && (
           <div style={{ marginTop: "28px", textAlign: "center" }}>
-            <p style={{ color: "#34d399", fontWeight: "600", fontSize: "15px", marginBottom: "12px" }}>
+            <p style={{ color: "#34d399", fontWeight: "600", fontSize: "14px", marginBottom: "12px" }}>
               ✨ Masterpiece Ready!
             </p>
             <div
               style={{
-                borderRadius: "14px",
+                borderRadius: "16px",
                 overflow: "hidden",
-                border: "1px solid #2e2e42",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+                border: "1px solid #262638",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.7)",
                 marginBottom: "14px",
               }}
             >
@@ -379,12 +445,12 @@ export default function Home() {
               disabled={downloading}
               style={{
                 width: "100%",
-                backgroundColor: "#1e1e2d",
-                border: "1px solid #3b3b54",
+                backgroundColor: "#1a1a26",
+                border: "1px solid #2d2d42",
                 color: "#ffffff",
-                padding: "12px",
-                borderRadius: "10px",
-                fontSize: "15px",
+                padding: "13px",
+                borderRadius: "12px",
+                fontSize: "14px",
                 fontWeight: "600",
                 cursor: "pointer",
               }}
@@ -395,10 +461,11 @@ export default function Home() {
         )}
       </main>
 
+      {/* History & Remix Section */}
       {history.length > 0 && (
-        <section style={{ width: "100%", maxWidth: "520px", marginTop: "32px" }}>
+        <section style={{ width: "100%", maxWidth: "540px", marginTop: "36px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: "700", margin: 0, color: "#e2e2f0" }}>
+            <h2 style={{ fontSize: "17px", fontWeight: "700", margin: 0, color: "#e2e2f0" }}>
               🖼️ Your Recent Creations
             </h2>
             <button
@@ -406,7 +473,7 @@ export default function Home() {
                 setHistory([]);
                 localStorage.removeItem("pp_history");
               }}
-              style={{ background: "none", border: "none", color: "#7a7a90", fontSize: "12px", cursor: "pointer", textDecoration: "underline" }}
+              style={{ background: "none", border: "none", color: "#6b6b80", fontSize: "12px", cursor: "pointer", textDecoration: "underline" }}
             >
               Clear History
             </button>
@@ -416,21 +483,41 @@ export default function Home() {
             {history.map((item, idx) => (
               <div
                 key={idx}
-                onClick={() => setImage(item.url)}
                 style={{
-                  backgroundColor: "#12121a",
-                  border: "1px solid #222230",
-                  borderRadius: "12px",
+                  backgroundColor: "#101018",
+                  border: "1px solid #1f1f2e",
+                  borderRadius: "14px",
                   overflow: "hidden",
-                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  justify: "space-between"
                 }}
               >
-                <img src={item.url} alt={item.prompt} style={{ width: "100%", height: "150px", objectFit: "cover", display: "block" }} />
-                <div style={{ padding: "8px 10px" }}>
+                <div onClick={() => setImage(item.url)} style={{ cursor: "pointer" }}>
+                  <img src={item.url} alt={item.prompt} style={{ width: "100%", height: "140px", objectFit: "cover", display: "block" }} />
+                </div>
+                <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
                   <p style={{ margin: 0, fontSize: "12px", color: "#b4b4c4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {item.prompt}
                   </p>
-                  <span style={{ fontSize: "10px", color: "#7c7c94" }}>{item.style} • {item.aspectRatio || "1:1"}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "10px", color: "#7c7c94" }}>{item.style}</span>
+                    <button
+                      onClick={() => handleRemix(item)}
+                      style={{
+                        backgroundColor: "rgba(147, 51, 234, 0.2)",
+                        border: "1px solid rgba(147, 51, 234, 0.4)",
+                        color: "#d8b4fe",
+                        padding: "3px 8px",
+                        borderRadius: "6px",
+                        fontSize: "10px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      🔄 Remix
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
