@@ -578,7 +578,7 @@ export default function Home() {
     };
     const report = { key: "report", icon: "⚑", label: "Report", hint: "Breaks the rules?", tone: "danger", onClick: () => handleReport(item) };
     const hide = isAdmin ? { key: "hide", icon: "⦸", label: "Hide (admin)", tone: "danger", onClick: () => adminHide(item, true) } : null;
-    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.edit, A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
+    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.edit, A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
     if (isUpload) return { primary: [A.edit, A.repaint, A.download], more: [A.guide, A.sharpen, A.cutout, ...extra] };
     return {
       primary: [A.edit, A.variation, item.isPublic ? A.share : A.publish],
