@@ -119,6 +119,17 @@ export default function Home() {
       })
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
+    if (params.get("vibe")) {
+      const st = params.get("style"), ra = params.get("ratio"), ti = params.get("tier");
+      if (st && stylesList.includes(st)) setStyle(st);
+      if (ra && ratiosList.some((r) => r.id === ra)) setAspectRatio(ra);
+      if (ti && TIERS.some((t) => t.id === ti)) setTier(ti);
+      window.__ppVibe = true;
+      ["vibe", "style", "ratio", "tier"].forEach((k) => params.delete(k));
+      const q = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (q ? `?${q}` : ""));
+      setTimeout(() => { setToast("✦ Vibe loaded — describe your own idea"); setTimeout(() => setToast(""), 2600); document.getElementById("pp-prompt")?.focus(); }, 300);
+    }
     const adminKey = params.get("admin");
     if (adminKey) {
       params.delete("admin");
@@ -144,29 +155,21 @@ export default function Home() {
     setPrompt(random);
   };
 
-  const handleEnhancePrompt = () => {
-    if (!prompt.trim()) {
-      setPrompt("A stunning cinematic masterpiece, perfect composition, professional lighting, photorealistic details");
-      return;
-    }
-
-    const currentText = prompt.trim().toLowerCase();
-    let enhanced = prompt.trim();
-
-    if (currentText.includes("car") || currentText.includes("vehicle") || currentText.includes("bike")) {
-      enhanced = `${prompt.trim()}, dynamic motion shot, glossy metallic reflections, wet asphalt road, automotive commercial lighting, shot on 35mm lens`;
-    } else if (currentText.includes("portrait") || currentText.includes("man") || currentText.includes("woman") || currentText.includes("face") || currentText.includes("person")) {
-      enhanced = `${prompt.trim()}, professional portrait photography, detailed skin texture, natural soft lighting, shallow depth of field, sharp focus on eyes`;
-    } else if (currentText.includes("cyberpunk") || currentText.includes("neon") || currentText.includes("future")) {
-      enhanced = `${prompt.trim()}, intricate cyberpunk aesthetics, glowing neon reflections, volumetric fog, moody atmospheric lighting, futuristic details`;
-    } else if (currentText.includes("nature") || currentText.includes("forest") || currentText.includes("mountain") || currentText.includes("animal")) {
-      enhanced = `${prompt.trim()}, National Geographic wildlife photography, hyper-realistic textures, natural morning sunlight, breathtaking environment details`;
-    } else {
-      enhanced = `${prompt.trim()}, highly detailed professional art composition, volumetric lighting, rich textures, award-winning visual depth`;
-    }
-
-    setPrompt(enhanced);
+  const [ampOpen, setAmpOpen] = useState(false);
+  const [ampIntensity, setAmpIntensity] = useState("bold");
+  const [ampLoading, setAmpLoading] = useState(false);
+  const [ampList, setAmpList] = useState([]);
+  const runAmplify = async (intensity = ampIntensity) => {
+    setAmpIntensity(intensity); setAmpOpen(true); setAmpLoading(true); setAmpList([]);
+    try {
+      const res = await fetch("/api/amplify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt, intensity }) });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || "Amplify failed.");
+      setAmpList(d.suggestions || []);
+    } catch (e) { setAmpList([]); showToast(e.message); }
+    finally { setAmpLoading(false); }
   };
+  const handleEnhancePrompt = () => runAmplify();
 
   const promptState = prompt, styleState = style, ratioState = aspectRatio, tierState = tier, remixState = remixOf;
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -177,7 +180,7 @@ export default function Home() {
   // Remember last composer choices
   useEffect(() => {
     try {
-      const p = JSON.parse(localStorage.getItem("pp_prefs") || "{}");
+      const p = window.__ppVibe ? {} : JSON.parse(localStorage.getItem("pp_prefs") || "{}");
       if (p.tier && TIERS.some((t) => t.id === p.tier)) setTier(p.tier);
       if (p.style && stylesList.includes(p.style)) setStyle(p.style);
       if (p.aspectRatio && ratiosList.some((r) => r.id === p.aspectRatio)) setAspectRatio(p.aspectRatio);
@@ -213,6 +216,36 @@ export default function Home() {
     if (item.tier && TIERS.some((t) => t.id === item.tier)) setTier(item.tier);
     const short = (item.prompt || "").slice(0, 28) + ((item.prompt || "").length > 28 ? "…" : "");
     showToast(`Vibe loaded from “${short}”`);
+  };
+
+  const [toolBusy, setToolBusy] = useState(""); // "<tool>:<id>"
+  const handleShare = async (item) => {
+    if (!item?.id) { showToast("Save failed for this image, can't share"); return; }
+    if (!item.isPublic) { showToast("Publish it first to get a share link"); return; }
+    const url = `${window.location.origin}/p/${item.id}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "PixelPulse", text: (item.prompt || "").slice(0, 100), url }); return; } catch (e) { if (e?.name === "AbortError") return; }
+    }
+    try { await navigator.clipboard.writeText(url); showToast("↗ Link copied"); } catch { window.prompt("Copy link:", url); }
+  };
+  const handleTool = async (tool, item) => {
+    if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
+    if (toolBusy) return;
+    if (tool === "sharpen" && !isAdmin && credits < 1) { setError("Sharpen costs 1 credit — you're out for today."); return; }
+    setToolBusy(`${tool}:${item.id}`); setError("");
+    showToast(tool === "sharpen" ? "◇ Sharpening… (2x)" : "✂ Cutting out…");
+    try {
+      const res = await fetch(`/api/${tool}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id }) });
+      const d = await res.json();
+      if (d.admin) setIsAdmin(true); else if (typeof d.credits === "number") setCredits(d.credits);
+      if (!res.ok || !d.item) throw new Error(d.error || "Failed.");
+      const ni = toItem(d.item);
+      setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
+      setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      showToast(tool === "sharpen" ? "◇ Sharpened 2x" : "✂ Background removed");
+    } catch (e) { setError(e.message); }
+    finally { setToolBusy(""); }
   };
 
   const generateImage = async (ov = {}) => {
@@ -386,6 +419,9 @@ export default function Home() {
       <button className="pp-cap" onClick={() => handleVariation(item)} disabled={loading} title="Variation">≈<span>Variation</span></button>
       <button className="pp-cap" onClick={() => handleUsePrompt(item)} title="Use prompt">✎<span>Use prompt</span></button>
       <button className="pp-cap" onClick={() => handleDownload(item.url)} disabled={downloading} title="Download">⤓<span>Download</span></button>
+      <button className="pp-cap" onClick={() => handleTool("sharpen", item)} disabled={!!toolBusy || !item.id} title="Sharpen 2x (1 credit)">{toolBusy === `sharpen:${item.id}` ? "…" : "◇"}<span>Sharpen</span></button>
+      <button className="pp-cap" onClick={() => handleTool("cutout", item)} disabled={!!toolBusy || !item.id} title="Remove background (free)">{toolBusy === `cutout:${item.id}` ? "…" : "✂"}<span>Cutout</span></button>
+      {item.isPublic && <button className="pp-cap" onClick={() => handleShare(item)} title="Share">↗<span>Share</span></button>}
       <button className={`pp-cap${item.isPublic ? " pp-on" : " pp-accent"}`} onClick={() => handlePublishToCommunity(item)} title="Publish">{item.isPublic ? "✓" : "◉"}<span>{item.isPublic ? "Live" : "Publish"}</span></button>
     </div>
   );
@@ -452,7 +488,7 @@ export default function Home() {
           <div className="pp-grid pp-feed">
             {communityFeed.map((item, idx) => (
               <div className="pp-card" key={item.id || idx}>
-                <img src={item.url} alt={item.prompt} />
+                <a href={`/p/${item.id}`}><img src={item.url} alt={item.prompt} /></a>
                 <div className="pp-cardbody">
                   <p>“{item.prompt}”</p>
                   <span className="pp-meta">{item.style}{item.tier ? ` · ${tierLabel(item.tier)}` : ""} · {item.aspectRatio || "1:1"}{item.remixOf ? " · Remix" : ""}</span>
@@ -461,6 +497,9 @@ export default function Home() {
                     <button className={`pp-cap${item.liked ? " pp-liked" : ""}`} onClick={() => handleLike(item)} disabled={item.liked}>{item.liked ? "♥" : "♡"}<span>{item.likes}</span></button>
                     <button className="pp-cap" onClick={() => handleUsePrompt(item)}>✎<span>Use prompt</span></button>
                     <button className="pp-cap" onClick={() => handleVariation(item)} disabled={loading}>≈<span>Variation</span></button>
+                    <button className="pp-cap" onClick={() => handleShare({ ...item, isPublic: true })}>↗<span>Share</span></button>
+                    <button className="pp-cap" onClick={() => handleTool("sharpen", item)} disabled={!!toolBusy}>◇<span>Sharpen</span></button>
+                    <button className="pp-cap" onClick={() => handleTool("cutout", item)} disabled={!!toolBusy}>✂<span>Cutout</span></button>
                     <button className="pp-cap" onClick={() => handleDownload(item.url)}>⤓<span>Download</span></button>
                   </div>
                 </div>
@@ -474,12 +513,30 @@ export default function Home() {
       {/* Pulse Bar composer */}
       <div className="pp-dock">
         <div className={`pp-bar${loading ? " pp-generating" : ""}`}>
+          {ampOpen && (
+            <div className="pp-amp">
+              <div className="pp-amphead">
+                {["subtle", "bold", "wild"].map((k) => (
+                  <button key={k} className={`pp-chip${ampIntensity === k ? " on" : ""}`} onClick={() => runAmplify(k)} disabled={ampLoading}>{{ subtle: "◌ Subtle", bold: "◉ Bold", wild: "✺ Wild" }[k]}</button>
+                ))}
+                <span className="pp-spacer" />
+                <button className="pp-chip pp-ghost" onClick={() => setAmpOpen(false)} aria-label="Close">✕</button>
+              </div>
+              {ampLoading ? <div className="pp-ampwait"><i /><i /><i /> amplifying…</div> : (
+                <div className="pp-amplist">
+                  {ampList.map((sg, i) => (
+                    <button key={i} className="pp-sugg" onClick={() => { setPrompt(sg); setAmpOpen(false); showToast("✦ Amplified prompt loaded"); }}>{sg}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="pp-chiprow">
             <button className="pp-chip" onClick={() => setSheetOpen(true)}>{curTier.icon} {curTier.label}</button>
             <button className="pp-chip" onClick={() => setSheetOpen(true)}>{style}</button>
             <button className="pp-chip" onClick={() => setSheetOpen(true)}><i className="pp-ar" style={{ width: ratioBox(aspectRatio)[0], height: ratioBox(aspectRatio)[1] }} />{aspectRatio}</button>
             <span className="pp-spacer" />
-            <button className="pp-chip pp-ghost" onClick={handleEnhancePrompt} title="Smart Enhance">🪄</button>
+            <button className="pp-chip pp-ghost" onClick={handleEnhancePrompt} title="Amplify">🪄 Amplify</button>
             <button className="pp-chip pp-ghost" onClick={handleSurpriseMe} title="Surprise">🎲</button>
           </div>
           <div className="pp-inputrow">
@@ -611,6 +668,15 @@ body{margin:0;background:var(--bg)}
 .pp-big small{font-size:10px;opacity:.8;font-weight:500}
 .pp-done{width:100%;margin-top:20px;padding:13px;border-radius:999px;border:none;background:var(--txt);color:#0b0b12;font-weight:800;font-size:15px}
 .pp-toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:#1d1830;border:1px solid rgba(236,72,153,.5);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;z-index:50;box-shadow:0 0 24px rgba(168,85,247,.45);animation:ppPop .35s cubic-bezier(.2,.9,.3,1.4);white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+.pp-amp{border-bottom:1px solid #2a2a40;margin:0 0 8px;padding:2px 2px 8px;animation:ppFade .2s}
+.pp-amphead{display:flex;gap:6px;align-items:center;margin-bottom:8px}
+.pp-amplist{display:flex;flex-direction:column;gap:6px;max-height:38vh;overflow:auto}
+.pp-sugg{text-align:left;padding:9px 14px;border-radius:20px;border:1px solid rgba(168,85,247,.35);background:linear-gradient(90deg,rgba(147,51,234,.14),rgba(236,72,153,.1));color:var(--txt);font-size:12.5px;line-height:1.4}
+.pp-sugg:active{transform:scale(.98)}
+.pp-ampwait{display:flex;align-items:center;gap:5px;color:#d8b4fe;font-size:12px;padding:6px}
+.pp-ampwait i{width:7px;height:7px;border-radius:50%;background:var(--p);animation:ppBreathe 1s infinite,ppDot 1s ease-in-out infinite}
+.pp-ampwait i:nth-child(2){animation-delay:.15s}.pp-ampwait i:nth-child(3){animation-delay:.3s}
+@keyframes ppDot{50%{transform:scale(.4);opacity:.4}}
 @keyframes ppRipple{0%{transform:scale(.4);opacity:.9}100%{transform:scale(2.2);opacity:0}}
 @keyframes ppRing{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.7);opacity:0}}
 @keyframes ppGlow{50%{box-shadow:0 0 0 1px rgba(236,72,153,.7),0 0 60px rgba(236,72,153,.35)}}
