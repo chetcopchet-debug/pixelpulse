@@ -114,6 +114,7 @@ export default function Home() {
     }
   };
 
+  // תיקון קריטי להורדה ישירה שמונע פתיחת כרטיסייה ומוריד פיזית את הקובץ
   const handleDownload = async (imgUrl) => {
     try {
       setDownloading(true);
@@ -128,6 +129,7 @@ export default function Home() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
+      // גיבוי למקרה חריג
       window.open(imgUrl, "_blank");
     } finally {
       setDownloading(false);
@@ -380,7 +382,7 @@ export default function Home() {
                 cursor: "pointer",
               }}
             >
-              {downloading ? "Downloading..." : "⬇️ Download High-Res Image"}
+              {downloading ? "Downloading to device..." : "⬇️ Download High-Res Image"}
             </button>
           </div>
         )}
