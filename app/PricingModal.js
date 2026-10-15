@@ -7,7 +7,7 @@ const FALLBACK = [
 ];
 
 // need: { label, cost } | null (opened from the profile menu)
-export default function PricingModal({ need, credits, paid, resetIn, plans, onClose }) {
+export default function PricingModal({ need, credits, paid, resetIn, plans, onClose, signedIn = true, onSignIn }) {
   const list = plans?.length ? plans : FALLBACK;
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -46,6 +46,7 @@ export default function PricingModal({ need, credits, paid, resetIn, plans, onCl
           ))}
         </div>
         {err && <p className="pm-err">{err}</p>}
+        {!signedIn && onSignIn && <p className="pm-fine" style={{ margin: "12px 0 0" }}><button className="pm-link" onClick={onSignIn}>✉ Sign in</button> to keep your credits safe on every device.</p>}
         <p className="pm-fine">Free credits are used first. Secure checkout by Lemon Squeezy · cancel Pro anytime.</p>
         <button className="pm-close" onClick={onClose}>{need ? "Wait for free credits" : "Close"}</button>
       </div>
@@ -75,6 +76,7 @@ export default function PricingModal({ need, credits, paid, resetIn, plans, onCl
 .pm-buy:disabled{background:#232334;color:#8a8aa3;cursor:default}
 .pm-err{color:#fda4af;font-size:13px;margin:10px 0 0}
 .pm-fine{font-size:11px;color:#7c7c94;margin:12px 0 8px}
+.pm-link{background:none;border:0;padding:0;color:#f0abfc;font-weight:700;text-decoration:underline;font-size:inherit}
 .pm-close{width:100%;padding:12px;border-radius:999px;border:1px solid #2a2a40;background:transparent;color:#d4d4e0;font-weight:700}
 `}</style>
     </div>

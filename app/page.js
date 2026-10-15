@@ -7,6 +7,7 @@ import { FORMATS, FORMAT_LIST, FORMAT_GROUPS } from "../lib/formats";
 import Thumb, { THUMB_CSS } from "./Thumb";
 import ImageActions, { IA_CSS } from "./ImageActions";
 import PricingModal from "./PricingModal";
+import AuthSheet from "./AuthSheet";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -29,6 +30,13 @@ export default function Home() {
   const [credits, setCredits] = useState(10);
   const [paid, setPaid] = useState(0);
   const [plans, setPlans] = useState(null);
+  const [account, setAccount] = useState(null); // { email } when signed in
+  const [authOpen, setAuthOpen] = useState(null); // null | { reason }
+  const signOut = async () => {
+    await fetch("/api/auth/signout", { method: "POST" }).catch(() => {});
+    try { localStorage.removeItem("pp_history"); } catch {}
+    window.location.replace("/");
+  };
   const [pricing, setPricing] = useState(null); // { need } when open
   const copyRestoreCode = async () => {
     const d = await fetch("/api/restore", { cache: "no-store" }).then((r) => r.json()).catch(() => ({}));
@@ -176,15 +184,17 @@ export default function Home() {
       .then((d) => {
         if (d.admin) setIsAdmin(true);
         else if (typeof d.credits === "number") setCredits(d.credits);
-        if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans);
+        if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans); if ("account" in d) setAccount(d.account);
       })
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
     if (["me", "community", "create"].includes(params.get("tab"))) setActiveTab(params.get("tab"));
+    if (params.get("signedin") === "1") { params.delete("signedin"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : "")); setTimeout(() => { setToast("✓ Signed in — your pulses are synced"); setTimeout(() => setToast(""), 3000); }, 300); }
     if (params.get("paid") === "1") {
       params.delete("paid"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : ""));
       setTimeout(() => { setToast("⚡ Thanks! Your credits are on the way"); setTimeout(() => setToast(""), 3500); }, 300);
       [3000, 8000, 20000].forEach((ms) => setTimeout(loadCredits, ms));
+      setTimeout(() => { fetch("/api/credits").then((r) => r.json()).then((d) => { if (!d.account && !d.admin) setAuthOpen({ reason: "Purchase complete! Sign in with your email so your credits are safe on any device." }); }).catch(() => {}); }, 2500);
     }
     if (params.get("format") && FORMATS[params.get("format")]) { const f0 = params.get("format"); window.__ppVibe = true; setTimeout(() => selectFormat(f0), 0); params.delete("format"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : "")); }
     if (params.get("vibe")) {
@@ -908,14 +918,15 @@ export default function Home() {
         </div>
       )}
 
-      {pricing && <PricingModal need={pricing.need} credits={credits} paid={paid} resetIn={resetIn} plans={plans} onClose={() => setPricing(null)} />}
+      {authOpen && <AuthSheet reason={authOpen.reason} onClose={() => setAuthOpen(null)} onSignedIn={() => { setAuthOpen(null); window.location.replace("/?signedin=1"); }} />}
+      {pricing && <PricingModal signedIn={!!account} onSignIn={() => { setPricing(null); setAuthOpen({ reason: "Sign in first so the credits you buy are safe on every device." }); }} need={pricing.need} credits={credits} paid={paid} resetIn={resetIn} plans={plans} onClose={() => setPricing(null)} />}
       {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits + paid} onNeedCredits={() => { setRepaintItem(null); openPricing("Repaint", 5); }} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
       {menuOpen && (
         <div className="pp-scrim pp-menuscrim" onClick={() => setMenuOpen(false)}>
           <aside className="pp-menu" onClick={(e) => e.stopPropagation()} aria-label="Menu">
             <div className="pp-menuhead">
               <span className="pp-avatar pp-avatar-lg">◉</span>
-              <div><b>Guest pulser</b><small>{isAdmin ? "Admin mode · unlimited" : "Anonymous · saved on this device"}</small></div>
+              <div><b>{account ? account.email : "Guest pulser"}</b><small>{isAdmin ? "Admin mode · unlimited" : account ? "Signed in · synced across devices" : "Anonymous · saved on this device"}</small></div>
               <button className="pp-chip pp-ghost pp-icon" onClick={() => setMenuOpen(false)} aria-label="Close">✕</button>
             </div>
             <div className="pp-creditcard">
@@ -925,9 +936,11 @@ export default function Home() {
               </>}
               <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 10) * 100)}%` }} /></div>
               {!isAdmin && <button className="pp-chip pp-getcr" onClick={() => { setMenuOpen(false); openPricing(); }}>⚡ Get more credits</button>}
+              {!isAdmin && !account && <button className="pp-chip pp-signin" onClick={() => { setMenuOpen(false); setAuthOpen({}); }}>✉ Sign in with email</button>}
               {!isAdmin && <div className="pp-restore">
                 {paid > 0 && <button className="pp-link" onClick={copyRestoreCode}>Copy purchase restore code</button>}
                 <button className="pp-link" onClick={restorePurchase}>Restore a purchase</button>
+                {account && <button className="pp-link" onClick={signOut}>Sign out</button>}
               </div>}
             </div>
             <div className="pp-streak"><b>🔥{streak}</b><span>{streak ? `day${streak === 1 ? "" : "s"} Daily Pulse streak` : "Join today's Daily Pulse to start a streak"}</span><button className="pp-chip" onClick={() => { setMenuOpen(false); setActiveTab("community"); }}>◉ Daily</button></div>
@@ -1112,6 +1125,7 @@ body{margin:0;background:var(--bg)}
 .pp-fmtrow .pp-chip{flex:none;white-space:nowrap}
 .pp-creditcard em{font-style:normal;color:var(--mut)}
 .pp-getcr{margin-top:10px;width:100%;justify-content:center;background:linear-gradient(90deg,rgba(147,51,234,.35),rgba(236,72,153,.3));border-color:rgba(236,72,153,.5);color:#fff;font-weight:700}
+.pp-signin{margin-top:8px;width:100%;justify-content:center}
 .pp-restore{display:flex;gap:14px;justify-content:center;margin-top:8px;font-size:12px}
 .pp-creditbar{flex-basis:100%;height:6px;border-radius:9px;background:#22223a;overflow:hidden}
 .pp-creditbar i{display:block;height:100%;background:linear-gradient(90deg,var(--v),var(--p));border-radius:9px}
