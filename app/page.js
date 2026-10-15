@@ -166,18 +166,8 @@ export default function Home() {
       const q2 = params.toString();
       window.history.replaceState(null, "", window.location.pathname + (q2 ? `?${q2}` : ""));
     }
-    const adminKey = params.get("admin");
-    if (adminKey) {
-      params.delete("admin");
-      const qs = params.toString();
-      window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash);
-      fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: adminKey }) })
-        .then((r) => { if (!r.ok) setNotice("Admin key rejected."); })
-        .catch(() => {})
-        .finally(loadCredits);
-    } else {
-      loadCredits();
-    }
+    if (params.has("admin")) { params.delete("admin"); const qs = params.toString(); window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash); }
+    loadCredits();
     // Upgrade legacy (unsigned) identity cookie before loading private history
     fetch("/api/session", { method: "POST" }).catch(() => {}).finally(loadHistory);
     loadFeed();
