@@ -791,6 +791,7 @@ export default function Home() {
                       <a href={`/p/${x.id}`}><img src={x.public_url} alt="" /></a>
                       <span>⚑ {x.report_count} · {x.hidden ? "hidden" : "visible"}</span>
                       <button className="pp-chip" onClick={() => adminHide(x, !x.hidden)}>{x.hidden ? "Unhide" : "Hide"}</button>
+                      {x.report_count > 0 && <button className="pp-chip" onClick={async () => { await fetch("/api/admin/hide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: x.id, resetReports: true }) }); setModList((l) => l.map((y) => (y.id === x.id ? { ...y, report_count: 0 } : y))); }}>Clear</button>}
                     </div>
                   ))}
                 </div>
