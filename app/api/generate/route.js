@@ -19,10 +19,16 @@ const VALID_RATIOS = ["1:1", "16:9", "9:16"];
 // Returns { id, url } or null on any failure (caller falls back to the temporary URL).
 async function persistImage({ sourceUrl, prompt, style, ratio, creatorId, remixOf }) {
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase) return { error: 'Cloud storage is not configured on the server' };
+  let stage = 'download';
   try {
-    const imgRes = await fetch(sourceUrl);
-    if (!imgRes.ok) throw new Error(`download ${imgRes.status}`);
+    let imgRes = null;
+    for (let i = 0; i < 3; i++) {
+      try { imgRes = await fetch(sourceUrl, { cache: 'no-store' }); } catch (e) { imgRes = null; }
+      if (imgRes && imgRes.ok) break;
+      await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+    }
+    if (!imgRes || !imgRes.ok) throw new Error(`image download failed (${imgRes ? imgRes.status : 'network'})`);
     const contentType = imgRes.headers.get('content-type') || 'image/webp';
     const ext = contentType.includes('png') ? 'png' : contentType.includes('jpeg') ? 'jpg' : 'webp';
     // Only link remixes to images that exist and are public or owned by this creator
@@ -32,9 +38,11 @@ async function persistImage({ sourceUrl, prompt, style, ratio, creatorId, remixO
     }
     const bytes = Buffer.from(await imgRes.arrayBuffer());
     const path = `${creatorId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    stage = 'upload';
     const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, bytes, { contentType, upsert: false });
     if (upErr) throw upErr;
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    stage = 'database';
     const { data: row, error: insErr } = await supabase.from('images').insert({
       prompt, style, aspect_ratio: ratio, storage_path: path, public_url: pub.publicUrl,
       creator_id: creatorId, remix_of: remixOf || null,
@@ -45,8 +53,9 @@ async function persistImage({ sourceUrl, prompt, style, ratio, creatorId, remixO
     }
     return { id: row.id, url: row.public_url };
   } catch (err) {
-    console.error('Persist image failed:', err);
-    return null;
+    console.error('Persist image failed:', stage, err);
+    const msg = String(err?.message || err || 'unknown error').replace(/https?:\/\/\S+/g, '[url]').slice(0, 160);
+    return { error: `${stage}: ${msg}` };
   }
 }
 
@@ -183,9 +192,10 @@ export async function POST(request) {
 
     const res = NextResponse.json({
       success: true,
-      imageUrl: stored?.url || result.url,
+      imageUrl: stored?.id ? stored.url : result.url,
       id: stored?.id || null,
-      stored: Boolean(stored),
+      stored: Boolean(stored?.id),
+      ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
       credits: currentCredits(),
       ...(admin ? { admin: true } : {}),
     });
