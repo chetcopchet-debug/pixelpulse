@@ -1,9 +1,10 @@
 import { LegalPage } from '../_legal/Legal';
 import { PLANS } from '../../lib/paid';
 import BuyButton from './BuyButton';
+import { IMAGE_MODELS, VIDEO_MODELS } from '../../lib/catalog';
 export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: '10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
-const COSTS = [['⚡ Fast image', 1], ['🔤 Text image (lettering)', 3], ['◎ Guide (from an image)', 3], ['💎 Quality image', 4], ['✎ Edit with words', 4], ['◐ Repaint an area', 5], ['◇ HD download (2x)', 1], ['✂ Cutout (remove background)', 1], ['◉ Face Lock (same face, new scene) · purchased credits', 6], ['▶ Animate (5s video) · purchased credits', 15], ['✦ Amplify prompt', 0]];
+const COSTS = [...IMAGE_MODELS.map((m) => [`${m.icon} ${m.label} image · ${m.by}`, m.cost]), ['◎ Guide (from an image)', 3], ['✎ Edit with words', 4], ['◐ Repaint an area', 5], ['◇ HD download (2x)', 1], ['✂ Cutout (remove background)', 1], ['◉ Face Lock (same face, new scene) · purchased credits', 6], ['▶ Animate an image (5s video) · purchased credits', 15], ...VIDEO_MODELS.map((m) => [`▶ ${m.label} video (${m.secs}s) · ${m.by} · purchased credits`, m.cost]), ['✦ Amplify prompt', 0]];
 const card = { padding: 18, borderRadius: 20, background: '#12121c', border: '1px solid #2a2a40' };
 const FAQ = [
   ['Which credits are used first?', 'Your 10 free daily credits are always used first. Paid credits are only used after the free ones run out.'],

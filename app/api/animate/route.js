@@ -7,10 +7,10 @@ import { getSupabase } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
-import { persistBytes, MAX_PROMPT_LENGTH } from '../../../lib/generation';
+import { persistBytes, MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
 import { toEnglishPrompt } from '../../../lib/translate';
 import { checkPromptText } from '../../../lib/moderation';
-import { PREMIUM } from '../../../lib/models';
+import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
 
 export const maxDuration = 60;
@@ -22,8 +22,8 @@ const JOB_TTL = 60 * 60_000;
 const api = (path, init = {}) => fetch(`https://api.replicate.com/v1/${path}`, { cache: 'no-store', ...init,
   headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
 const fileFor = (pred) => crypto.createHash('sha256').update(`anim.${pred}`).digest('hex').slice(0, 32);
-const ITEM_COLS = 'id, public_url, prompt, style, aspect_ratio, remix_of, is_public, likes';
-const toItem = (r) => ({ ...r, model: 'animate', is_public: Boolean(r.is_public), likes: r.likes || 0 });
+const ITEM_COLS = 'id, public_url, prompt, style, aspect_ratio, remix_of, is_public, likes, model';
+const toItem = (r) => ({ ...r, model: r.model || 'animate', is_public: Boolean(r.is_public), likes: r.likes || 0 });
 
 // POST { id, prompt? } -> { job } (start). Charged up front from PAID credits; refunded if the video fails.
 export async function POST(request) {
@@ -31,6 +31,7 @@ export async function POST(request) {
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
   const body = await request.json().catch(() => ({}));
+  if (typeof body?.model === 'string') return startTextVideo(request, body, { admin, creator, ip });
   if (!isUuid(body?.id)) return NextResponse.json({ error: 'Invalid image id.' }, { status: 400 });
   const raw = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, MAX_PROMPT_LENGTH) : '';
   const sb = getSupabase();
@@ -59,6 +60,35 @@ export async function POST(request) {
   }
   const job = makeJob({ p: p.id, u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL });
   const res = NextResponse.json({ job, status: 'processing', paid: admin ? undefined : await paidFor(creator), ...(admin ? { admin: true } : {}) });
+  setCreatorCookie(res, creator);
+  return res;
+}
+
+// Text-to-video from the model picker: { model, prompt, aspectRatio }. Paid credits only.
+async function startTextVideo(request, body, { admin, creator, ip }) {
+  const def = Object.prototype.hasOwnProperty.call(VIDEO_TIERS, body.model) ? VIDEO_TIERS[body.model] : null;
+  if (!def) return NextResponse.json({ error: 'Invalid video model.' }, { status: 400 });
+  const raw = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
+  if (!raw) return NextResponse.json({ error: 'Describe the video you want.' }, { status: 400 });
+  if (raw.length > MAX_PROMPT_LENGTH) return NextResponse.json({ error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` }, { status: 400 });
+  if (!process.env.REPLICATE_API_TOKEN || !getSupabase()) return NextResponse.json({ error: 'Service temporarily unavailable.' }, { status: 503 });
+  const ratio = VALID_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : '16:9';
+  const en = await toEnglishPrompt(raw);
+  const bad = checkPromptText(en);
+  if (bad && !/published to the feed/.test(bad)) return NextResponse.json({ error: bad }, { status: 400 });
+  if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
+  const charge = await chargePaidCredits({ admin, creator, cost: def.cost });
+  if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${def.cost}⚡).`, needCredits: { cost: def.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
+  const spend = await reserveSpend(def.usd, { admin: true });
+  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio) }) }).catch(() => null);
+  const p = r ? await r.json().catch(() => ({})) : {};
+  if (!r || !r.ok || !p.id) {
+    console.error('t2v start', body.model, r?.status, p?.detail || p?.error || '');
+    await spend.release(); await charge.refund();
+    return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
+  }
+  const job = makeJob({ p: p.id, u: creator.id, s: null, c: charge.source === 'paid' ? def.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio });
+  const res = NextResponse.json({ job, status: 'processing', ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
   setCreatorCookie(res, creator);
   return res;
 }
@@ -92,9 +122,10 @@ export async function GET(request) {
     const v = await fetch(url, { cache: 'no-store' });
     if (!v.ok) throw new Error(`download ${v.status}`);
     const bytes = Buffer.from(await v.arrayBuffer());
-    const { data: src } = await sb.from('images').select('prompt, style, aspect_ratio').eq('id', job.s).maybeSingle();
+    const { data: src0 } = job.s ? await sb.from('images').select('prompt, style, aspect_ratio').eq('id', job.s).maybeSingle() : { data: null };
+    const src = src0 || (job.pr ? { prompt: job.pr, style: 'None', aspect_ratio: job.r || '16:9' } : null);
     const stored = await persistBytes({ bytes, contentType: 'video/mp4', prompt: src?.prompt || 'Animated image', style: src?.style || 'None',
-      ratio: src?.aspect_ratio || '1:1', creatorId: job.u, remixOf: job.s, tier: 'animate', fixedName: name });
+      ratio: src?.aspect_ratio || '1:1', creatorId: job.u, remixOf: job.s || null, tier: job.t ? `video:${job.t}` : 'animate', fixedName: name });
     if (!stored?.id) throw new Error(stored?.error || 'save failed');
     return (await done()) || NextResponse.json({ status: 'done', item: toItem({ id: stored.id, public_url: stored.url, prompt: src?.prompt, style: src?.style, aspect_ratio: src?.aspect_ratio, remix_of: job.s }) });
   } catch (e) {
