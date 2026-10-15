@@ -1,5 +1,6 @@
 import { runImageTool } from '../../../lib/imagetool';
-import { translateIfHebrew, MAX_PROMPT_LENGTH } from '../../../lib/generation';
+import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
+import { toEnglishPrompt } from '../../../lib/translate';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -14,7 +15,7 @@ async function prepare(body) {
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) return { error: 'Describe what should appear in the painted area.' };
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
-  const english = await translateIfHebrew(prompt);
+  const english = await toEnglishPrompt(prompt);
   const args = [mask, english];
   return { args };
 }

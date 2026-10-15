@@ -1,5 +1,6 @@
 import { runImageTool } from '../../../lib/imagetool';
-import { translateIfHebrew, MAX_PROMPT_LENGTH } from '../../../lib/generation';
+import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
+import { toEnglishPrompt } from '../../../lib/translate';
 import { checkPromptText } from '../../../lib/moderation';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -10,7 +11,7 @@ async function prepare(body) {
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) return { error: 'Describe the change, e.g. "make it night".' };
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
-  const english = await translateIfHebrew(prompt);
+  const english = await toEnglishPrompt(prompt);
   const bad = checkPromptText(english);
   if (bad && !/published to the feed/.test(bad)) return { error: bad };
   const args = [english];

@@ -12,6 +12,8 @@ import { getSupabase } from '../../../lib/supabase';
 import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
 import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
 import { getTheme } from '../../../lib/daily';
+import { issueCutoutPass } from '../../../lib/cutoutPass';
+import { toEnglishPrompt } from '../../../lib/translate';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -93,22 +95,8 @@ export async function POST(request) {
   const refund = async () => { await spend.release(); await charge.refund(); };
 
   try {
-    // תרגום אוטומטי חכם אם הוזן טקסט בעברית
-    let englishPrompt = prompt.trim();
-    if (/[\u0590-\u05FF]/.test(englishPrompt)) {
-      try {
-        const cleanText = englishPrompt.replace(/\n+/g, ' ');
-        const res = await fetch(
-          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=he|en`
-        );
-        const data = await res.json();
-        if (data?.responseData?.translatedText) {
-          englishPrompt = data.responseData.translatedText;
-        }
-      } catch (err) {
-        console.error("Translation fallback:", err);
-      }
-    }
+    // Transparent translation: any language -> descriptive English (on-image text kept verbatim in Text mode). Fails open.
+    const englishPrompt = await toEnglishPrompt(prompt.trim(), { keepText: selectedTier === 'text' && storedTier === 'text', admin });
 
     const finalPrompt = buildFinalPrompt(applyFormat(englishPrompt, format), selectedStyle);
     const dailyTheme = daily === true ? await getTheme() : null;
@@ -137,6 +125,7 @@ export async function POST(request) {
       id: stored?.id || null,
       stored: Boolean(stored?.id),
       ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
+      ...(stored?.id && FORMATS[format]?.autoCutout ? { cutoutPass: issueCutoutPass(stored.id, creator.id) } : {}),
       tier: storedTier, format, ...(dailyTheme ? { daily: dailyTheme.day } : {}),
       credits: currentCredits(), ...(admin ? {} : { paid: await paidFor(creator) }),
       ...(admin ? { admin: true } : {}),
