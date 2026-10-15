@@ -12,6 +12,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Server configuration error: Missing API Token.' }, { status: 500 });
     }
 
+    // תרגום אוטומטי חכם אם הוזן טקסט בעברית
     let englishPrompt = prompt.trim();
     const hasHebrew = /[\u0590-\u05FF]/.test(englishPrompt);
 
@@ -83,7 +84,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Generation timed out. Please try again.' }, { status: 500 });
     }
 
-    // המרת התמונה ל-Base64 או החזרת הכתובת בצורה נקייה שתומכת בהורדה ישירה
     return NextResponse.json({ 
       success: true, 
       imageUrl: imageUrl
