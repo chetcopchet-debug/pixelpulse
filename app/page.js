@@ -1,117 +1,129 @@
-'use client';
-import { useState } from 'react';
+"use client";
+import { useState } from "react";
 
 export default function Home() {
-  const [prompt, setPrompt] = useState('');
-  const [selectedStyle, setSelectedStyle] = useState('Cinematic');
+  const [prompt, setPrompt] = useState("");
+  const [style, setStyle] = useState("Cinematic");
+  const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [credits, setCredits] = useState(5);
-  const [resultImage, setResultImage] = useState(null);
 
-  const styles = ['Cinematic', '3D Render', 'Anime', 'Cyberpunk', 'Oil Painting'];
+  const styles = ["Cinematic", "3D Render", "Anime", "Cyberpunk", "Oil Painting"];
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+  const generateImage = async () => {
+    if (!prompt.trim()) {
+      setError("Please enter a prompt to generate an image.");
+      return;
+    }
     if (credits <= 0) {
-      alert('נגמרו לך הקרדיטים!');
+      setError("You are out of credits! Please upgrade to continue.");
       return;
     }
 
     setLoading(true);
-    setResultImage(null);
+    setError("");
+    setImage(null);
 
     try {
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, style: selectedStyle }),
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, style }),
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'שגיאה ביצירת התמונה');
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Failed to generate image.");
       }
 
-      setResultImage(data.imageUrl);
-      setCredits(prev => prev - 1);
+      setImage(data.imageUrl);
+      setCredits((prev) => prev - 1);
     } catch (err) {
-      alert(err.message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main style={{ backgroundColor: '#09090b', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px', fontFamily: 'sans-serif' }}>
-      <div style={{ width: '100%', maxWidth: '700px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
-        <h1 style={{ fontSize: '1.8rem', background: 'linear-gradient(to right, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>
+    <div dir="ltr" className="min-h-screen bg-[#0d0d12] text-white font-sans flex flex-col items-center p-6">
+      {/* Header */}
+      <header className="w-full max-w-2xl flex justify-between items-center py-4 border-b border-gray-800 mb-8">
+        <h1 className="text-2xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
           PixelPulse AI
         </h1>
-        <div style={{ backgroundColor: '#18181b', padding: '8px 16px', borderRadius: '20px', border: '1px solid #27272a', fontSize: '0.9rem', color: '#a1a1aa' }}>
-          קרדיטים: <span style={{ color: '#ec4899', fontWeight: 'bold' }}>{credits}</span>
+        <div className="bg-gray-900 border border-gray-700 px-4 py-1.5 rounded-full text-sm font-medium text-purple-300">
+          ⚡ Credits: {credits}
         </div>
-      </div>
+      </header>
 
-      <div style={{ width: '100%', maxWidth: '700px', backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '16px', padding: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-        <label style={{ display: 'block', marginBottom: '10px', fontSize: '1rem', color: '#d4d4d8' }}>
-          תאר את מה שתרצה ליצור:
+      {/* Main Card */}
+      <main className="w-full max-w-xl bg-[#161622] border border-gray-800 rounded-2xl p-6 shadow-2xl">
+        <label className="block text-gray-300 text-sm font-semibold mb-2">
+          Describe what you want to create:
         </label>
         <textarea
+          rows="3"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="למשל: חתול אסטרונאוט מרחף בחלל..."
-          style={{ width: '100%', height: '100px', backgroundColor: '#09090b', color: 'white', border: '1px solid #3f3f46', borderRadius: '8px', padding: '12px', fontSize: '1rem', resize: 'none', outline: 'none', boxSizing: 'border-box', marginBottom: '20px' }}
+          placeholder="e.g., A cybernetic samurai standing in neon-lit rainy Tokyo..."
+          className="w-full bg-[#0d0d12] border border-gray-700 rounded-xl p-4 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition mb-6 resize-none"
         />
 
-        <label style={{ display: 'block', marginBottom: '10px', fontSize: '0.9rem', color: '#a1a1aa' }}>
-          בחר סגנון אמנותי:
+        <label className="block text-gray-300 text-sm font-semibold mb-3">
+          Choose Art Style:
         </label>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-          {styles.map((style) => (
+        <div className="flex flex-wrap gap-2.5 mb-6">
+          {styles.map((s) => (
             <button
-              key={style}
-              onClick={() => setSelectedStyle(style)}
-              style={{
-                backgroundColor: selectedStyle === style ? '#9333ea' : '#27272a',
-                color: 'white',
-                border: 'none',
-                padding: '8px 14px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '0.9rem'
-              }}
+              key={s}
+              onClick={() => setStyle(s)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                style === s
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-600/30"
+                  : "bg-[#222233] text-gray-300 hover:bg-[#2c2c40]"
+              }`}
             >
-              {style}
+              {s}
             </button>
           ))}
         </div>
 
         <button
-          onClick={handleGenerate}
+          onClick={generateImage}
           disabled={loading}
-          style={{
-            width: '100%',
-            backgroundColor: loading ? '#52525b' : '#9333ea',
-            color: 'white',
-            padding: '14px',
-            fontSize: '1.1rem',
-            borderRadius: '8px',
-            border: 'none',
-            fontWeight: 'bold',
-            cursor: loading ? 'not-allowed' : 'pointer'
-          }}
+          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg transition disabled:opacity-50 cursor-pointer"
         >
-          {loading ? 'מעבד בקשה בשרת...' : 'התחל לייצר (קרדיט 1-)'}
+          {loading ? "Generating Masterpiece..." : "Generate Image (1 Credit)"}
         </button>
 
-        {resultImage && (
-          <div style={{ marginTop: '24px', textAlign: 'center' }}>
-            <p style={{ color: '#4ade80', marginBottom: '10px' }}>התמונה נוצרה בהצלחה!</p>
-            <img src={resultImage} alt="Generated AI" style={{ width: '100%', borderRadius: '12px', border: '1px solid #3f3f46' }} />
+        {error && (
+          <p className="text-red-400 text-sm text-center mt-4 bg-red-950/30 border border-red-800/50 p-3 rounded-lg">
+            {error}
+          </p>
+        )}
+
+        {image && (
+          <div className="mt-8 text-center animate-fadeIn">
+            <p className="text-emerald-400 font-semibold mb-3">
+              ✨ Image Generated Successfully!
+            </p>
+            <div className="rounded-xl overflow-hidden border border-gray-700 shadow-xl">
+              <img src={image} alt="Generated AI Art" className="w-full h-auto object-cover" />
+            </div>
+            <a
+              href={image}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-4 text-sm text-purple-400 hover:text-purple-300 underline"
+            >
+              Open Full Resolution Image ↗
+            </a>
           </div>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
