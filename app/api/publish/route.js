@@ -24,6 +24,10 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   if (!isUuid(body?.id)) return NextResponse.json({ error: 'Invalid image id.' }, { status: 400 });
   const makePublic = body.public !== false;
+  if (makePublic) {
+    const { data: row } = await supabase.from('images').select('model').eq('id', body.id).eq('creator_id', creator.id).maybeSingle();
+    if (row?.model === 'upload') return NextResponse.json({ error: 'Uploaded photos (and edits of them) stay private and cannot be published to the feed.' }, { status: 403 });
+  }
 
   const { data, error } = await supabase
     .from('images')

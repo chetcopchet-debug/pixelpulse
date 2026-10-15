@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabase, BUCKET } from '../../../../lib/supabase';
-import { getCreatorId, setCreatorCookie } from '../../../../lib/identity';
+import { getCreatorId, setCreatorCookie, creatorTag, randomName } from '../../../../lib/identity';
 import { getClientIp } from '../../../../lib/credits';
 import { isAdmin } from '../../../../lib/admin';
 import { rateLimit } from '../../../../lib/ratelimit';
@@ -19,7 +19,7 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   const size = Number(body?.size) || 0;
   if (size > 8 * 1024 * 1024) return NextResponse.json({ error: 'Photo is too large (max 8MB).' }, { status: 413 });
-  const path = `tmp/${creator.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8).padEnd(6, '0')}`;
+  const path = `tmp/${creatorTag(creator.id, 'tmp')}/${randomName()}`;
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
   if (error || !data?.signedUrl) { console.error('Sign error:', error); return NextResponse.json({ error: 'Could not prepare the upload.' }, { status: 500 }); }
   const res = NextResponse.json({ signedUrl: data.signedUrl, tmpPath: path });
