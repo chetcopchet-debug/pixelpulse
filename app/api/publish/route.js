@@ -4,6 +4,8 @@ import { getCreatorId, isUuid } from '../../../lib/identity';
 import { getClientIp } from '../../../lib/credits';
 import { rateLimit } from '../../../lib/ratelimit';
 
+import { isAdmin } from '../../../lib/admin';
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
@@ -14,7 +16,7 @@ export async function POST(request) {
   if (creator.isNew) return NextResponse.json({ error: 'You can only publish your own images.' }, { status: 403 });
 
   const ip = getClientIp(request);
-  if (!rateLimit(`pub:ip:${ip}`, 10, 60_000) || !rateLimit(`pub:uid:${creator.id}`, 30, 60 * 60_000)) {
+  if (!isAdmin(request) && (!rateLimit(`pub:ip:${ip}`, 10, 60_000) || !rateLimit(`pub:uid:${creator.id}`, 30, 60 * 60_000))) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 });
   }
 

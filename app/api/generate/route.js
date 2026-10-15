@@ -6,6 +6,8 @@ import {
 import { getSupabase, BUCKET } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
+import { isAdmin } from '../../../lib/admin';
+
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
@@ -95,7 +97,8 @@ async function runPrediction(finalPrompt, ratio) {
 export async function POST(request) {
   const ip = getClientIp(request);
   const state = readCreditsCookie(request.cookies.get(COOKIE_NAME)?.value);
-  const currentCredits = () => Math.min(state.remaining, ipRemaining(ip));
+  const admin = isAdmin(request);
+  const currentCredits = () => (admin ? null : Math.min(state.remaining, ipRemaining(ip)));
 
   let body;
   try {
@@ -126,20 +129,20 @@ export async function POST(request) {
     return jsonError('Service temporarily unavailable. / השירות אינו זמין כרגע.', 503);
   }
 
-  // Charge before calling Replicate
-  if (state.remaining <= 0) {
+  // Charge before calling Replicate (admin bypasses credits and rate limits)
+  if (!admin && state.remaining <= 0) {
     return jsonError('You are out of credits for today. Come back tomorrow! / נגמרו הקרדיטים להיום, נסו שוב מחר.', 402, 0);
   }
-  const ipBlock = chargeIp(ip);
+  const ipBlock = admin ? null : chargeIp(ip);
   if (ipBlock === 'daily') {
     return jsonError('You are out of credits for today. Come back tomorrow! / נגמרו הקרדיטים להיום, נסו שוב מחר.', 402, 0);
   }
   if (ipBlock === 'minute') {
     return jsonError('Too many requests. Please wait a minute. / יותר מדי בקשות, נא להמתין דקה.', 429, currentCredits());
   }
-  state.remaining -= 1;
+  if (!admin) state.remaining -= 1;
 
-  const refund = () => { state.remaining += 1; refundIp(ip); };
+  const refund = () => { if (admin) return; state.remaining += 1; refundIp(ip); };
 
   try {
     // תרגום אוטומטי חכם אם הוזן טקסט בעברית
@@ -169,7 +172,7 @@ export async function POST(request) {
         ? 'Generation timed out. Your credit was refunded. / היצירה לקחה יותר מדי זמן, הקרדיט הוחזר.'
         : 'Image generation failed. Your credit was refunded. / יצירת התמונה נכשלה, הקרדיט הוחזר.';
       const res = jsonError(msg, status, currentCredits());
-      setCreditsCookie(res, state);
+      if (!admin) setCreditsCookie(res, state);
       return res;
     }
 
@@ -184,15 +187,16 @@ export async function POST(request) {
       id: stored?.id || null,
       stored: Boolean(stored),
       credits: currentCredits(),
+      ...(admin ? { admin: true } : {}),
     });
-    setCreditsCookie(res, state);
+    if (!admin) setCreditsCookie(res, state);
     setCreatorCookie(res, creator);
     return res;
   } catch (error) {
     console.error('Server Error:', error);
     refund();
     const res = jsonError('Internal server error. Your credit was refunded. / שגיאת שרת, הקרדיט הוחזר.', 500, currentCredits());
-    setCreditsCookie(res, state);
+    if (!admin) setCreditsCookie(res, state);
     return res;
   }
 }

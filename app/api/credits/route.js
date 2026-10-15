@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import { readCreditsCookie, setCreditsCookie, getClientIp, ipRemaining, COOKIE_NAME } from '../../../lib/credits';
 
+import { isAdmin } from '../../../lib/admin';
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
+  if (isAdmin(request)) return NextResponse.json({ credits: null, admin: true });
   const state = readCreditsCookie(request.cookies.get(COOKIE_NAME)?.value);
   const credits = Math.min(state.remaining, ipRemaining(getClientIp(request)));
   const res = NextResponse.json({ credits });

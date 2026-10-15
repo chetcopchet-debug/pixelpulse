@@ -4,6 +4,8 @@ import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { getClientIp } from '../../../lib/credits';
 import { rateLimit } from '../../../lib/ratelimit';
 
+import { isAdmin } from '../../../lib/admin';
+
 export const dynamic = 'force-dynamic';
 
 export async function POST(request) {
@@ -12,7 +14,7 @@ export async function POST(request) {
 
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
-  if (!rateLimit(`like:ip:${ip}`, 30, 60_000) || !rateLimit(`like:uid:${creator.id}`, 20, 60_000)) {
+  if (!isAdmin(request) && (!rateLimit(`like:ip:${ip}`, 30, 60_000) || !rateLimit(`like:uid:${creator.id}`, 20, 60_000))) {
     return NextResponse.json({ error: 'Too many likes. Slow down a bit.' }, { status: 429 });
   }
 
