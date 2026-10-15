@@ -69,12 +69,11 @@ export default function Home() {
     setError("");
     setImage(null);
 
-    // מחזור הודעות טעינה חיות כדי שהמשתמש יראה התקדמות
     const textIntervals = [
       setTimeout(() => setLoadingText("Translating & optimizing prompt..."), 2000),
       setTimeout(() => setLoadingText("Connecting to Flux AI neural network..."), 6000),
       setTimeout(() => setLoadingText("Rendering pixels and lighting..."), 12000),
-      setTimeout(() => setLoadingText("Finalizing masterpiece, almost ready..."), 22000),
+      setTimeout(() => setLoadingText("Finalizing masterpiece, almost ready..."), 25000),
     ];
 
     try {
@@ -149,7 +148,6 @@ export default function Home() {
         alignItems: "center",
       }}
     >
-      {/* Header */}
       <header
         style={{
           width: "100%",
@@ -192,7 +190,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Studio Card */}
       <main
         style={{
           width: "100%",
@@ -389,7 +386,6 @@ export default function Home() {
         )}
       </main>
 
-      {/* History */}
       {history.length > 0 && (
         <section style={{ width: "100%", maxWidth: "520px", marginTop: "32px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
