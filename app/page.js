@@ -67,13 +67,11 @@ export default function Home() {
 
   useEffect(() => {
     try {
-      const savedCredits = localStorage.getItem("pp_credits");
-      if (savedCredits === null || parseInt(savedCredits, 10) <= 0) {
-        setCredits(5);
-        localStorage.setItem("pp_credits", "5");
-      } else {
-        setCredits(parseInt(savedCredits, 10));
-      }
+      localStorage.removeItem("pp_credits");
+      fetch("/api/credits")
+        .then((r) => r.json())
+        .then((d) => { if (typeof d.credits === "number") setCredits(d.credits); })
+        .catch(() => {});
 
       const savedHistory = localStorage.getItem("pp_history");
       if (savedHistory) setHistory(JSON.parse(savedHistory));
@@ -125,7 +123,7 @@ export default function Home() {
       return;
     }
     if (credits <= 0) {
-      setError("You are out of credits!");
+      setError("You are out of credits for today. Come back tomorrow!");
       return;
     }
 
@@ -148,16 +146,13 @@ export default function Home() {
       });
 
       const data = await res.json();
+      if (typeof data.credits === "number") setCredits(data.credits);
 
       if (!res.ok || data.error) {
         throw new Error(data.error || "Failed to generate image.");
       }
 
       setImage(data.imageUrl);
-
-      const newCredits = credits - 1;
-      setCredits(newCredits);
-      localStorage.setItem("pp_credits", newCredits.toString());
 
       const newItem = {
         url: data.imageUrl,
@@ -305,24 +300,6 @@ export default function Home() {
             <span>⚡</span>
             <span>{credits} Credits</span>
           </div>
-          <button
-            onClick={() => {
-              setCredits(5);
-              localStorage.setItem("pp_credits", "5");
-            }}
-            title="Reset Credits"
-            style={{
-              backgroundColor: "#12121c",
-              border: "1px solid #262638",
-              color: "#8e8e9e",
-              padding: "6px 10px",
-              borderRadius: "20px",
-              fontSize: "12px",
-              cursor: "pointer",
-            }}
-          >
-            🔄
-          </button>
         </div>
       </header>
 
@@ -435,6 +412,7 @@ export default function Home() {
           </div>
 
           <textarea
+            maxLength={500}
             rows="4"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
