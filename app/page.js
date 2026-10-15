@@ -793,7 +793,7 @@ body{margin:0;background:var(--bg)}
 .pp-layout{max-width:1100px;margin:0 auto}
 .pp-main{width:100%}
 .pp-stage{width:100%;max-width:560px;margin:0 auto;border-radius:28px;background:var(--panel);border:1px solid var(--line);overflow:hidden;display:grid;place-items:center;max-height:70vh;position:relative;transition:box-shadow .4s}
-.pp-stage img{width:100%;height:auto;display:block;animation:ppReveal .6s ease}
+.pp-stage img{max-width:100%;max-height:58vh;width:auto;height:auto;display:block;margin:0 auto;animation:ppReveal .6s ease}
 .pp-generating{box-shadow:0 0 0 1px rgba(168,85,247,.6),0 0 40px rgba(168,85,247,.35);animation:ppGlow 1.6s ease-in-out infinite}
 .pp-empty{text-align:center;color:var(--mut);font-size:14px;padding:30px}
 .pp-ripple{position:relative;width:160px;height:160px;display:grid;place-items:center}
@@ -924,6 +924,7 @@ body{margin:0;background:var(--bg)}
 .pp-legal a{color:var(--mut)}
 .pp-card .ia-row{max-width:none}
 .pp-toast{bottom:170px}
+.pp-stage:has(img){background:#0b0b12}
 @keyframes ppRipple{0%{transform:scale(.4);opacity:.9}100%{transform:scale(2.2);opacity:0}}
 @keyframes ppRing{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.7);opacity:0}}
 @keyframes ppGlow{50%{box-shadow:0 0 0 1px rgba(236,72,153,.7),0 0 60px rgba(236,72,153,.35)}}
