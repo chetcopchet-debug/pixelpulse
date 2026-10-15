@@ -339,7 +339,7 @@ export default function Home() {
   const [repaintItem, setRepaintItem] = useState(null);
   useEffect(() => { setWatermark(!isAdmin && !purchased && paid === 0); }, [isAdmin, purchased, paid]);
   const isVideo = (u) => /\.mp4(\?|$)/i.test(u || "");
-  const ANIMATE_COST = 15, FACE_COST = 6;
+  const ANIMATE_COST = 15, FACE_COST = 7;
   // Animate: async video job (paid credits only). The server charges, we poll until the MP4 is stored.
   const [animating, setAnimating] = useState({}); // id -> true
   // Poll a video job until the MP4 is stored, then show it on the stage.
@@ -439,7 +439,7 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" }); showToast("◐ Repainted");
   };
   const openRepaint = (item) => { if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; } setRepaintItem(item); };
-  const EDIT_COST = 4;
+  const EDIT_COST = 8;
   const [editTarget, setEditTarget] = useState(null); // { id, url }
   const attachEdit = (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
@@ -471,7 +471,7 @@ export default function Home() {
   const [guide, setGuide] = useState(null); // { id, url }
   const [guideFollow, setGuideFollow] = useState(55);
   const [uploading, setUploading] = useState(false);
-  const GUIDED_COST = 3;
+  const GUIDED_COST = 5;
   const attachGuide = (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
     setEditTarget(null); setFaceTarget(null); setGuide({ id: item.id, url: item.url }); setActiveTab("create");
@@ -709,7 +709,7 @@ export default function Home() {
       vibe: { key: "vibe", icon: "✦", label: "Pulse this vibe", onClick: () => handlePulseVibe(item), hint: "Prompt + style into the Pulse Bar", tone: ctx === "feed" ? "accent" : undefined },
       edit: { key: "edit", icon: "✎", label: "Edit", onClick: () => attachEdit(item), disabled: !item.id || loading, hint: `${EDIT_COST}⚡ · change it with words` },
       copy: { key: "copy", icon: "⧉", label: "Copy prompt", onClick: () => copyPrompt(item) },
-      repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "5⚡ · paint an area" },
+      repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "8⚡ · paint an area" },
       guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => attachGuide(item), disabled: !item.id, hint: "3⚡ · new image from it" },
       sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "HD download", onClick: () => handleTool("sharpen", item, { download: true }), disabled: !!toolBusy || !item.id, hint: "1⚡ · 2x sharper file" },
       cutout: { key: "cutout", icon: busyTool("cutout") ? "…" : "✂", label: "Cutout", onClick: () => handleTool("cutout", item), disabled: !!toolBusy || !item.id, hint: "1⚡ · remove background" },
@@ -1040,7 +1040,7 @@ export default function Home() {
 
       {authOpen && <AuthSheet reason={authOpen.reason} onClose={() => setAuthOpen(null)} onSignedIn={(d) => { setAuthOpen(null); window.location.replace(d?.referral ? `/?signedin=1&bonus=${d.referral}` : "/?signedin=1"); }} />}
       {pricing && <PricingModal invite={invite} onInvite={shareInvite} signedIn={!!account} onSignIn={() => { setPricing(null); setAuthOpen({ reason: "Sign in first so the credits you buy are safe on every device." }); }} need={pricing.need} credits={credits} paid={paid} resetIn={resetIn} plans={plans} onClose={() => setPricing(null)} />}
-      {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits + paid} onNeedCredits={() => { setRepaintItem(null); openPricing("Repaint", 5); }} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
+      {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits + paid} onNeedCredits={() => { setRepaintItem(null); openPricing("Repaint", 8); }} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
       {menuOpen && (
         <div className="pp-scrim pp-menuscrim" onClick={() => setMenuOpen(false)}>
           <aside className="pp-menu" onClick={(e) => e.stopPropagation()} aria-label="Menu">
