@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   readCreditsCookie, setCreditsCookie, getClientIp, ipRemaining,
-  chargeIp, refundIp, COOKIE_NAME,
+  chargeIpAsync, refundIpAsync, COOKIE_NAME,
 } from '../../../lib/credits';
 import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RATIOS } from '../../../lib/generation';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
@@ -9,6 +9,7 @@ import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
 import { MODEL_TIERS, DEFAULT_TIER, guidedTier } from '../../../lib/models';
 import { getSupabase } from '../../../lib/supabase';
+import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -76,14 +77,19 @@ export async function POST(request) {
   // Charge before calling Replicate (admin bypasses credits and rate limits)
   const notEnough = () => jsonError(`Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`, 402, currentCredits());
   if (!admin && state.remaining < cost) return notEnough();
-  const ipBlock = admin ? null : chargeIp(ip, cost);
+  const ipBlock = admin ? null : await chargeIpAsync(ip, cost);
   if (ipBlock === 'daily') return notEnough();
   if (ipBlock === 'minute') {
     return jsonError('Too many requests. Please wait a minute. / יותר מדי בקשות, נא להמתין דקה.', 429, currentCredits());
   }
   if (!admin) state.remaining -= cost;
 
-  const refund = () => { if (admin) return; state.remaining += cost; refundIp(ip, cost); };
+  const spend = await reserveSpend(tierDef.usd || 0.01, { admin });
+  if (!spend.ok) {
+    await refundIpAsync(ip, cost);
+    return jsonError(PAUSED_MSG, 503, admin ? null : Math.min(state.remaining + cost, 10));
+  }
+  const refund = async () => { await spend.release(); if (admin) return; state.remaining += cost; await refundIpAsync(ip, cost); };
 
   try {
     // תרגום אוטומטי חכם אם הוזן טקסט בעברית
@@ -107,7 +113,7 @@ export async function POST(request) {
     const result = await runPrediction(finalPrompt, selectedRatio, tierDef);
 
     if (result.error) {
-      refund();
+      await refund();
       const status = result.error === 'timeout' ? 504 : 502;
       const msg = result.error === 'timeout'
         ? 'Generation timed out. Your credits were refunded. / היצירה לקחה יותר מדי זמן, הקרדיט הוחזר.'
@@ -137,7 +143,7 @@ export async function POST(request) {
     return res;
   } catch (error) {
     console.error('Server Error:', error);
-    refund();
+    await refund();
     const res = jsonError('Internal server error. Your credits were refunded. / שגיאת שרת, הקרדיט הוחזר.', 500, currentCredits());
     if (!admin) setCreditsCookie(res, state);
     return res;

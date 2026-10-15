@@ -16,13 +16,16 @@ export async function GET(request) {
   const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || PAGE_SIZE, 10) || PAGE_SIZE, 1), 50);
   const before = searchParams.get('before');
 
+  let hideFilter = true;
   const run = (cols) => {
     let q = supabase.from('images').select(cols).eq('is_public', true)
       .order('created_at', { ascending: false }).limit(limit);
     if (before && !Number.isNaN(Date.parse(before))) q = q.lt('created_at', before);
+    if (hideFilter) q = q.eq('hidden', false);
     return q;
   };
   let { data, error } = await run(IMAGE_COLUMNS);
+  if (error && /hidden/i.test(error.message || '')) { hideFilter = false; ({ data, error } = await run(IMAGE_COLUMNS)); }
   if (error && isMissingModelColumn(error)) ({ data, error } = await run(IMAGE_COLUMNS_LEGACY));
   if (error) {
     console.error('Feed error:', error);

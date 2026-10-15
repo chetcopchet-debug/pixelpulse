@@ -1,5 +1,5 @@
 import { LegalPage } from '../_legal/Legal';
-export const metadata = { title: 'Content Policy · PixelPulse' };
+export const metadata = { title: 'Content Policy · PixelPulse', description: 'PixelPulse content policy.', alternates: { canonical: '/content-policy' } };
 export default function ContentPolicy() {
   return (
     <LegalPage title="Content Policy">
