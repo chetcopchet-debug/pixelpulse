@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
+import CompareSlider, { COMPARE_CSS } from "./CompareSlider";
+import Masonry, { MASONRY_CSS } from "./Masonry";
 import { prepareUpload, uploadRaw } from "./clientImage";
 import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
 import { FORMATS, FORMAT_LIST, FORMAT_GROUPS } from "../lib/formats";
@@ -333,12 +335,21 @@ export default function Home() {
   };
 
   const [repaintItem, setRepaintItem] = useState(null);
+  const [compare, setCompare] = useState(null); // { before, after, label, beforeItem } after a tool/edit
+  const showCompare = (beforeItem, ni, label) => { if (beforeItem?.url && ni?.url && beforeItem.url !== ni.url) setCompare({ before: beforeItem.url, after: ni.url, label, beforeItem }); };
+  const revertCompare = () => {
+    if (!compare) return;
+    const b = compare.beforeItem; setCompare(null); setImage(b.url); setCurrentItem(b);
+    if (editTarget) setEditTarget({ id: b.id, url: b.url, format: b.format || null });
+    showToast("↺ Back to the original — the result stays in your gallery");
+  };
   const handleRepaintDone = (d, ok) => {
     syncCredits(d);
         if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans);
     if (!ok) return;
     const ni = toItem(d.item);
     setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
+    showCompare(repaintItem, ni, "Repaint");
     setRepaintItem(null); setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
     window.scrollTo({ top: 0, behavior: "smooth" }); showToast("◐ Repainted");
   };
@@ -363,6 +374,8 @@ export default function Home() {
       if (res.status === 402) { openPricing("Edit", EDIT_COST); return; }
       if (!res.ok || !d.item) throw new Error(d.error || "Edit failed.");
       const ni = { ...toItem(d.item), ...(editTarget.format ? { format: editTarget.format } : {}) };
+      const was = currentItem?.id === editTarget.id ? currentItem : history.find((h) => h.id === editTarget.id) || { id: editTarget.id, url: editTarget.url, format: editTarget.format };
+      showCompare(was, ni, "Edit");
       setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
       setImage(ni.url); setCurrentItem(ni); setGalleryKey((k) => k + 1);
       setEditTarget({ id: ni.id, url: ni.url, format: ni.format || null }); setPrompt("");
@@ -429,6 +442,7 @@ export default function Home() {
       if (!res.ok || !d.item) throw new Error(d.error || "Failed.");
       const ni = { ...toItem(d.item), ...(opts.format ? { format: opts.format } : item.format ? { format: item.format } : {}) };
       setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
+      if (!opts.replace) showCompare(item, ni, tool === "sharpen" ? "HD" : "Cutout");
       setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
       window.scrollTo({ top: 0, behavior: "smooth" });
       if (opts.replace && item.id && ni.id !== item.id) {
@@ -656,7 +670,7 @@ export default function Home() {
 
   return (
     <div dir="ltr" className="pp-root">
-      <style>{CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
+      <style>{CSS + COMPARE_CSS + MASONRY_CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
       <header className="pp-header">
         <div className="pp-brand">
           <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
@@ -681,6 +695,8 @@ export default function Home() {
             {stageFmt === "wallpaper" && <div className="pp-lock" aria-hidden="true"><small>Thursday</small><b>09:41</b></div>}
             {loading ? (
               <div className="pp-ripple"><i /><i /><i /><b>{loadingText}</b></div>
+            ) : image && compare && compare.after === image ? (
+              <CompareSlider before={compare.before} after={compare.after} label={compare.label} onKeep={() => setCompare(null)} onRevert={revertCompare} />
             ) : image ? (
               <img src={image} alt="Generated AI Art" />
             ) : (
@@ -770,30 +786,26 @@ export default function Home() {
           {feedView === "daily" ? (
             <>
               {(!daily?.entries || daily.entries.length === 0) && <p className="pp-muted">{daily?.migrated === false ? "Daily entries open very soon — create one now and it will count once entries are live." : "No entries yet. Be the first to join today’s Pulse!"}</p>}
-              <div className="pp-grid pp-feed">
-                {(daily?.entries || []).map((r0, idx) => { const item = toItem(r0); return (
+              <Masonry className="pp-feed" items={(daily?.entries || []).map(toItem)} getRatio={(it) => it.aspectRatio} renderItem={(item, idx) => (
                   <div className="pp-card" key={item.id}>
-                    <a href={`/p/${item.id}`}><span className="pp-rank">{idx === 0 ? "👑" : `#${idx + 1}`}</span><Thumb src={item.url} ratio="1:1" alt={item.prompt} /></a>
+                    <a href={`/p/${item.id}`}><span className="pp-rank">{idx === 0 ? "👑" : `#${idx + 1}`}</span><Thumb src={item.url} ratio={item.aspectRatio || "1:1"} alt={item.prompt} style={{ aspectRatio: (item.aspectRatio || "1:1").replace(":", " / ") }} /></a>
                     <div className="pp-cardbody"><p>“{item.prompt}”</p><Actions item={item} ctx="feed" compact /></div>
                   </div>
-                ); })}
-              </div>
+              )} />
             </>
           ) : (<>
           <div className="pp-sechead"><h2>Pulse Feed</h2></div>
           {communityFeed.length === 0 && !feedLoading && <p className="pp-muted">{storageEnabled ? "No public creations yet. Be the first to publish!" : "The community feed is coming soon."}</p>}
-          <div className="pp-grid pp-feed">
-            {communityFeed.map((item, idx) => (
+          <Masonry className="pp-feed" items={communityFeed} getRatio={(it) => it.aspectRatio} renderItem={(item, idx) => (
               <div className="pp-card" key={item.id || idx}>
-                <a href={`/p/${item.id}`}><Thumb src={item.url} ratio="1:1" alt={item.prompt} eager={idx < 2} /></a>
+                <a href={`/p/${item.id}`}><Thumb src={item.url} ratio={item.aspectRatio || "1:1"} alt={item.prompt} eager={idx < 2} style={{ aspectRatio: (item.aspectRatio || "1:1").replace(":", " / ") }} /></a>
                 <div className="pp-cardbody">
                   <p>“{item.prompt}”</p>
                   <span className="pp-meta">{[item.style === "None" ? "No style" : item.style, tierLabel(item.tier), item.aspectRatio || "1:1", item.remixOf ? "Remix" : ""].filter(Boolean).join(" · ")}</span>
                   <Actions item={item} ctx="feed" compact />
                 </div>
               </div>
-            ))}
-          </div>
+          )} />
           {feedCursor && <button className="pp-more" onClick={() => loadFeed(feedCursor)} disabled={feedLoading}>{feedLoading ? "Loading..." : "Load more"}</button>}
           </>)}
         </main>
@@ -901,8 +913,13 @@ export default function Home() {
               ))}
             </div>
             <h3>Style</h3>
-            <div className="pp-chips">
-              {stylesList.map((s) => <button key={s} className={`pp-chip${style === s ? " on" : ""}`} onClick={() => setStyle(s)}>{s === "None" ? "∅ No style" : s}</button>)}
+            <div className="pp-styles" role="radiogroup" aria-label="Style">
+              {stylesList.map((s) => (
+                <button key={s} role="radio" aria-checked={style === s} className={`pp-style${style === s ? " on" : ""}`} onClick={() => setStyle(s)}>
+                  <i className={`pp-sw pp-sw-${s.toLowerCase().replace(/[^a-z0-9]+/g, "")}`} aria-hidden="true" />
+                  <span>{s === "None" ? "No style" : s}</span>
+                </button>
+              ))}
             </div>
             <h3>Shape</h3>
             <div className="pp-chips">
@@ -1208,4 +1225,22 @@ body{margin:0;background:var(--bg)}
  .pp-grid{grid-template-columns:repeat(3,1fr)}
 }
 @media (prefers-reduced-motion:reduce){.pp-root *{animation:none!important}}
+.pp-styles{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 10px;margin:0 -2px;scroll-snap-type:x proximity;scrollbar-width:none}
+.pp-styles::-webkit-scrollbar{display:none}
+.pp-style{flex:0 0 76px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:0;border:none;background:none;color:var(--mut);font-size:11.5px;font-weight:700;scroll-snap-align:start;cursor:pointer}
+.pp-style span{white-space:nowrap;max-width:76px;overflow:hidden;text-overflow:ellipsis}
+.pp-sw{display:block;width:76px;height:76px;border-radius:18px;border:2px solid transparent;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);transition:transform .15s,border-color .15s,box-shadow .2s}
+.pp-style:active .pp-sw{transform:scale(.95)}
+.pp-style.on{color:var(--txt)}
+.pp-style.on .pp-sw{border-color:var(--p);box-shadow:0 0 0 3px rgba(236,72,153,.25),0 0 18px rgba(168,85,247,.45)}
+.pp-style:focus-visible{outline:none}.pp-style:focus-visible .pp-sw{border-color:#fff}
+.pp-sw-none{background:repeating-linear-gradient(135deg,#161622 0 8px,#1b1b2a 8px 16px);box-shadow:inset 0 0 0 1px #2a2a40}
+.pp-sw-cinematic{background:linear-gradient(180deg,#05070a 0 14%,transparent 14% 86%,#05070a 86%),radial-gradient(circle at 70% 60%,#ff9a3c 0,#c2410c 22%,transparent 50%),linear-gradient(160deg,#0f3b46,#0b1d26 60%,#1a0f0a)}
+.pp-sw-photorealistic{background:radial-gradient(circle at 72% 28%,#fff7d6 0 7%,transparent 18%),linear-gradient(180deg,#8ec5ff 0,#cfe7ff 46%,#6b8f4e 47%,#3f5f2c 100%)}
+.pp-sw-3drender{background:radial-gradient(circle at 36% 34%,#fff 0 4%,#a78bfa 12%,#6d28d9 30%,transparent 31%),radial-gradient(circle at 68% 66%,#fde68a 0 3%,#f472b6 12%,#9d174d 26%,transparent 27%),linear-gradient(180deg,#26263a,#11111a)}
+.pp-sw-anime{background:radial-gradient(circle at 30% 30%,#fff 0 3%,transparent 4%),radial-gradient(circle at 75% 75%,#ffd1e8 0 18%,transparent 19%),linear-gradient(160deg,#7dd3fc,#c4b5fd 55%,#f9a8d4)}
+.pp-sw-cyberpunk{background:linear-gradient(0deg,rgba(236,72,153,.0) 0 60%,transparent),repeating-linear-gradient(90deg,transparent 0 9px,rgba(34,211,238,.35) 9px 10px),linear-gradient(180deg,#1e0b3a 0,#0a0414 55%,#ff2bd6 56%,#3b0a45 62%,#05030a)}
+.pp-sw-fantasy{background:radial-gradient(circle at 50% 30%,#fde68a 0 5%,rgba(253,230,138,.35) 14%,transparent 30%),radial-gradient(circle at 20% 80%,rgba(16,185,129,.55),transparent 45%),linear-gradient(170deg,#4c1d95,#1e1b4b 60%,#064e3b)}
+.pp-sw-oilpainting{background:repeating-linear-gradient(115deg,rgba(0,0,0,.12) 0 3px,transparent 3px 7px),radial-gradient(circle at 30% 35%,#e9b872,transparent 45%),radial-gradient(circle at 75% 70%,#7c2d12,transparent 50%),linear-gradient(140deg,#a16207,#5b2c0f)}
+.pp-sw-watercolor{background:radial-gradient(circle at 28% 32%,rgba(96,165,250,.75),transparent 34%),radial-gradient(circle at 70% 40%,rgba(244,114,182,.7),transparent 32%),radial-gradient(circle at 48% 74%,rgba(250,204,21,.6),transparent 34%),#f5f1ea}
 `;
