@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import { prepareUpload, uploadRaw } from "./clientImage";
 
@@ -85,7 +85,7 @@ export default function Home() {
       // Keep images whose cloud save failed (stored only in this browser)
       let local = [];
       try { local = (JSON.parse(localStorage.getItem("pp_history") || "[]") || []).filter((h) => h && !h.id); } catch {}
-      if (Array.isArray(d.items)) setHistory([...local, ...d.items.map(toItem)].slice(0, 36));
+      if (Array.isArray(d.items)) { const seen = new Set(); setHistory([...local, ...d.items.map(toItem)].filter((h) => !h.id || (!seen.has(h.id) && seen.add(h.id))).slice(0, 36)); }
       else if (local.length) setHistory(local);
     } catch (e) {
       console.error(e);
@@ -248,26 +248,29 @@ export default function Home() {
     showToast("◎ Guide attached — describe the new image");
     setTimeout(() => document.getElementById("pp-prompt")?.focus(), 50);
   };
+  const uploadLock = useRef(false);
   const handleUploadFile = async (file) => {
-    if (!file) return;
+    if (!file || uploadLock.current) return;
+    uploadLock.current = true;
+    const uploadId = (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (c ^ (Math.random() * 16) >> (c / 4)).toString(16)));
     setUploading(true); setError("");
     try {
       const prep = await prepareUpload(file);
       let res;
       if (prep.data) {
-        res = await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: prep.data }) });
+        res = await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json", "x-upload-id": uploadId }, body: JSON.stringify({ data: prep.data }) });
       } else {
         showToast(prep.isHeic ? "Converting HEIC photo…" : "Converting photo on the server…");
-        res = await uploadRaw(prep.raw);
+        res = await uploadRaw(prep.raw, uploadId);
       }
       const d = await res.json().catch(() => ({}));
       if (!res.ok || !d.item) throw new Error(d.error || (res.status === 413 ? "Photo is too large. Try a smaller one." : `Upload failed (${res.status}).`));
       const ni = toItem(d.item);
-      setHistory((prev) => [ni, ...prev].slice(0, 36));
+      setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
       setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
       showToast("⇪ Uploaded — Repaint, Sharpen, Cutout or use as guide");
     } catch (e) { setError(e.message || "Upload failed."); }
-    finally { setUploading(false); }
+    finally { setUploading(false); uploadLock.current = false; }
   };
   const [toolBusy, setToolBusy] = useState(""); // "<tool>:<id>"
   const handleShare = async (item) => {
@@ -465,6 +468,17 @@ export default function Home() {
   const curRatio = ratiosList.find((r) => r.id === aspectRatio) || ratiosList[0];
   const ratioBox = (id) => ({ "1:1": [16, 16], "9:16": [11, 18], "16:9": [20, 12] }[id] || [16, 16]);
 
+  // Hide the image currently shown on the stage, and dedupe by id
+  const shownHistory = (() => {
+    const seen = new Set();
+    return history.filter((h) => {
+      if (image && (h.url === image || (currentItem?.id && h.id === currentItem.id))) return false;
+      if (!h.id) return true;
+      if (seen.has(h.id)) return false;
+      seen.add(h.id); return true;
+    });
+  })();
+
   const Actions = ({ item, compact }) => (
     <div className={`pp-actions${compact ? " pp-compact" : ""}`}>
       {item.tier !== "upload" && <>
@@ -517,13 +531,13 @@ export default function Home() {
           {notice && <div className="pp-notice">{notice}</div>}
           {error && <div className="pp-error">{error}</div>}
 
-          {history.length > 0 && (
+          {shownHistory.length > 0 && (
             <section className="pp-section">
               <div className="pp-sechead"><h2>Your creations</h2>
                 {!storageEnabled && <button className="pp-link" onClick={() => { setHistory([]); localStorage.removeItem("pp_history"); }}>Clear</button>}
               </div>
               <div className="pp-grid">
-                {history.map((item, idx) => (
+                {shownHistory.map((item, idx) => (
                   <div className="pp-card" key={item.id || idx}>
                     <img src={item.url} alt={item.prompt} onClick={() => { setImage(item.url); setCurrentItem(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
                     <div className="pp-cardbody">

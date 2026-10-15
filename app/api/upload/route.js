@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabase, BUCKET } from '../../../lib/supabase';
-import { getCreatorId, setCreatorCookie } from '../../../lib/identity';
+import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { getClientIp } from '../../../lib/credits';
 import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
@@ -29,6 +29,15 @@ export async function POST(request) {
     return err('Upload limit reached (20/hour). Try again later.', 429);
   }
 
+  // Idempotency: the client sends one upload id per picked photo; a retry/double-send returns the same row.
+  const uploadId = request.headers.get('x-upload-id');
+  const fixedName = !creator.isNew && isUuid(uploadId) ? `up-${uploadId.toLowerCase()}` : null;
+  if (fixedName) {
+    const { data: existing } = await supabase.from('images').select('id, public_url, aspect_ratio')
+      .eq('creator_id', creator.id).like('storage_path', `${creator.id}/${fixedName}.%`).limit(1).maybeSingle();
+    if (existing) return NextResponse.json({ success: true, duplicate: true, item: { id: existing.id, public_url: existing.public_url,
+      prompt: 'Uploaded image', style: null, aspect_ratio: existing.aspect_ratio, model: 'upload', is_public: false, likes: 0, remix_of: null } });
+  }
   let buf = null;
   let tmpPath = null;
   const ct = (request.headers.get('content-type') || '').toLowerCase();
@@ -55,7 +64,7 @@ export async function POST(request) {
     const out = await normalizeImage(buf);
     const ratio = ratioFor(out.width, out.height);
     const stored = await persistBytes({ bytes: out.bytes, contentType: out.contentType, prompt: 'Uploaded image', style: null, ratio,
-      creatorId: creator.id, remixOf: null, tier: 'upload' });
+      creatorId: creator.id, remixOf: null, tier: 'upload', fixedName });
     if (!stored?.id) return err(`Could not save the upload (${stored?.error || 'unknown'}).`, 500);
     const res = NextResponse.json({ success: true, width: out.width, height: out.height, source: out.sourceType,
       item: { id: stored.id, public_url: stored.url, prompt: 'Uploaded image', style: null,

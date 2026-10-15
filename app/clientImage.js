@@ -99,7 +99,8 @@ export async function prepareUpload(file) {
 }
 
 // Send original bytes to the server for conversion (signed storage URL, else direct body).
-export async function uploadRaw(file) {
+export async function uploadRaw(file, uploadId) {
+  const idh = uploadId ? { "x-upload-id": uploadId } : {};
   if (file.size > 8 * 1024 * 1024) throw new UploadError("This photo is too large to convert (max 8MB). Try a screenshot of it, or a smaller photo.");
   try {
     const s = await fetch("/api/upload/sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ size: file.size }) });
@@ -107,11 +108,11 @@ export async function uploadRaw(file) {
     if (s.ok && sd.signedUrl) {
       const put = await fetch(sd.signedUrl, { method: "PUT", headers: { "Content-Type": file.type || "application/octet-stream", "x-upsert": "true" }, body: file });
       if (put.ok) {
-        const r = await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tmpPath: sd.tmpPath }) });
+        const r = await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json", ...idh }, body: JSON.stringify({ tmpPath: sd.tmpPath }) });
         return r;
       }
     }
   } catch (e) { console.warn("signed upload failed", e); }
   if (file.size > 4.3 * 1024 * 1024) throw new UploadError("Couldn't send this photo for conversion. Try a smaller photo or a JPG.");
-  return fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: file });
+  return fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/octet-stream", ...idh }, body: file });
 }
