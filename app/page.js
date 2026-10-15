@@ -12,6 +12,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [credits, setCredits] = useState(5);
   const [history, setHistory] = useState([]);
+  const [activeTab, setActiveTab] = useState("create"); // "create" או "community"
 
   const stylesList = [
     "Cinematic",
@@ -38,10 +39,41 @@ export default function Home() {
     "Hyper-realistic close-up of a sleek black panther with glowing emerald eyes walking through a misty bamboo forest at dawn"
   ];
 
+  // יצירות קהילה גלובליות להשראה מיידית עם Remix
+  const communityFeed = [
+    {
+      url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop",
+      prompt: "Abstract 3D fluid neon waves glowing in dark space, futuristic digital art",
+      style: "3D Render",
+      aspectRatio: "1:1",
+      author: "Alex_Dev"
+    },
+    {
+      url: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=1000&auto=format&fit=crop",
+      prompt: "Cyberpunk street in Tokyo at night with neon signs and heavy rain reflections",
+      style: "Cyberpunk",
+      aspectRatio: "9:16",
+      author: "Elena_V"
+    },
+    {
+      url: "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop",
+      prompt: "Epic fantasy castle on a floating mountain in the clouds at golden sunset",
+      style: "Fantasy",
+      aspectRatio: "16:9",
+      author: "MasterAI"
+    },
+    {
+      url: "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?q=80&w=1000&auto=format&fit=crop",
+      prompt: "Oil painting of a majestic lion looking over the savannah, rich textures",
+      style: "Oil Painting",
+      aspectRatio: "1:1",
+      author: "LucasArt"
+    }
+  ];
+
   useEffect(() => {
     try {
       const savedCredits = localStorage.getItem("pp_credits");
-      // אם אין קרדיטים שמורים או שהם על 0, נאפס אותם אוטומטית ל-5 כדי שלא ייחסם בטעות
       if (savedCredits === null || parseInt(savedCredits, 10) <= 0) {
         setCredits(5);
         localStorage.setItem("pp_credits", "5");
@@ -174,6 +206,7 @@ export default function Home() {
     setPrompt(item.prompt);
     setStyle(item.style || "Cinematic");
     setAspectRatio(item.aspectRatio || "1:1");
+    setActiveTab("create");
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -191,6 +224,7 @@ export default function Home() {
         alignItems: "center",
       }}
     >
+      {/* Header */}
       <header
         style={{
           width: "100%",
@@ -198,7 +232,7 @@ export default function Home() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "28px",
+          marginBottom: "20px",
           paddingBottom: "16px",
           borderBottom: "1px solid #1a1a26",
         }}
@@ -233,7 +267,7 @@ export default function Home() {
             >
               PixelPulse AI
             </h1>
-            <span style={{ fontSize: "11px", color: "#6b6b80", fontWeight: "500" }}>PRO STUDIO V2</span>
+            <span style={{ fontSize: "11px", color: "#6b6b80", fontWeight: "500" }}>PRO STUDIO V3</span>
           </div>
         </div>
 
@@ -255,7 +289,6 @@ export default function Home() {
             <span>⚡</span>
             <span>{credits} Credits</span>
           </div>
-          {/* כפתור איפוס מהיר לקרדיטים אם צריך */}
           <button
             onClick={() => {
               setCredits(5);
@@ -277,223 +310,319 @@ export default function Home() {
         </div>
       </header>
 
-      <main
+      {/* Navigation Tabs (Create vs Community Feed) */}
+      <div
         style={{
           width: "100%",
           maxWidth: "540px",
+          display: "flex",
           backgroundColor: "#101018",
           border: "1px solid #1f1f2e",
-          borderRadius: "24px",
-          padding: "24px",
-          boxSizing: "border-box",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.7)",
+          borderRadius: "14px",
+          padding: "4px",
+          marginBottom: "20px",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "10px",
-          }}
-        >
-          <label style={{ color: "#d1d1e0", fontSize: "14px", fontWeight: "600" }}>
-            Describe your vision:
-          </label>
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button
-              onClick={handleEnhancePrompt}
-              style={{
-                backgroundColor: "rgba(147, 51, 234, 0.15)",
-                border: "1px solid rgba(147, 51, 234, 0.4)",
-                color: "#d8b4fe",
-                padding: "5px 10px",
-                borderRadius: "8px",
-                fontSize: "11px",
-                fontWeight: "600",
-                cursor: "pointer",
-              }}
-            >
-              🪄 Smart Enhance
-            </button>
-            <button
-              onClick={handleSurpriseMe}
-              style={{
-                backgroundColor: "#191924",
-                border: "1px solid #2e2e42",
-                color: "#a0a0b8",
-                padding: "5px 10px",
-                borderRadius: "8px",
-                fontSize: "11px",
-                fontWeight: "600",
-                cursor: "pointer",
-              }}
-            >
-              🎲 Surprise
-            </button>
-          </div>
-        </div>
-
-        <textarea
-          rows="4"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Type what you want to create in Hebrew or English..."
-          style={{
-            width: "100%",
-            backgroundColor: "#050508",
-            border: "1px solid #222233",
-            borderRadius: "14px",
-            padding: "14px",
-            color: "#ffffff",
-            fontSize: "15px",
-            boxSizing: "border-box",
-            marginBottom: "20px",
-            outline: "none",
-            resize: "none",
-            lineHeight: "1.5",
-          }}
-        />
-
-        <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
-          Aspect Ratio:
-        </label>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
-          {ratiosList.map((r) => {
-            const isSelected = aspectRatio === r.id;
-            return (
-              <button
-                key={r.id}
-                onClick={() => setAspectRatio(r.id)}
-                style={{
-                  padding: "10px 8px",
-                  borderRadius: "12px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  border: isSelected ? "1px solid #a855f7" : "1px solid #222233",
-                  backgroundColor: isSelected ? "rgba(147, 51, 234, 0.25)" : "#151520",
-                  color: isSelected ? "#ffffff" : "#8e8e9e",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px",
-                  transition: "all 0.2s",
-                }}
-              >
-                <span>{r.icon}</span>
-                <span>{r.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
-          Choose Art Style:
-        </label>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "26px" }}>
-          {stylesList.map((s) => {
-            const isSelected = style === s;
-            return (
-              <button
-                key={s}
-                onClick={() => setStyle(s)}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "10px",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  border: "none",
-                  backgroundColor: isSelected ? "#9333ea" : "#171722",
-                  color: isSelected ? "#ffffff" : "#b0b0c4",
-                  boxShadow: isSelected ? "0 4px 14px rgba(147, 51, 234, 0.4)" : "none",
-                  transition: "all 0.2s",
-                }}
-              >
-                {s}
-              </button>
-            );
-          })}
-        </div>
-
         <button
-          onClick={generateImage}
-          disabled={loading}
+          onClick={() => setActiveTab("create")}
           style={{
-            width: "100%",
-            background: "linear-gradient(90deg, #9333ea, #ec4899)",
-            color: "#ffffff",
-            fontWeight: "700",
-            fontSize: "16px",
-            padding: "16px",
-            borderRadius: "14px",
+            flex: 1,
+            padding: "10px",
+            borderRadius: "10px",
             border: "none",
-            cursor: loading ? "not-allowed" : "pointer",
-            opacity: loading ? 0.7 : 1,
-            boxShadow: "0 8px 25px rgba(147, 51, 234, 0.4)",
-            transition: "transform 0.1s",
+            backgroundColor: activeTab === "create" ? "#9333ea" : "transparent",
+            color: activeTab === "create" ? "#ffffff" : "#8e8e9e",
+            fontWeight: "700",
+            fontSize: "14px",
+            cursor: "pointer",
+            transition: "all 0.2s",
           }}
         >
-          {loading ? `✨ ${loadingText}` : "Generate Masterpiece (1 Credit)"}
+          ✨ Create Studio
         </button>
+        <button
+          onClick={() => setActiveTab("community")}
+          style={{
+            flex: 1,
+            padding: "10px",
+            borderRadius: "10px",
+            border: "none",
+            backgroundColor: activeTab === "community" ? "#9333ea" : "transparent",
+            color: activeTab === "community" ? "#ffffff" : "#8e8e9e",
+            fontWeight: "700",
+            fontSize: "14px",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+        >
+          🌍 Community Feed
+        </button>
+      </div>
 
-        {error && (
+      {/* Main Content Area */}
+      {activeTab === "create" ? (
+        <main
+          style={{
+            width: "100%",
+            maxWidth: "540px",
+            backgroundColor: "#101018",
+            border: "1px solid #1f1f2e",
+            borderRadius: "24px",
+            padding: "24px",
+            boxSizing: "border-box",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.7)",
+          }}
+        >
           <div
             style={{
-              marginTop: "16px",
-              padding: "12px",
-              backgroundColor: "rgba(239, 68, 68, 0.15)",
-              border: "1px solid rgba(239, 68, 68, 0.4)",
-              borderRadius: "10px",
-              color: "#f87171",
-              textAlign: "center",
-              fontSize: "13px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "10px",
             }}
           >
-            {error}
+            <label style={{ color: "#d1d1e0", fontSize: "14px", fontWeight: "600" }}>
+              Describe your vision:
+            </label>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                onClick={handleEnhancePrompt}
+                style={{
+                  backgroundColor: "rgba(147, 51, 234, 0.15)",
+                  border: "1px solid rgba(147, 51, 234, 0.4)",
+                  color: "#d8b4fe",
+                  padding: "5px 10px",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                🪄 Smart Enhance
+              </button>
+              <button
+                onClick={handleSurpriseMe}
+                style={{
+                  backgroundColor: "#191924",
+                  border: "1px solid #2e2e42",
+                  color: "#a0a0b8",
+                  padding: "5px 10px",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                🎲 Surprise
+              </button>
+            </div>
           </div>
-        )}
 
-        {image && (
-          <div style={{ marginTop: "28px", textAlign: "center" }}>
-            <p style={{ color: "#34d399", fontWeight: "600", fontSize: "14px", marginBottom: "12px" }}>
-              ✨ Masterpiece Ready!
-            </p>
+          <textarea
+            rows="4"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Type what you want to create in Hebrew or English..."
+            style={{
+              width: "100%",
+              backgroundColor: "#050508",
+              border: "1px solid #222233",
+              borderRadius: "14px",
+              padding: "14px",
+              color: "#ffffff",
+              fontSize: "15px",
+              boxSizing: "border-box",
+              marginBottom: "20px",
+              outline: "none",
+              resize: "none",
+              lineHeight: "1.5",
+            }}
+          />
+
+          <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
+            Aspect Ratio:
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
+            {ratiosList.map((r) => {
+              const isSelected = aspectRatio === r.id;
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => setAspectRatio(r.id)}
+                  style={{
+                    padding: "10px 8px",
+                    borderRadius: "12px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    border: isSelected ? "1px solid #a855f7" : "1px solid #222233",
+                    backgroundColor: isSelected ? "rgba(147, 51, 234, 0.25)" : "#151520",
+                    color: isSelected ? "#ffffff" : "#8e8e9e",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span>{r.icon}</span>
+                  <span>{r.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
+            Choose Art Style:
+          </label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "26px" }}>
+            {stylesList.map((s) => {
+              const isSelected = style === s;
+              return (
+                <button
+                  key={s}
+                  onClick={() => setStyle(s)}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    border: "none",
+                    backgroundColor: isSelected ? "#9333ea" : "#171722",
+                    color: isSelected ? "#ffffff" : "#b0b0c4",
+                    boxShadow: isSelected ? "0 4px 14px rgba(147, 51, 234, 0.4)" : "none",
+                  }}
+                >
+                  {s}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={generateImage}
+            disabled={loading}
+            style={{
+              width: "100%",
+              background: "linear-gradient(90deg, #9333ea, #ec4899)",
+              color: "#ffffff",
+              fontWeight: "700",
+              fontSize: "16px",
+              padding: "16px",
+              borderRadius: "14px",
+              border: "none",
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.7 : 1,
+              boxShadow: "0 8px 25px rgba(147, 51, 234, 0.4)",
+            }}
+          >
+            {loading ? `✨ ${loadingText}` : "Generate Masterpiece (1 Credit)"}
+          </button>
+
+          {error && (
             <div
               style={{
-                borderRadius: "16px",
-                overflow: "hidden",
-                border: "1px solid #262638",
-                boxShadow: "0 10px 30px rgba(0,0,0,0.7)",
-                marginBottom: "14px",
+                marginTop: "16px",
+                padding: "12px",
+                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                border: "1px solid rgba(239, 68, 68, 0.4)",
+                borderRadius: "10px",
+                color: "#f87171",
+                textAlign: "center",
+                fontSize: "13px",
               }}
             >
-              <img src={image} alt="Generated AI Art" style={{ width: "100%", height: "auto", display: "block" }} />
+              {error}
             </div>
+          )}
 
-            <button
-              onClick={() => handleDownload(image)}
-              disabled={downloading}
-              style={{
-                width: "100%",
-                backgroundColor: "#1a1a26",
-                border: "1px solid #2d2d42",
-                color: "#ffffff",
-                padding: "13px",
-                borderRadius: "12px",
-                fontSize: "14px",
-                fontWeight: "600",
-                cursor: "pointer",
-              }}
-            >
-              {downloading ? "Downloading to device..." : "⬇️ Download High-Res Image"}
-            </button>
+          {image && (
+            <div style={{ marginTop: "28px", textAlign: "center" }}>
+              <p style={{ color: "#34d399", fontWeight: "600", fontSize: "14px", marginBottom: "12px" }}>
+                ✨ Masterpiece Ready!
+              </p>
+              <div
+                style={{
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  border: "1px solid #262638",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.7)",
+                  marginBottom: "14px",
+                }}
+              >
+                <img src={image} alt="Generated AI Art" style={{ width: "100%", height: "auto", display: "block" }} />
+              </div>
+
+              <button
+                onClick={() => handleDownload(image)}
+                disabled={downloading}
+                style={{
+                  width: "100%",
+                  backgroundColor: "#1a1a26",
+                  border: "1px solid #2d2d42",
+                  color: "#ffffff",
+                  padding: "13px",
+                  borderRadius: "12px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                {downloading ? "Downloading to device..." : "⬇️ Download High-Res Image"}
+              </button>
+            </div>
+          )}
+        </main>
+      ) : (
+        /* Community Feed View */
+        <div style={{ width: "100%", maxWidth: "540px" }}>
+          <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px", color: "#e2e2f0" }}>
+            🌍 Global Community Creations
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
+            {communityFeed.map((item, idx) => (
+              <div
+                key={idx}
+                style={{
+                  backgroundColor: "#101018",
+                  border: "1px solid #1f1f2e",
+                  borderRadius: "16px",
+                  overflow: "hidden",
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                }}
+              >
+                <img src={item.url} alt={item.prompt} style={{ width: "100%", height: "240px", objectFit: "cover", display: "block" }} />
+                <div style={{ padding: "14px" }}>
+                  <p style={{ margin: "0 0 8px 0", fontSize: "13px", color: "#e2e2f0", fontWeight: "500" }}>
+                    "{item.prompt}"
+                  </p>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "11px", color: "#7c7c94" }}>By {item.author} • {item.style}</span>
+                    <button
+                      onClick={() => handleRemix(item)}
+                      style={{
+                        backgroundColor: "rgba(147, 51, 234, 0.25)",
+                        border: "1px solid rgba(147, 51, 234, 0.5)",
+                        color: "#d8b4fe",
+                        padding: "6px 14px",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      🔄 Remix Style
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </main>
+        </div>
+      )}
 
-      {history.length > 0 && (
+      {/* History Section (when in create mode) */}
+      {activeTab === "create" && history.length > 0 && (
         <section style={{ width: "100%", maxWidth: "540px", marginTop: "36px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
             <h2 style={{ fontSize: "17px", fontWeight: "700", margin: 0, color: "#e2e2f0" }}>
