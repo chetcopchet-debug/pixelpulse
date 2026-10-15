@@ -12,7 +12,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Server configuration error: Missing API Token.' }, { status: 500 });
     }
 
-    // תרגום אוטומטי אם המשתמש הזין טקסט בעברית
+    // תרגום אוטומטי אם הוזן טקסט בעברית
     let englishPrompt = prompt.trim();
     const hasHebrew = /[\u0590-\u05FF]/.test(englishPrompt);
 
@@ -35,12 +35,12 @@ export async function POST(request) {
     const validRatios = ["1:1", "16:9", "9:16"];
     const selectedRatio = validRatios.includes(aspectRatio) ? aspectRatio : "1:1";
 
+    // שליחת בקשה ללא Prefer: wait כדי למנוע חסימות וניתוקים
     const response = await fetch("https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.REPLICATE_API_TOKEN}`,
         "Content-Type": "application/json",
-        "Prefer": "wait"
       },
       body: JSON.stringify({
         input: {
@@ -58,13 +58,16 @@ export async function POST(request) {
       return NextResponse.json({ error: prediction.detail || 'Failed to communicate with AI server.' }, { status: 500 });
     }
 
-    let imageUrl = prediction.output ? prediction.output[0] : null;
+    let imageUrl = null;
     let getUrl = prediction.urls?.get;
 
-    // הארכת זמן ההמתנה ל-60 שניות מלאות למניעת שגיאות Timeout
+    if (!getUrl) {
+      return NextResponse.json({ error: 'Failed to initialize prediction stream.' }, { status: 500 });
+    }
+
+    // לולאת בדיקה שקטה ויציבה בשרת (עד 60 שניות)
     for (let i = 0; i < 60; i++) {
-      if (imageUrl || !getUrl) break;
-      await new Promise(res => setTimeout(res, 1000));
+      await new Promise(res => setTimeout(res, 1500)); // בדיקה כל 1.5 שניות
       
       const statusRes = await fetch(getUrl, {
         headers: { "Authorization": `Bearer ${process.env.REPLICATE_API_TOKEN}` }
