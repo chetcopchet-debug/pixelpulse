@@ -6,7 +6,10 @@ const FILTERS = [
   { id: "all", label: "All" }, { id: "published", label: "◉ Published" }, { id: "favorites", label: "★ Favorites" },
 ];
 const FAV_KEY = "pp_favs";
+const FAV_SYNCED = "pp_favs_cloud"; // set once this device's local favorites were merged into the account
 const readFavs = () => { try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]")); } catch { return new Set(); } };
+const writeFavs = (set) => { try { localStorage.setItem(FAV_KEY, JSON.stringify([...set])); } catch {} };
+const favApi = (body) => fetch("/api/favorites", body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" }).then((r) => r.json());
 
 export async function downloadImage(url, name = "pixelpulse") {
   try {
@@ -46,7 +49,35 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
   const sentinel = useRef(null);
   const reqId = useRef(0);
 
-  useEffect(() => { setFavs(readFavs()); }, []);
+  const [reloadTick, setReloadTick] = useState(0);
+  const favsRef = useRef(new Set());
+  const cloud = useRef(false); // signed in + cloud table available -> account favorites; else localStorage
+  const applyFavs = (set) => { favsRef.current = set; setFavs(set); writeFavs(set); };
+  const filterRef = useRef(filter); filterRef.current = filter;
+
+  // Signed-in accounts keep favorites in the cloud. The first sync on a device merges its local favorites in.
+  useEffect(() => {
+    const local = readFavs(); favsRef.current = local; setFavs(local);
+    let off = false;
+    (async () => {
+      try {
+        let d = await favApi();
+        if (off) return;
+        if (!d.cloud) { cloud.current = false; try { localStorage.removeItem(FAV_SYNCED); } catch {} return; }
+        const cloudIds = new Set(d.ids || []);
+        const extra = localStorage.getItem(FAV_SYNCED) ? [] : [...local].filter((id) => !cloudIds.has(id));
+        if (extra.length) d = await favApi({ add: extra });
+        if (off || !d.cloud) return;
+        cloud.current = true; try { localStorage.setItem(FAV_SYNCED, "1"); } catch {}
+        const next = new Set(d.ids || []);
+        const changed = next.size !== favsRef.current.size || [...next].some((id) => !favsRef.current.has(id));
+        applyFavs(next);
+        if (changed && filterRef.current === "favorites") { setItems([]); setCursor(null); setDone(false); setReloadTick((t) => t + 1); }
+      } catch {}
+    })();
+    return () => { off = true; };
+    // eslint-disable-next-line
+  }, [refreshKey]);
 
   const load = useCallback(async (reset) => {
     const my = ++reqId.current;
@@ -54,7 +85,7 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
     try {
       const qs = new URLSearchParams({ limit: "24", filter });
       if (!reset && cursor) qs.set("cursor", cursor);
-      if (filter === "favorites") qs.set("ids", [...readFavs()].join(","));
+      if (filter === "favorites") qs.set("ids", [...favsRef.current].join(","));
       const d = await fetch(`/api/history?${qs}`, { cache: "no-store" }).then((r) => r.json());
       if (my !== reqId.current) return;
       const got = (d.items || []).map((r) => ({ ...toItem(r), createdAt: r.created_at, kind: r.kind || "created" }));
@@ -64,7 +95,7 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
     finally { if (my === reqId.current) setLoading(false); }
   }, [filter, cursor, toItem]);
 
-  useEffect(() => { setItems([]); setCursor(null); setDone(false); load(true); /* eslint-disable-next-line */ }, [filter, refreshKey]);
+  useEffect(() => { setItems([]); setCursor(null); setDone(false); load(true); /* eslint-disable-next-line */ }, [filter, refreshKey, reloadTick]);
 
   useEffect(() => {
     const el = sentinel.current; if (!el) return;
@@ -73,16 +104,16 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
   }, [load, loading, done]);
 
   const toggleFav = (id) => {
-    const n = new Set(favs); n.has(id) ? n.delete(id) : n.add(id);
-    setFavs(n); try { localStorage.setItem(FAV_KEY, JSON.stringify([...n])); } catch {}
+    const n = new Set(favsRef.current); const on = !n.has(id); on ? n.add(id) : n.delete(id);
+    applyFavs(n);
+    if (cloud.current) favApi(on ? { add: [id] } : { remove: [id] }).then((d) => { if (!d.cloud) cloud.current = false; }).catch(() => notify?.("Couldn't sync favorite — saved on this device"));
     if (filter === "favorites" && !n.has(id)) setItems((p) => p.filter((x) => x.id !== id));
   };
 
   const removeLocal = (ids) => {
     const s = new Set(ids);
     setItems((p) => p.filter((x) => !s.has(x.id)));
-    const f = readFavs(); ids.forEach((i) => f.delete(i)); try { localStorage.setItem(FAV_KEY, JSON.stringify([...f])); } catch {}
-    setFavs(f);
+    const f = new Set(favsRef.current); ids.forEach((i) => f.delete(i)); applyFavs(f);
   };
   const doDelete = async (ids) => {
     if (!ids.length) return;
