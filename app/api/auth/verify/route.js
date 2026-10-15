@@ -12,7 +12,17 @@ export async function POST(request) {
   if (!await rateLimit(`auth:verify:${getClientIp(request)}`, 15, 15 * 60_000)) return NextResponse.json({ error: 'Too many attempts. Wait a few minutes.' }, { status: 429 });
   const sb = getSupabase(); if (!sb) return NextResponse.json({ error: 'Sign-in is unavailable.' }, { status: 503 });
   let user = null;
-  if (typeof body.access_token === 'string' && body.access_token.length < 4000) {
+  if (typeof body.code === 'string' && body.oauth === true) {
+    const verifier = request.cookies.get('pp_pkce')?.value;
+    if (!verifier || body.code.length > 512) return NextResponse.json({ error: 'Google sign-in expired. Please try again.' }, { status: 400 });
+    const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/token?grant_type=pkce`, {
+      method: 'POST', headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY || '', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auth_code: body.code, code_verifier: verifier }), cache: 'no-store',
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) user = d?.user || null;
+    else console.error('oauth exchange', r.status, d?.error_code || d?.error || '');
+  } else if (typeof body.access_token === 'string' && body.access_token.length < 4000) {
     const { data, error } = await sb.auth.getUser(body.access_token);
     if (!error) user = data?.user || null;
   } else {
@@ -29,6 +39,7 @@ export async function POST(request) {
     const r = await linkAccount(request, res, user);
     const out = NextResponse.json({ ok: true, email: r.email, created: r.created, merged: r.merged, paid: await paidBalance(r.uid) });
     res.cookies.getAll().forEach((c) => out.cookies.set(c));
+    out.cookies.set('pp_pkce', '', { path: '/', maxAge: 0 });
     return out;
   } catch (e) {
     console.error('auth link', e);
