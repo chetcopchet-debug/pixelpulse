@@ -5,7 +5,7 @@ import { checkPromptText } from '../../../lib/moderation';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
-const EDIT_COST = 4; // flux-kontext-pro is $0.04/image
+const EDIT_COST = 8; // flux-kontext-pro is $0.04/image
 
 async function prepare(body) {
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
