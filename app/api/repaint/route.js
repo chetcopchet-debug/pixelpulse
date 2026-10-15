@@ -20,5 +20,5 @@ async function prepare(body) {
 }
 
 export async function POST(request) {
-  return runImageTool(request, { tool: 'repaint', cost: 2, label: 'Repaint', limit: { n: 15, ms: 60 * 60_000 }, prepare });
+  return runImageTool(request, { tool: 'repaint', cost: 5, usd: 0.05, label: 'Repaint', limit: { n: 15, ms: 60 * 60_000 }, prepare });
 }

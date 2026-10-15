@@ -1,5 +1,5 @@
 import { LegalPage } from '../_legal/Legal';
-export const metadata = { title: 'Terms · PixelPulse' };
+export const metadata = { title: 'Terms · PixelPulse', description: 'PixelPulse terms.', alternates: { canonical: '/terms' } };
 export default function Terms() {
   return (
     <LegalPage title="Terms of Use">

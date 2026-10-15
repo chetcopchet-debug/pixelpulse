@@ -1,5 +1,5 @@
 import { LegalPage } from '../_legal/Legal';
-export const metadata = { title: 'Privacy · PixelPulse' };
+export const metadata = { title: 'Privacy · PixelPulse', description: 'PixelPulse privacy.', alternates: { canonical: '/privacy' } };
 export default function Privacy() {
   return (
     <LegalPage title="Privacy Policy">

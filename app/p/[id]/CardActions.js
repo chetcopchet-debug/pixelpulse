@@ -33,6 +33,11 @@ export default function CardActions({ id, prompt, style, ratio, tier, url }) {
           { key: 'copy', icon: '✎', label: 'Copy prompt', onClick: () => copy(prompt, 'Prompt copied') },
           { key: 'repaint', icon: '◐', label: 'Repaint', hint: '2⚡ · paint an area', onClick: () => go(`/?${new URLSearchParams({ repaint: id, src: url })}`) },
           { key: 'feed', icon: '▦', label: 'Explore the feed', onClick: () => go('/?tab=community') },
+          { key: 'report', icon: '⚑', label: 'Report', hint: 'Breaks the rules?', tone: 'danger', onClick: async () => {
+            const reason = window.prompt('Why are you reporting this image?', ''); if (reason === null) return;
+            const r = await fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, reason }) }).catch(() => null);
+            flash(r && r.ok ? 'Thanks — we\'ll review it' : 'Couldn\'t send report');
+          } },
         ]} />
       {toast && <div className="pc-toast">{toast}</div>}
     </>

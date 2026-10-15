@@ -70,7 +70,7 @@ export default function RepaintEditor({ item, isAdmin, credits, onClose, onDone 
   const submit = async () => {
     if (!strokes.length) { setErr("Paint over the area you want to change."); return; }
     if (!text.trim()) { setErr("Describe what should appear there."); return; }
-    if (!isAdmin && credits < 2) { setErr("Repaint costs 2 credits — not enough left today."); return; }
+    if (!isAdmin && credits < 5) { setErr("Repaint costs 5 credits — not enough left today."); return; }
     setBusy(true); setErr("");
     try {
       const res = await fetch("/api/repaint", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -107,7 +107,7 @@ export default function RepaintEditor({ item, isAdmin, credits, onClose, onDone 
         <div className="rp-input">
           <input value={text} maxLength={500} onChange={(e) => setText(e.target.value)} placeholder="What should appear here? — any language"
             onKeyDown={(e) => { if (e.key === "Enter") submit(); }} disabled={busy} />
-          <button className="pp-go" onClick={submit} disabled={busy}><span>{busy ? "…" : "Repaint"}</span><span className="pp-cost">{isAdmin ? "∞" : "2⚡"}</span></button>
+          <button className="pp-go" onClick={submit} disabled={busy}><span>{busy ? "…" : "Repaint"}</span><span className="pp-cost">{isAdmin ? "∞" : "5⚡"}</span></button>
         </div>
         {err && <div className="pp-error">{err}</div>}
       </div>

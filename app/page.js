@@ -11,9 +11,9 @@ export default function Home() {
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [tier, setTier] = useState("fast");
   const TIERS = [
-    { id: "fast", label: "Fast", icon: "⚡", cost: 1, desc: "Flux Schnell" },
-    { id: "quality", label: "Quality", icon: "💎", cost: 2, desc: "Flux 1.1 Pro" },
-    { id: "text", label: "Text", icon: "🔤", cost: 2, desc: "Ideogram v3" },
+    { id: "fast", label: "Fast", icon: "⚡", cost: 1, desc: "Quick drafts" },
+    { id: "quality", label: "Quality", icon: "💎", cost: 4, desc: "Best detail" },
+    { id: "text", label: "Text", icon: "🔤", cost: 3, desc: "Text in images" },
   ];
   const tierCost = (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
   const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
@@ -23,7 +23,7 @@ export default function Home() {
   const [loadingText, setLoadingText] = useState("Initializing AI studio...");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
-  const [credits, setCredits] = useState(5);
+  const [credits, setCredits] = useState(10);
   const [history, setHistory] = useState([]);
   const [communityFeed, setCommunityFeed] = useState([]);
   const [activeTab, setActiveTab] = useState("create"); // "create" or "community"
@@ -246,6 +246,28 @@ export default function Home() {
     showToast("✦ Vibe loaded — tweak it and Pulse");
     setTimeout(() => { const el = document.getElementById("pp-prompt"); el?.focus(); el?.setSelectionRange?.(el.value.length, el.value.length); }, 60);
   };
+  const handleReport = async (item) => {
+    const reason = window.prompt("Why are you reporting this image? (e.g. explicit, real person, hateful, copyright)", "");
+    if (reason === null) return;
+    try {
+      const r = await fetch("/api/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, reason }) });
+      const d = await r.json().catch(() => ({}));
+      showToast(r.ok ? "⚑ Thanks — we'll review it" : (d.error || "Couldn't send report"));
+    } catch { showToast("Couldn't send report"); }
+  };
+  const [modList, setModList] = useState(null);
+  const loadModList = async () => {
+    const r = await fetch("/api/admin/hide", { cache: "no-store" }); const d = await r.json().catch(() => ({}));
+    setModList(r.ok ? d.items || [] : { error: d.error || "Unavailable" });
+  };
+  const adminHide = async (item, hidden) => {
+    const r = await fetch("/api/admin/hide", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, hidden }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(d.error || "Failed"); return; }
+    if (hidden) setCommunityFeed((p) => p.filter((x) => x.id !== item.id)); else loadFeed();
+    if (modList && Array.isArray(modList)) setModList((l) => l.map((x) => (x.id === item.id ? { ...x, hidden } : x)));
+    showToast(hidden ? (d.fallback ? "Hidden (unpublished)" : "Hidden from feed") : "Back in the feed");
+  };
   const copyPrompt = async (item) => {
     try { await navigator.clipboard.writeText(item.prompt || ""); showToast("✎ Prompt copied"); } catch { window.prompt("Copy prompt:", item.prompt || ""); }
   };
@@ -271,7 +293,7 @@ export default function Home() {
   const [guide, setGuide] = useState(null); // { id, url }
   const [guideFollow, setGuideFollow] = useState(55);
   const [uploading, setUploading] = useState(false);
-  const GUIDED_COST = 2;
+  const GUIDED_COST = 3;
   const useAsGuide = (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
     setGuide({ id: item.id, url: item.url }); setActiveTab("create");
@@ -454,8 +476,9 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id }),
       });
+      showToast("◉ Safety check…");
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Could not publish.");
+      if (!res.ok) { showToast(""); setError(d.error || "Could not publish."); return false; }
       const mark = (x) => (x.id === item.id ? { ...x, isPublic: true } : x);
       setHistory((prev) => prev.map(mark));
       setCurrentItem((c) => (c && c.id === item.id ? { ...c, isPublic: true } : c));
@@ -512,8 +535,8 @@ export default function Home() {
       styleOnly: { key: "style", icon: "◈", label: "Style only", onClick: () => handleStealVibe(item), hint: "Keep your prompt" },
       again: { key: "again", icon: "↻", label: "Again", onClick: () => handleAgain(item), disabled: loading, hint: "Same prompt, new seed" },
       copy: { key: "copy", icon: "✎", label: "Copy prompt", onClick: () => copyPrompt(item) },
-      repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "2⚡ · paint an area" },
-      guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => useAsGuide(item), disabled: !item.id, hint: "2⚡ · new image from it" },
+      repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "5⚡ · paint an area" },
+      guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => useAsGuide(item), disabled: !item.id, hint: "3⚡ · new image from it" },
       sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "Sharpen 2x", onClick: () => handleTool("sharpen", item), disabled: !!toolBusy || !item.id, hint: "1⚡" },
       cutout: { key: "cutout", icon: busyTool("cutout") ? "…" : "✂", label: "Cutout", onClick: () => handleTool("cutout", item), disabled: !!toolBusy || !item.id, hint: "Free · remove background" },
       download: { key: "dl", icon: "⤓", label: "Download", onClick: () => downloadImage(item.url) },
@@ -522,7 +545,9 @@ export default function Home() {
       publish: { key: "pub", icon: item.isPublic ? "✓" : "◉", label: item.isPublic ? "Live" : "Publish", tone: item.isPublic ? "on" : "accent", onClick: () => handlePublishToCommunity(item), disabled: !item.id },
       like: { key: "like", icon: item.liked ? "♥" : "♡", label: String(item.likes || 0), tone: item.liked ? "liked" : undefined, onClick: () => handleLike(item), disabled: item.liked },
     };
-    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.variation, A.styleOnly, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.cutout, A.download, ...extra] };
+    const report = { key: "report", icon: "⚑", label: "Report", hint: "Breaks the rules?", tone: "danger", onClick: () => handleReport(item) };
+    const hide = isAdmin ? { key: "hide", icon: "⦸", label: "Hide (admin)", tone: "danger", onClick: () => adminHide(item, true) } : null;
+    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.variation, A.styleOnly, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.cutout, A.download, report, hide, ...extra] };
     if (isUpload) return { primary: [A.guide, A.repaint, A.download], more: [A.sharpen, A.cutout, ...extra] };
     return {
       primary: [A.variation, A.repaint, item.isPublic ? A.share : A.publish],
@@ -749,14 +774,27 @@ export default function Home() {
             </div>
             <div className="pp-creditcard">
               {isAdmin ? <><b>∞</b><span>Admin · credits not counted</span></> : <>
-                <b>{credits}<small>/5</small></b>
+                <b>{credits}<small>/10</small></b>
                 <span>credits left today<br /><em>resets in {resetIn}</em></span>
               </>}
-              <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 5) * 100)}%` }} /></div>
+              <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 10) * 100)}%` }} /></div>
             </div>
             <nav className="pp-menulist">
               <button onClick={() => { setMenuOpen(false); setActiveTab("me"); }}><b>▦</b>My Pulses</button>
               <button onClick={() => { setMenuOpen(false); setSheetOpen(true); }}><b>⚙</b>Settings<small>Default engine, style & shape</small></button>
+              {isAdmin && <button onClick={loadModList}><b>⚑</b>Moderation<small>Reported & hidden feed images</small></button>}
+              {isAdmin && modList && (Array.isArray(modList) ? (
+                <div className="pp-modlist">
+                  {modList.length === 0 && <p>No reports. 🎉</p>}
+                  {modList.map((x) => (
+                    <div key={x.id} className="pp-moditem">
+                      <a href={`/p/${x.id}`}><img src={x.public_url} alt="" /></a>
+                      <span>⚑ {x.report_count} · {x.hidden ? "hidden" : "visible"}</span>
+                      <button className="pp-chip" onClick={() => adminHide(x, !x.hidden)}>{x.hidden ? "Unhide" : "Hide"}</button>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="pp-modnote">{modList.error}</p>)}
               <button disabled><b>⇥</b>Sign in<em>Coming soon</em></button>
               <button disabled><b>⚡</b>Get credits<em>Coming soon</em></button>
             </nav>
@@ -920,6 +958,11 @@ body{margin:0;background:var(--bg)}
 .pp-menulist small{flex-basis:100%;margin:-10px 0 8px 34px;font-size:11px;color:var(--mut);font-weight:500}
 .pp-menulist em{margin-left:auto;font-style:normal;font-size:10px;padding:3px 8px;border-radius:999px;background:#22223a;color:var(--mut)}
 .pp-menulist button:disabled{opacity:.65}
+.pp-modlist{display:flex;flex-direction:column;gap:6px;padding:4px 0}
+.pp-modlist p,.pp-modnote{font-size:12px;color:var(--mut);margin:4px 6px}
+.pp-moditem{display:flex;align-items:center;gap:10px;font-size:12px;color:#cfcde0}
+.pp-moditem img{width:44px;height:44px;border-radius:12px;object-fit:cover}
+.pp-moditem span{flex:1}
 .pp-legal{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
 .pp-legal a{color:var(--mut)}
 .pp-card .ia-row{max-width:none}

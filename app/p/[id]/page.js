@@ -16,6 +16,10 @@ async function getImage(id) {
   let { data, error } = await sel('id, created_at, prompt, style, aspect_ratio, public_url, likes, remix_of, model');
   if (error && /model/i.test(error.message || '')) ({ data, error } = await sel('id, created_at, prompt, style, aspect_ratio, public_url, likes, remix_of'));
   if (error) { console.error('Pulse Card error:', error); return null; }
+  if (data) {
+    const { data: h, error: he } = await supabase.from('images').select('hidden').eq('id', id).maybeSingle();
+    if (!he && h?.hidden) return null;
+  }
   return data;
 }
 
@@ -28,6 +32,7 @@ export async function generateMetadata({ params }) {
   const description = `Made with PixelPulse${img.style ? ` in ${img.style} style` : ''}. Pulse this vibe and make your own.`;
   return {
     title, description,
+    alternates: { canonical: `/p/${img.id}` },
     openGraph: { title, description, type: 'article', siteName: 'PixelPulse', images: [{ url: img.public_url, alt: short(img.prompt, 120) }] },
     twitter: { card: 'summary_large_image', title, description, images: [img.public_url] },
   };
