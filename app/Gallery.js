@@ -31,7 +31,7 @@ function dayLabel(iso) {
 
 const KIND_ICON = { upload: "⇪", edit: "◐", created: "✦" };
 
-export default function Gallery({ toItem, refreshKey, actions, inspiration = [], onStealVibe, tierLabel, notify }) {
+export default function Gallery({ toItem, refreshKey, actions, inspiration = [], onStealVibe, tierLabel, notify, renderActions }) {
   const [filter, setFilter] = useState("all");
   const [items, setItems] = useState([]);
   const [cursor, setCursor] = useState(null);
@@ -148,7 +148,7 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
           {filter === "all" && inspiration.length > 0 && (
             <div className="pg-insp">
               {inspiration.slice(0, 6).map((x) => (
-                <button key={x.id} onClick={() => onStealVibe(x)}><img src={x.url} alt="" loading="lazy" /><span>✦ Use this vibe</span></button>
+                <button key={x.id} onClick={() => onStealVibe(x)}><img src={x.url} alt="" loading="lazy" /><span>✦ Pulse this</span></button>
               ))}
             </div>
           )}
@@ -202,27 +202,8 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
           <div className="pg-vinfo">
             <p>{cur.prompt}</p>
             <span className="pp-meta">{[tierLabel(cur.tier), cur.style, cur.aspectRatio, cur.isPublic ? "◉ Live" : "Private", cur.createdAt && new Date(cur.createdAt).toLocaleString()].filter(Boolean).join(" · ")}</span>
-            <div className="pg-primary">
-              <button className="pp-cap pp-accent" onClick={() => act(actions.repaint)}>◐<span>Repaint</span></button>
-              <button className="pp-cap" onClick={() => act(actions.guide)}>◎<span>Guide</span></button>
-              <button className="pp-cap" onClick={() => downloadImage(cur.url)}>⤓<span>Download</span></button>
-              <button className="pp-cap" onClick={() => setMenu((m) => !m)} aria-label="More">⋯</button>
-            </div>
-            {menu && (
-              <div className="pg-menu">
-                <button onClick={() => act(actions.open)}>▣ Open in Studio</button>
-                <button onClick={() => act(actions.sharpen)}>◇ Sharpen 2x</button>
-                <button onClick={() => act(actions.cutout)}>✂ Cutout</button>
-                {cur.tier !== "upload" && <>
-                  <button onClick={() => act(actions.again)}>↻ Again</button>
-                  <button onClick={() => act(actions.variation)}>≈ Variation</button>
-                  <button onClick={() => act(actions.usePrompt)}>✎ Use prompt</button>
-                  {cur.isPublic ? <button onClick={() => { setMenu(false); actions.share(cur); }}>↗ Share</button>
-                    : <button onClick={async () => { setMenu(false); const ok = await actions.publish(cur); if (ok !== false) setItems((p) => p.map((x) => (x.id === cur.id ? { ...x, isPublic: true } : x))); }}>◉ Publish</button>}
-                </>}
-                <button className="pg-danger" onClick={() => doDelete([cur.id])}>🗑 Delete</button>
-              </div>
-            )}
+            {renderActions(cur, [{ key: "open", icon: "▣", label: "Open in Studio", onClick: () => act(actions.open) },
+              { key: "del", icon: "🗑", label: "Delete", tone: "danger", onClick: () => doDelete([cur.id]) }])}
           </div>
         </div>
       )}
