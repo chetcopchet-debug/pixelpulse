@@ -35,6 +35,7 @@ export async function POST(request) {
     if (!dErr && dRow?.daily_day === dayKey()) entryDay = dRow.daily_day;
     const { data: row } = await supabase.from('images').select('model, prompt, public_url, is_public').eq('id', body.id).eq('creator_id', creator.id).maybeSingle();
     if (!row) return NextResponse.json({ error: 'Image not found or not yours.' }, { status: 404 });
+    if (row.model === 'animate' || /\.mp4(\?|$)/i.test(row.public_url || '')) return NextResponse.json({ error: 'Videos stay private for now — download or share the file.' }, { status: 403 });
     if (row.model === 'upload') return NextResponse.json({ error: 'Uploaded photos (and edits of them) stay private and cannot be published to the feed.' }, { status: 403 });
     if (!row.is_public) {
       const mod = await moderateForPublish({ prompt: row.prompt, imageUrl: row.public_url });

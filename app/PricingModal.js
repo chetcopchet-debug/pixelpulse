@@ -29,8 +29,8 @@ export default function PricingModal({ need, credits, paid, resetIn, plans, onCl
         <div className="pm-pulse"><i /><i /><b>⚡</b></div>
         <h3>{need ? "Keep the pulse going" : "Get more credits"}</h3>
         <p className="pm-sub">
-          {need ? <>{need.label} needs <b>{need.cost}⚡</b> — you have <b>{credits + paid}⚡</b>.</> : <>You have <b>{credits}⚡</b> free today{paid ? <> + <b>{paid}⚡</b> paid</> : null}.</>}
-          <br />Your 10 free credits refill in <b>{resetIn}</b>.
+          {need?.paidOnly ? <>{need.label} is a premium tool: <b>{need.cost}⚡</b> from purchased credits — you have <b>{paid}⚡</b>.</> : need ? <>{need.label} needs <b>{need.cost}⚡</b> — you have <b>{credits + paid}⚡</b>.</> : <>You have <b>{credits}⚡</b> free today{paid ? <> + <b>{paid}⚡</b> paid</> : null}.</>}
+          <br />{need?.paidOnly ? "Free daily credits can't be used for premium tools." : <>Your 10 free credits refill in <b>{resetIn}</b>.</>}
         </p>
         <div className="pm-plans">
           {list.map((p) => (
@@ -48,7 +48,7 @@ export default function PricingModal({ need, credits, paid, resetIn, plans, onCl
         {err && <p className="pm-err">{err}</p>}
         {!signedIn && onSignIn && <p className="pm-fine" style={{ margin: "12px 0 0" }}><button className="pm-link" onClick={onSignIn}>✉ Sign in</button> to keep your credits safe on every device.</p>}
         <p className="pm-fine">Free credits are used first. Secure checkout by Lemon Squeezy · cancel Pro anytime.</p>
-        <button className="pm-close" onClick={onClose}>{need ? "Wait for free credits" : "Close"}</button>
+        <button className="pm-close" onClick={onClose}>{need && !need.paidOnly ? "Wait for free credits" : "Close"}</button>
       </div>
       <style>{`
 .pm-scrim{position:fixed;inset:0;z-index:80;background:rgba(5,5,9,.72);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;animation:ppFade .2s}

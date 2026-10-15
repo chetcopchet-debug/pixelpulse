@@ -4,7 +4,7 @@ import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import CompareSlider, { COMPARE_CSS } from "./CompareSlider";
 import Masonry, { MASONRY_CSS } from "./Masonry";
 import { prepareUpload, uploadRaw } from "./clientImage";
-import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
+import Gallery, { GALLERY_CSS, downloadImage, setWatermark } from "./Gallery";
 import { FORMATS, FORMAT_LIST, FORMAT_GROUPS } from "../lib/formats";
 import Thumb, { THUMB_CSS } from "./Thumb";
 import ImageActions, { IA_CSS } from "./ImageActions";
@@ -22,7 +22,7 @@ export default function Home() {
     { id: "text", label: "Text", icon: "🔤", cost: 3, desc: "Text in images" },
   ];
   const tierCost = (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
-  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; if (id === "edit") return "✎ Edited"; const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
+  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; if (id === "edit") return "✎ Edited"; if (id === "animate") return "▶ Video"; if (id === "facelock") return "◉ Face Lock"; const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
   const safeTier = (id) => (TIERS.some((t) => t.id === id) ? id : "fast");
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -33,6 +33,7 @@ export default function Home() {
   const [paid, setPaid] = useState(0);
   const [plans, setPlans] = useState(null);
   const [account, setAccount] = useState(null); // { email } when signed in
+  const [purchased, setPurchased] = useState(false);
   const [authOpen, setAuthOpen] = useState(null); // null | { reason }
   const signOut = async () => {
     await fetch("/api/auth/signout", { method: "POST" }).catch(() => {});
@@ -53,7 +54,7 @@ export default function Home() {
     if (!r.ok) { showToast(d.error || "Couldn't restore"); return; }
     showToast(`Restored · ${d.paid || 0}⚡ paid balance`); setTimeout(() => window.location.reload(), 900);
   };
-  const openPricing = (label, cost) => setPricing({ need: label ? { label, cost } : null });
+  const openPricing = (label, cost, paidOnly) => setPricing({ need: label ? { label, cost, paidOnly: Boolean(paidOnly) } : null });
   const syncCredits = (d) => { if (d?.admin) setIsAdmin(true); else if (typeof d?.credits === "number") setCredits(d.credits); if (typeof d?.paid === "number") setPaid(d.paid); };
   const [history, setHistory] = useState([]);
   const [communityFeed, setCommunityFeed] = useState([]);
@@ -186,7 +187,7 @@ export default function Home() {
       .then((d) => {
         if (d.admin) setIsAdmin(true);
         else if (typeof d.credits === "number") setCredits(d.credits);
-        if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans); if ("account" in d) setAccount(d.account);
+        if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans); if ("account" in d) setAccount(d.account); if ("purchased" in d) setPurchased(Boolean(d.purchased));
       })
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
@@ -335,6 +336,71 @@ export default function Home() {
   };
 
   const [repaintItem, setRepaintItem] = useState(null);
+  useEffect(() => { setWatermark(!isAdmin && !purchased && paid === 0); }, [isAdmin, purchased, paid]);
+  const isVideo = (u) => /\.mp4(\?|$)/i.test(u || "");
+  const ANIMATE_COST = 15, FACE_COST = 6;
+  // Animate: async video job (paid credits only). The server charges, we poll until the MP4 is stored.
+  const [animating, setAnimating] = useState({}); // id -> true
+  const handleAnimate = async (item) => {
+    if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
+    if (animating[item.id]) return;
+    if (!isAdmin && paid < ANIMATE_COST) { openPricing("Animate", ANIMATE_COST, true); return; }
+    setAnimating((a) => ({ ...a, [item.id]: true })); setError("");
+    showToast("▶ Animating — about a minute. Keep creating meanwhile");
+    const stop = () => setAnimating((a) => { const n = { ...a }; delete n[item.id]; return n; });
+    try {
+      const res = await fetch("/api/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id }) });
+      const d = await res.json().catch(() => ({}));
+      syncCredits(d);
+      if (res.status === 402) { stop(); openPricing("Animate", ANIMATE_COST, true); return; }
+      if (!res.ok || !d.job) throw new Error(d.error || "Could not start the video.");
+      const started = Date.now();
+      while (Date.now() - started < 15 * 60_000) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const s = await fetch(`/api/animate?job=${encodeURIComponent(d.job)}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ status: "processing" }));
+        if (s.status === "processing") continue;
+        if (typeof s.paid === "number") setPaid(s.paid);
+        if (s.status === "failed") throw new Error(s.error || "The video failed.");
+        if (s.status === "done" && s.item) {
+          const ni = toItem(s.item);
+          setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
+          setActiveTab("create"); setImage(ni.url); setCurrentItem(ni); setCompare(null); setGalleryKey((k) => k + 1);
+          window.scrollTo({ top: 0, behavior: "smooth" }); showToast("▶ Your video is ready");
+          return;
+        }
+        throw new Error(s.error || "The video failed.");
+      }
+      throw new Error("The video is taking long — it will appear in My Pulses when ready.");
+    } catch (e) { setError(e.message); }
+    finally { stop(); }
+  };
+  // Face Lock: keep the face from one of your photos in a new scene (paid credits only).
+  const [faceTarget, setFaceTarget] = useState(null); // { id, url }
+  const attachFace = (item) => {
+    if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
+    if (!isAdmin && paid < FACE_COST) { openPricing("Face Lock", FACE_COST, true); return; }
+    setGuide(null); setEditTarget(null); setRemixOf(null); setFaceTarget({ id: item.id, url: item.url }); setPrompt(""); setActiveTab("create");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => document.getElementById("pp-prompt")?.focus(), 60);
+  };
+  const runFaceLock = async () => {
+    const instr = promptState.trim();
+    if (!instr) { setError('Describe the new scene, e.g. "as an astronaut on Mars".'); return; }
+    if (!isAdmin && paid < FACE_COST) { openPricing("Face Lock", FACE_COST, true); return; }
+    setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText("Locking the face...");
+    try {
+      const res = await fetch("/api/facelock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: faceTarget.id, prompt: instr, aspectRatio: ratioState }) });
+      const d = await res.json().catch(() => ({}));
+      syncCredits(d);
+      if (res.status === 402) { openPricing("Face Lock", FACE_COST, true); return; }
+      if (!res.ok || !d.item) throw new Error(d.error || "Face Lock failed.");
+      const ni = toItem(d.item);
+      setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
+      setImage(ni.url); setCurrentItem(ni); setGalleryKey((k) => k + 1);
+      showToast("◉ Same face, new scene — describe another, or ✕ to finish");
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); setLoadingText("Initializing AI studio..."); }
+  };
   const [compare, setCompare] = useState(null); // { before, after, label, beforeItem } after a tool/edit
   const showCompare = (beforeItem, ni, label) => { if (beforeItem?.url && ni?.url && beforeItem.url !== ni.url) setCompare({ before: beforeItem.url, after: ni.url, label, beforeItem }); };
   const revertCompare = () => {
@@ -358,7 +424,7 @@ export default function Home() {
   const [editTarget, setEditTarget] = useState(null); // { id, url }
   const attachEdit = (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
-    setGuide(null); setRemixOf(null); setEditTarget({ id: item.id, url: item.url, format: item.format || null }); setPrompt(""); setActiveTab("create");
+    setGuide(null); setRemixOf(null); setFaceTarget(null); setEditTarget({ id: item.id, url: item.url, format: item.format || null }); setPrompt(""); setActiveTab("create");
     setTimeout(() => document.getElementById("pp-prompt")?.focus(), 60);
   };
   const runEdit = async () => {
@@ -389,7 +455,7 @@ export default function Home() {
   const GUIDED_COST = 3;
   const attachGuide = (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
-    setEditTarget(null); setGuide({ id: item.id, url: item.url }); setActiveTab("create");
+    setEditTarget(null); setFaceTarget(null); setGuide({ id: item.id, url: item.url }); setActiveTab("create");
     showToast("◎ Guide attached — describe the new image");
     setTimeout(() => document.getElementById("pp-prompt")?.focus(), 50);
   };
@@ -450,7 +516,7 @@ export default function Home() {
         fetch("/api/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [item.id] }) }).catch(() => {});
         setGalleryKey((k) => k + 1);
       }
-      if (opts.download) { downloadImage(ni.url, fileName(ni)); showToast("⤓ HD image downloading (2x)"); return; }
+      if (opts.download) { downloadImage(ni.url, fileName(ni), { clean: true }); showToast("⤓ HD image downloading (2x)"); return; }
       showToast(FORMATS[opts.format]?.autoCutout ? `✂ ${FORMATS[opts.format].label} ready — transparent PNG` : tool === "sharpen" ? "◇ Sharpened 2x" : "✂ Background removed");
     } catch (e) { setError(e.message); }
     finally { setToolBusy(""); }
@@ -628,6 +694,8 @@ export default function Home() {
       sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "HD download", onClick: () => handleTool("sharpen", item, { download: true }), disabled: !!toolBusy || !item.id, hint: "1⚡ · 2x sharper file" },
       cutout: { key: "cutout", icon: busyTool("cutout") ? "…" : "✂", label: "Cutout", onClick: () => handleTool("cutout", item), disabled: !!toolBusy || !item.id, hint: "1⚡ · remove background" },
       download: { key: "dl", icon: "⤓", label: "Download", onClick: () => downloadImage(item.url, fileName(item)) },
+      animate: { key: "anim", icon: animating[item.id] ? "…" : "▶", label: animating[item.id] ? "Animating…" : "Animate", onClick: () => handleAnimate(item), disabled: !item.id || !!animating[item.id], hint: `${ANIMATE_COST}⚡ · 5s video · purchased credits` },
+      facelock: { key: "face", icon: "◉", label: "Face Lock", onClick: () => attachFace(item), disabled: !item.id, hint: `${FACE_COST}⚡ · same face, new scene · purchased credits` },
       share: { key: "share", icon: "↗", label: "Share", onClick: () => handleShare(ctx === "feed" ? { ...item, isPublic: true } : item) },
       card: { key: "card", icon: "▢", label: "Open Pulse Card", onClick: () => { window.location.href = `/p/${item.id}`; } },
       publish: { key: "pub", icon: item.isPublic ? "✓" : "◉", label: item.isPublic ? "Live" : "Publish", tone: item.isPublic ? "on" : "accent", onClick: () => handlePublishToCommunity(item), disabled: !item.id },
@@ -635,11 +703,12 @@ export default function Home() {
     };
     const report = { key: "report", icon: "⚑", label: "Report", hint: "Breaks the rules?", tone: "danger", onClick: () => handleReport(item) };
     const hide = isAdmin ? { key: "hide", icon: "⦸", label: "Hide (admin)", tone: "danger", onClick: () => adminHide(item, true) } : null;
-    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.edit, A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
-    if (isUpload) return { primary: [A.edit, A.repaint, A.download], more: [A.guide, A.sharpen, A.cutout, ...extra] };
+    if (isVideo(item.url)) return { primary: [A.download, ctx === "feed" ? null : A.copy], more: [] };
+    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.edit, A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.animate, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
+    if (isUpload) return { primary: [A.edit, A.facelock, A.download], more: [A.repaint, A.animate, A.guide, A.sharpen, A.cutout, ...extra] };
     return {
       primary: [A.edit, A.variation, item.isPublic ? A.share : A.publish],
-      more: [A.repaint, A.vibe, A.guide, A.cutout, A.download, A.sharpen, A.copy, item.isPublic ? A.card : null, ...extra],
+      more: [A.animate, A.repaint, A.facelock, A.vibe, A.guide, A.cutout, A.download, A.sharpen, A.copy, item.isPublic ? A.card : null, ...extra],
     };
   };
   const Actions = ({ item, ctx = "own", compact, extra }) => { const a = buildActions(item, ctx, extra); return <ImageActions {...a} compact={compact} title={item.prompt} />; };
@@ -697,6 +766,8 @@ export default function Home() {
               <div className="pp-ripple"><i /><i /><i /><b>{loadingText}</b></div>
             ) : image && compare && compare.after === image ? (
               <CompareSlider before={compare.before} after={compare.after} label={compare.label} onKeep={() => setCompare(null)} onRevert={revertCompare} />
+            ) : image && isVideo(image) ? (
+              <video className="pp-video" src={image} controls autoPlay loop muted playsInline />
             ) : image ? (
               <img src={image} alt="Generated AI Art" />
             ) : (
@@ -841,6 +912,13 @@ export default function Home() {
               <button className="pp-chip pp-ghost" onClick={() => setEditTarget(null)} aria-label="Stop editing">✕</button>
             </div>
           )}
+          {faceTarget && (
+            <div className="pp-guide pp-editbar">
+              <img src={faceTarget.url} alt="" />
+              <div className="pp-guidebody"><small>◉ Face Lock · {FACE_COST}⚡ purchased credits</small><small style={{ color: "#a1a1b5" }}>Same face, any new scene you describe</small></div>
+              <button className="pp-chip pp-ghost" onClick={() => setFaceTarget(null)} aria-label="Stop Face Lock">✕</button>
+            </div>
+          )}
           {guide && (
             <div className="pp-guide">
               <img src={guide.url} alt="guide" />
@@ -867,14 +945,14 @@ export default function Home() {
           <div className="pp-inputrow">
             <div className="pp-field">
               <textarea id="pp-prompt" maxLength={1500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); editTarget ? runEdit() : generateImage(); } }}
-                placeholder={editTarget ? "Describe the change — e.g. make it night" : "Describe a vision — any language…"} />
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); faceTarget ? runFaceLock() : editTarget ? runEdit() : generateImage(); } }}
+                placeholder={faceTarget ? "New scene for this face — e.g. as an astronaut on Mars" : editTarget ? "Describe the change — e.g. make it night" : "Describe a vision — any language…"} />
               {prompt.length > 1200 && <span className="pp-count" aria-live="polite">{prompt.length}/1500</span>}
               <button className={`pp-amp-btn${ampOpen ? " on" : ""}`} onClick={handleEnhancePrompt} title="Amplify prompt" aria-label="Amplify prompt">✦</button>
             </div>
-            <button className="pp-go" onClick={() => (editTarget ? runEdit() : generateImage())} disabled={loading}>
+            <button className="pp-go" onClick={() => (faceTarget ? runFaceLock() : editTarget ? runEdit() : generateImage())} disabled={loading}>
               <span className="pp-go-label">{loading ? <i className="pp-spin" /> : "Pulse"}</span>
-              <span className="pp-cost">{isAdmin ? "∞" : `${editTarget ? EDIT_COST : guide ? GUIDED_COST : curTier.cost}⚡`}</span>
+              <span className="pp-cost">{isAdmin ? "∞" : `${faceTarget ? FACE_COST : editTarget ? EDIT_COST : guide ? GUIDED_COST : curTier.cost}⚡`}</span>
             </button>
           </div>
         </div>
@@ -1243,4 +1321,5 @@ body{margin:0;background:var(--bg)}
 .pp-sw-fantasy{background:radial-gradient(circle at 50% 30%,#fde68a 0 5%,rgba(253,230,138,.35) 14%,transparent 30%),radial-gradient(circle at 20% 80%,rgba(16,185,129,.55),transparent 45%),linear-gradient(170deg,#4c1d95,#1e1b4b 60%,#064e3b)}
 .pp-sw-oilpainting{background:repeating-linear-gradient(115deg,rgba(0,0,0,.12) 0 3px,transparent 3px 7px),radial-gradient(circle at 30% 35%,#e9b872,transparent 45%),radial-gradient(circle at 75% 70%,#7c2d12,transparent 50%),linear-gradient(140deg,#a16207,#5b2c0f)}
 .pp-sw-watercolor{background:radial-gradient(circle at 28% 32%,rgba(96,165,250,.75),transparent 34%),radial-gradient(circle at 70% 40%,rgba(244,114,182,.7),transparent 32%),radial-gradient(circle at 48% 74%,rgba(250,204,21,.6),transparent 34%),#f5f1ea}
+.pp-video{max-width:100%;max-height:58vh;display:block;margin:0 auto;background:#000}
 `;

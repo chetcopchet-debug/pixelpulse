@@ -11,10 +11,29 @@ const readFavs = () => { try { return new Set(JSON.parse(localStorage.getItem(FA
 const writeFavs = (set) => { try { localStorage.setItem(FAV_KEY, JSON.stringify([...set])); } catch {} };
 const favApi = (body) => fetch("/api/favorites", body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" }).then((r) => r.json());
 
-export async function downloadImage(url, name = "pixelpulse") {
+// Free plan: normal downloads get a small "PixelPulse" mark. Buyers, admin and HD downloads stay clean.
+let watermarkOn = false;
+export const setWatermark = (on) => { watermarkOn = Boolean(on); };
+async function addWatermark(blob) {
+  const bmp = await createImageBitmap(blob);
+  const w = bmp.width, h = bmp.height;
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d"); g.drawImage(bmp, 0, 0); bmp.close?.();
+  const fs = Math.max(13, Math.round(Math.min(w, h) * 0.032)), pad = Math.round(fs * 0.9);
+  g.font = `700 ${fs}px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif`; g.textBaseline = "middle";
+  const text = "PixelPulse", tw = g.measureText(text).width, r = fs * 0.28;
+  const x = w - pad - tw, y = h - pad - fs * 0.5;
+  g.shadowColor = "rgba(0,0,0,.45)"; g.shadowBlur = fs * 0.35;
+  g.globalAlpha = 0.6; g.fillStyle = "#fff"; g.fillText(text, x, y);
+  g.globalAlpha = 0.75; g.fillStyle = "#ec4899"; g.beginPath(); g.arc(x - r * 2.4, y, r, 0, Math.PI * 2); g.fill();
+  const png = blob.type === "image/png";
+  return await new Promise((res) => c.toBlob((o) => res(o || blob), png ? "image/png" : "image/jpeg", 0.94));
+}
+export async function downloadImage(url, name = "pixelpulse", { clean = false } = {}) {
   try {
     const r = await fetch(url, { cache: "no-store" });
-    const b = await r.blob();
+    let b = await r.blob();
+    if (watermarkOn && !clean && b.type.startsWith("image/")) b = await addWatermark(b).catch(() => b);
     const ext = (b.type.split("/")[1] || "png").replace("jpeg", "jpg");
     const u = URL.createObjectURL(b);
     const a = document.createElement("a"); a.href = u; a.download = `${name}.${ext}`;
@@ -32,7 +51,7 @@ function dayLabel(iso) {
   return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", ...(d.getFullYear() !== t.getFullYear() ? { year: "numeric" } : {}) });
 }
 
-const KIND_ICON = { upload: "⇪", edit: "◐", created: "✦" };
+const KIND_ICON = { video: "▶", upload: "⇪", edit: "◐", created: "✦" };
 
 export default function Gallery({ toItem, refreshKey, actions, inspiration = [], onStealVibe, tierLabel, notify, renderActions }) {
   const [filter, setFilter] = useState("all");
@@ -227,7 +246,7 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
           </div>
           <div className="pg-vimg">
             {viewer > 0 && <button className="pg-nav pg-prev" onClick={() => go(-1)}>‹</button>}
-            <img key={cur.id} src={cur.url} alt={cur.prompt} />
+            {/\.mp4(\?|$)/i.test(cur.url || "") ? <video key={cur.id} src={cur.url} controls autoPlay loop muted playsInline /> : <img key={cur.id} src={cur.url} alt={cur.prompt} />}
             {viewer < items.length - 1 && <button className="pg-nav pg-next" onClick={() => go(1)}>›</button>}
           </div>
           <div className="pg-vinfo">

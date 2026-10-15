@@ -11,6 +11,10 @@ export default function Thumb({ src, ratio, alt = '', eager, onFail, className, 
   if (!src || stage === 2) {
     return <span className={`pp-thumbfail${className ? ` ${className}` : ''}`} style={style} role="img" aria-label={alt ? `Image unavailable: ${alt}` : 'Image unavailable'}>◌</span>;
   }
+  if (/\.mp4(\?|$)/i.test(src)) {
+    return <video src={src} muted loop playsInline autoPlay preload="metadata" width={wh.width} height={wh.height} className={className}
+      style={{ objectFit: 'cover', display: 'block', width: '100%', ...style }} aria-label={alt || 'Video'} onError={() => setStage(2)} />;
+  }
   const cur = stage === 0 ? t : src;
   return (
     <img key={cur} src={cur} alt={alt} width={wh.width} height={wh.height} loading={eager ? 'eager' : 'lazy'} decoding="async"
