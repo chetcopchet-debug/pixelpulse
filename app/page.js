@@ -6,6 +6,7 @@ import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
 import { FORMATS, FORMAT_LIST } from "../lib/formats";
 import Thumb, { THUMB_CSS } from "./Thumb";
 import ImageActions, { IA_CSS } from "./ImageActions";
+import PricingModal from "./PricingModal";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -26,6 +27,24 @@ export default function Home() {
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const [credits, setCredits] = useState(10);
+  const [paid, setPaid] = useState(0);
+  const [plans, setPlans] = useState(null);
+  const [pricing, setPricing] = useState(null); // { need } when open
+  const copyRestoreCode = async () => {
+    const d = await fetch("/api/restore", { cache: "no-store" }).then((r) => r.json()).catch(() => ({}));
+    if (!d.code) { showToast("No paid credits on this device yet"); return; }
+    try { await navigator.clipboard.writeText(d.code); showToast("Restore code copied — keep it somewhere safe"); } catch { window.prompt("Your restore code — keep it safe:", d.code); }
+  };
+  const restorePurchase = async () => {
+    const code = window.prompt("Paste your PixelPulse restore code (PP-…). This device will switch to that purchase and its gallery.", "");
+    if (!code) return;
+    const r = await fetch("/api/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(d.error || "Couldn't restore"); return; }
+    showToast(`Restored · ${d.paid || 0}⚡ paid balance`); setTimeout(() => window.location.reload(), 900);
+  };
+  const openPricing = (label, cost) => setPricing({ need: label ? { label, cost } : null });
+  const syncCredits = (d) => { if (d?.admin) setIsAdmin(true); else if (typeof d?.credits === "number") setCredits(d.credits); if (typeof d?.paid === "number") setPaid(d.paid); };
   const [history, setHistory] = useState([]);
   const [communityFeed, setCommunityFeed] = useState([]);
   const [activeTab, setActiveTab] = useState("create"); // "create" or "community"
@@ -156,10 +175,16 @@ export default function Home() {
       .then((d) => {
         if (d.admin) setIsAdmin(true);
         else if (typeof d.credits === "number") setCredits(d.credits);
+        if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans);
       })
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
     if (["me", "community", "create"].includes(params.get("tab"))) setActiveTab(params.get("tab"));
+    if (params.get("paid") === "1") {
+      params.delete("paid"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : ""));
+      setTimeout(() => { setToast("⚡ Thanks! Your credits are on the way"); setTimeout(() => setToast(""), 3500); }, 300);
+      [3000, 8000, 20000].forEach((ms) => setTimeout(loadCredits, ms));
+    }
     if (params.get("format") && FORMATS[params.get("format")]) { const f0 = params.get("format"); window.__ppVibe = true; setTimeout(() => selectFormat(f0), 0); params.delete("format"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : "")); }
     if (params.get("vibe")) {
       const st = params.get("style"), ra = params.get("ratio"), ti = params.get("tier"), pr = params.get("p");
@@ -298,7 +323,8 @@ export default function Home() {
 
   const [repaintItem, setRepaintItem] = useState(null);
   const handleRepaintDone = (d, ok) => {
-    if (d.admin) setIsAdmin(true); else if (typeof d.credits === "number") setCredits(d.credits);
+    syncCredits(d);
+        if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans);
     if (!ok) return;
     const ni = toItem(d.item);
     setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
@@ -316,12 +342,14 @@ export default function Home() {
   const runEdit = async () => {
     const instr = promptState.trim();
     if (!instr) { setError('Describe the change, e.g. "make it night".'); return; }
-    if (!isAdmin && credits < EDIT_COST) { setError(`Edit costs ${EDIT_COST} credits — not enough left today.`); return; }
+    if (!isAdmin && credits + paid < EDIT_COST) { openPricing("Edit", EDIT_COST); return; }
     setLoading(true); setError(""); setNotice(""); setLoadingText("Applying your edit...");
     try {
       const res = await fetch("/api/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editTarget.id, prompt: instr }) });
       const d = await res.json().catch(() => ({}));
-      if (d.admin) setIsAdmin(true); else if (typeof d.credits === "number") setCredits(d.credits);
+      syncCredits(d);
+        if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans);
+      if (res.status === 402) { openPricing("Edit", EDIT_COST); return; }
       if (!res.ok || !d.item) throw new Error(d.error || "Edit failed.");
       const ni = { ...toItem(d.item), ...(editTarget.format ? { format: editTarget.format } : {}) };
       setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
@@ -378,13 +406,15 @@ export default function Home() {
   const handleTool = async (tool, item, opts = {}) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
     if (toolBusy) return;
-    if (tool === "sharpen" && !isAdmin && credits < 1) { setError("HD download costs 1 credit — you're out for today."); return; }
+    if (tool === "sharpen" && !isAdmin && credits + paid < 1) { openPricing("HD download", 1); return; }
     setToolBusy(`${tool}:${item.id}`); setError("");
     showToast(tool === "sharpen" ? "◇ Preparing HD (2x)…" : "✂ Cutting out…");
     try {
       const res = await fetch(`/api/${tool}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id }) });
       const d = await res.json();
-      if (d.admin) setIsAdmin(true); else if (typeof d.credits === "number") setCredits(d.credits);
+      syncCredits(d);
+        if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans);
+      if (res.status === 402) { openPricing(d.needCredits?.label || "This tool", d.needCredits?.cost || 1); return; }
       if (!res.ok || !d.item) throw new Error(d.error || "Failed.");
       const ni = { ...toItem(d.item), ...(opts.format ? { format: opts.format } : item.format ? { format: item.format } : {}) };
       setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
@@ -415,8 +445,8 @@ export default function Home() {
       setError("Please enter a prompt to generate an image.");
       return;
     }
-    if (!isAdmin && credits < tierCost) {
-      setError(credits <= 0 ? "You are out of credits for today. Come back tomorrow!" : `Not enough credits for this model (costs ${tierCost}). Try Fast.`);
+    if (!isAdmin && credits + paid < tierCost) {
+      openPricing(useGuide ? "Guide" : (TIERS.find((t) => t.id === tier) || TIERS[0]).label, tierCost);
       return;
     }
 
@@ -442,6 +472,8 @@ export default function Home() {
       const data = await res.json();
       if (data.admin) setIsAdmin(true);
       else if (typeof data.credits === "number") setCredits(data.credits);
+      if (typeof data.paid === "number") setPaid(data.paid);
+      if (res.status === 402) { openPricing(data.needCredits?.label || "This", data.needCredits?.cost || tierCost); return; }
 
       if (!res.ok || data.error) {
         throw new Error(data.error || "Failed to generate image.");
@@ -621,7 +653,7 @@ export default function Home() {
         </div>
         <button className="pp-profile" onClick={() => setMenuOpen(true)} aria-label="Open menu">
           <span className="pp-avatar">◉</span>
-          <b>{isAdmin ? "∞" : credits}</b><small>{isAdmin ? "admin" : "⚡"}</small>
+          <b>{isAdmin ? "∞" : credits + paid}</b><small>{isAdmin ? "admin" : "⚡"}</small>
         </button>
       </header>
 
@@ -865,7 +897,8 @@ export default function Home() {
         </div>
       )}
 
-      {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
+      {pricing && <PricingModal need={pricing.need} credits={credits} paid={paid} resetIn={resetIn} plans={plans} onClose={() => setPricing(null)} />}
+      {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits + paid} onNeedCredits={() => { setRepaintItem(null); openPricing("Repaint", 5); }} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
       {menuOpen && (
         <div className="pp-scrim pp-menuscrim" onClick={() => setMenuOpen(false)}>
           <aside className="pp-menu" onClick={(e) => e.stopPropagation()} aria-label="Menu">
@@ -877,9 +910,14 @@ export default function Home() {
             <div className="pp-creditcard">
               {isAdmin ? <><b>∞</b><span>Admin · credits not counted</span></> : <>
                 <b>{credits}<small>/10</small></b>
-                <span>credits left today<br /><em>resets in {resetIn}</em></span>
+                <span>credits left today<br /><em>resets in {resetIn}</em>{paid > 0 && <><br /><em>+ {paid}⚡ paid balance</em></>}</span>
               </>}
               <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 10) * 100)}%` }} /></div>
+              {!isAdmin && <button className="pp-chip pp-getcr" onClick={() => { setMenuOpen(false); openPricing(); }}>⚡ Get more credits</button>}
+              {!isAdmin && <div className="pp-restore">
+                {paid > 0 && <button className="pp-link" onClick={copyRestoreCode}>Copy purchase restore code</button>}
+                <button className="pp-link" onClick={restorePurchase}>Restore a purchase</button>
+              </div>}
             </div>
             <div className="pp-streak"><b>🔥{streak}</b><span>{streak ? `day${streak === 1 ? "" : "s"} Daily Pulse streak` : "Join today's Daily Pulse to start a streak"}</span><button className="pp-chip" onClick={() => { setMenuOpen(false); setActiveTab("community"); }}>◉ Daily</button></div>
             <nav className="pp-menulist">
@@ -1056,6 +1094,8 @@ body{margin:0;background:var(--bg)}
 .pp-creditcard>b small{font-size:14px}
 .pp-creditcard span{font-size:12px;color:#cfcde0}
 .pp-creditcard em{font-style:normal;color:var(--mut)}
+.pp-getcr{margin-top:10px;width:100%;justify-content:center;background:linear-gradient(90deg,rgba(147,51,234,.35),rgba(236,72,153,.3));border-color:rgba(236,72,153,.5);color:#fff;font-weight:700}
+.pp-restore{display:flex;gap:14px;justify-content:center;margin-top:8px;font-size:12px}
 .pp-creditbar{flex-basis:100%;height:6px;border-radius:9px;background:#22223a;overflow:hidden}
 .pp-creditbar i{display:block;height:100%;background:linear-gradient(90deg,var(--v),var(--p));border-radius:9px}
 .pp-menulist{display:flex;flex-direction:column;gap:6px}
