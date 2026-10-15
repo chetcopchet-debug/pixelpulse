@@ -6,6 +6,8 @@ export default function Terms() {
       <p>By using PixelPulse you agree to these terms. If you don't agree, please don't use the service.</p>
       <h2>The service</h2>
       <p>PixelPulse lets you create and edit images with AI models run by third-party providers. Free daily credits are offered as-is and may change or end at any time. Features may be added, changed or removed.</p>
+      <h2>Purchases</h2>
+      <p>Paid credits and the Pulse Pro subscription are sold through our reseller and Merchant of Record, <b>Lemon Squeezy</b> (Lemon Squeezy LLC), which processes payments, handles sales tax/VAT and issues your receipt. Lemon Squeezy's own terms apply to the payment. Prices are shown on the <a href="/pricing">Pricing</a> page. Purchased Creator Pack credits don't expire; Pulse Pro credits are added each billing month and you can cancel anytime from your receipt email. Refunds follow our <a href="/refund-policy">Refund Policy</a>. Credits have no cash value and can't be transferred or resold.</p>
       <h2>Your content</h2>
       <ul>
         <li>You keep whatever rights you have in your prompts, uploads and results. You are responsible for what you create, upload and publish.</li>
