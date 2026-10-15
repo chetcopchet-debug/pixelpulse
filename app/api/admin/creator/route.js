@@ -10,10 +10,12 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   if (!isAdmin(request)) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   const prefix = (new URL(request.url).searchParams.get('prefix') || '').toLowerCase();
-  if (!/^[0-9a-f-]{8,36}$/.test(prefix)) return NextResponse.json({ error: 'prefix (8+ hex chars) required' }, { status: 400 });
+  const q = (new URL(request.url).searchParams.get('q') || '').slice(0, 60).replace(/[%_,()]/g, ' ').trim();
+  if (!q && !/^[0-9a-f-]{8,36}$/.test(prefix)) return NextResponse.json({ error: 'prefix (8+ hex chars) or q required' }, { status: 400 });
   const supabase = getSupabase();
-  const { data, error } = await supabase.from('images').select('id, created_at, prompt, public_url, storage_path, model, creator_id')
-    .gte('creator_id', prefix).lt('creator_id', prefix + 'g').order('created_at', { ascending: false }).limit(60);
+  let sel = supabase.from('images').select('id, created_at, prompt, public_url, storage_path, model, creator_id');
+  sel = q ? sel.ilike('prompt', `%${q}%`) : sel.gte('creator_id', prefix).lt('creator_id', prefix + 'g');
+  const { data, error } = await sel.order('created_at', { ascending: false }).limit(60);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const head = async (u) => { try { return (await fetch(u, { method: 'HEAD', cache: 'no-store' })).status; } catch { return 0; } };
   const items = await Promise.all(data.map(async (r) => ({
