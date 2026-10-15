@@ -5,7 +5,8 @@ import { FORMATS, FORMAT_LIST, isFormat } from '../../../lib/formats';
 export const revalidate = 600;
 export function generateStaticParams() { return FORMAT_LIST.filter((f) => f.id !== 'free').map((f) => ({ slug: f.id })); }
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata(props) {
+  const params = await props.params;
   const f = isFormat(params.slug) && params.slug !== 'free' ? FORMATS[params.slug] : null;
   if (!f) return { title: 'Not found · PixelPulse' };
   const title = `AI ${f.label} maker — free · PixelPulse`;
@@ -25,7 +26,8 @@ async function examples(f) {
   return data || [];
 }
 
-export default async function FormatPage({ params }) {
+export default async function FormatPage(props) {
+  const params = await props.params;
   const f = isFormat(params.slug) && params.slug !== 'free' ? FORMATS[params.slug] : null;
   if (!f) notFound();
   const items = await examples(f);

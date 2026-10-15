@@ -30,7 +30,8 @@ async function getImage(id) {
 
 const short = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata(props) {
+  const params = await props.params;
   const img = await getImage(params.id);
   if (!img) return { title: 'Not found · PixelPulse' };
   const title = `${short(img.prompt, 70)} · PixelPulse`;
@@ -43,7 +44,8 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function PulseCard({ params }) {
+export default async function PulseCard(props) {
+  const params = await props.params;
   const img = await getImage(params.id);
   if (!img) notFound();
   const ratio = (img.aspect_ratio || '1:1').replace(':', ' / ');
