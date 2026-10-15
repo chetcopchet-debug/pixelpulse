@@ -3,10 +3,11 @@ import {
   readCreditsCookie, setCreditsCookie, getClientIp, ipRemaining,
   chargeIp, refundIp, COOKIE_NAME,
 } from '../../../lib/credits';
-import { getSupabase, BUCKET } from '../../../lib/supabase';
+import { getSupabase, BUCKET, isMissingModelColumn } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
 import { isAdmin } from '../../../lib/admin';
+import { MODEL_TIERS, DEFAULT_TIER } from '../../../lib/models';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -18,7 +19,7 @@ const VALID_RATIOS = ["1:1", "16:9", "9:16"];
 
 // Download the Replicate output and store it permanently in Supabase.
 // Returns { id, url } or null on any failure (caller falls back to the temporary URL).
-async function persistImage({ sourceUrl, prompt, style, ratio, creatorId, remixOf }) {
+async function persistImage({ sourceUrl, prompt, style, ratio, creatorId, remixOf, tier }) {
   const supabase = getSupabase();
   if (!supabase) return { error: 'Cloud storage is not configured on the server' };
   let stage = 'download';
@@ -44,10 +45,16 @@ async function persistImage({ sourceUrl, prompt, style, ratio, creatorId, remixO
     if (upErr) throw upErr;
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
     stage = 'database';
-    const { data: row, error: insErr } = await supabase.from('images').insert({
+    const rowData = {
       prompt, style, aspect_ratio: ratio, storage_path: path, public_url: pub.publicUrl,
       creator_id: creatorId, remix_of: remixOf || null,
-    }).select('id, public_url').single();
+    };
+    let { data: row, error: insErr } = await supabase.from('images').insert({ ...rowData, model: tier })
+      .select('id, public_url').single();
+    if (insErr && isMissingModelColumn(insErr)) {
+      // Migration 002 not applied yet: store without the model column
+      ({ data: row, error: insErr } = await supabase.from('images').insert(rowData).select('id, public_url').single());
+    }
     if (insErr) {
       await supabase.storage.from(BUCKET).remove([path]).catch(() => {});
       throw insErr;
@@ -64,9 +71,9 @@ function jsonError(message, status, credits) {
   return NextResponse.json({ error: message, ...(credits !== undefined ? { credits } : {}) }, { status });
 }
 
-async function runPrediction(finalPrompt, ratio) {
+async function runPrediction(finalPrompt, ratio, tierDef) {
   const token = process.env.REPLICATE_API_TOKEN;
-  const response = await fetch("https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions", {
+  const response = await fetch(`https://api.replicate.com/v1/models/${tierDef.model}/predictions`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -74,7 +81,7 @@ async function runPrediction(finalPrompt, ratio) {
       "Prefer": "wait=30",
     },
     body: JSON.stringify({
-      input: { prompt: finalPrompt, aspect_ratio: ratio, output_format: "webp", output_quality: 90 },
+      input: tierDef.input(finalPrompt, ratio),
     }),
   });
 
@@ -85,7 +92,7 @@ async function runPrediction(finalPrompt, ratio) {
   }
 
   // Short fallback polling if Prefer: wait didn't finish in time
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + 25_000;
   while (!['succeeded', 'failed', 'canceled'].includes(prediction.status) && prediction.urls?.get && Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 1500));
     const statusRes = await fetch(prediction.urls.get, { headers: { "Authorization": `Bearer ${token}` } });
@@ -116,7 +123,7 @@ export async function POST(request) {
   } catch {
     return jsonError('Invalid request. / בקשה לא תקינה.', 400);
   }
-  const { prompt, style, aspectRatio, remixOf } = body || {};
+  const { prompt, style, aspectRatio, remixOf, tier } = body || {};
   const creator = getCreatorId(request);
 
   if (typeof prompt !== 'string' || prompt.trim() === '') {
@@ -134,25 +141,29 @@ export async function POST(request) {
     return jsonError('Invalid aspect ratio. / יחס תמונה לא תקין.', 400);
   }
 
+  const selectedTier = tier === undefined ? DEFAULT_TIER : tier;
+  if (typeof selectedTier !== 'string' || !Object.prototype.hasOwnProperty.call(MODEL_TIERS, selectedTier)) {
+    return jsonError('Invalid model. / מודל לא תקין.', 400);
+  }
+  const tierDef = MODEL_TIERS[selectedTier];
+  const cost = tierDef.cost;
+
   if (!process.env.REPLICATE_API_TOKEN) {
     console.error('Missing REPLICATE_API_TOKEN');
     return jsonError('Service temporarily unavailable. / השירות אינו זמין כרגע.', 503);
   }
 
   // Charge before calling Replicate (admin bypasses credits and rate limits)
-  if (!admin && state.remaining <= 0) {
-    return jsonError('You are out of credits for today. Come back tomorrow! / נגמרו הקרדיטים להיום, נסו שוב מחר.', 402, 0);
-  }
-  const ipBlock = admin ? null : chargeIp(ip);
-  if (ipBlock === 'daily') {
-    return jsonError('You are out of credits for today. Come back tomorrow! / נגמרו הקרדיטים להיום, נסו שוב מחר.', 402, 0);
-  }
+  const notEnough = () => jsonError(`Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`, 402, currentCredits());
+  if (!admin && state.remaining < cost) return notEnough();
+  const ipBlock = admin ? null : chargeIp(ip, cost);
+  if (ipBlock === 'daily') return notEnough();
   if (ipBlock === 'minute') {
     return jsonError('Too many requests. Please wait a minute. / יותר מדי בקשות, נא להמתין דקה.', 429, currentCredits());
   }
-  if (!admin) state.remaining -= 1;
+  if (!admin) state.remaining -= cost;
 
-  const refund = () => { if (admin) return; state.remaining += 1; refundIp(ip); };
+  const refund = () => { if (admin) return; state.remaining += cost; refundIp(ip, cost); };
 
   try {
     // תרגום אוטומטי חכם אם הוזן טקסט בעברית
@@ -173,14 +184,14 @@ export async function POST(request) {
     }
 
     const finalPrompt = `${englishPrompt}, ${selectedStyle} style, masterpiece, highly detailed, 8k resolution, sharp focus`;
-    const result = await runPrediction(finalPrompt, selectedRatio);
+    const result = await runPrediction(finalPrompt, selectedRatio, tierDef);
 
     if (result.error) {
       refund();
       const status = result.error === 'timeout' ? 504 : 502;
       const msg = result.error === 'timeout'
-        ? 'Generation timed out. Your credit was refunded. / היצירה לקחה יותר מדי זמן, הקרדיט הוחזר.'
-        : 'Image generation failed. Your credit was refunded. / יצירת התמונה נכשלה, הקרדיט הוחזר.';
+        ? 'Generation timed out. Your credits were refunded. / היצירה לקחה יותר מדי זמן, הקרדיט הוחזר.'
+        : 'Image generation failed. Your credits were refunded. / יצירת התמונה נכשלה, הקרדיט הוחזר.';
       const res = jsonError(msg, status, currentCredits());
       if (!admin) setCreditsCookie(res, state);
       return res;
@@ -188,7 +199,7 @@ export async function POST(request) {
 
     const stored = await persistImage({
       sourceUrl: result.url, prompt: prompt.trim(), style: selectedStyle, ratio: selectedRatio,
-      creatorId: creator.id, remixOf: isUuid(remixOf) ? remixOf : null,
+      creatorId: creator.id, remixOf: isUuid(remixOf) ? remixOf : null, tier: selectedTier,
     });
 
     const res = NextResponse.json({
@@ -197,6 +208,7 @@ export async function POST(request) {
       id: stored?.id || null,
       stored: Boolean(stored?.id),
       ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
+      tier: selectedTier,
       credits: currentCredits(),
       ...(admin ? { admin: true } : {}),
     });
@@ -206,7 +218,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Server Error:', error);
     refund();
-    const res = jsonError('Internal server error. Your credit was refunded. / שגיאת שרת, הקרדיט הוחזר.', 500, currentCredits());
+    const res = jsonError('Internal server error. Your credits were refunded. / שגיאת שרת, הקרדיט הוחזר.', 500, currentCredits());
     if (!admin) setCreditsCookie(res, state);
     return res;
   }
