@@ -586,7 +586,7 @@ export default function Home() {
     { icon: "🏙️", text: "Rainy neon street market at night, reflections, cinematic" },
     { icon: "🍰", text: "Isometric miniature bakery made of candy, soft pastel colors" },
   ];
-  const settingsSummary = `${curTier.icon} ${curTier.label} · ${style === "None" ? "No style" : style}${fmtDef.ratio ? "" : ` · ${aspectRatio}`}`;
+  const settingsSummary = `${guide ? "◎ Guide engine" : `${curTier.icon} ${curTier.label}`} · ${style === "None" ? "No style" : style}${fmtDef.ratio ? "" : ` · ${aspectRatio}`}`;
   useEffect(() => { if (activeTab !== "community") return; setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, [activeTab]);
   const pulseIn = (() => { const m = Math.max(0, Math.round(((daily?.nextAt || 0) - now) / 60000)); return `${Math.floor(m / 60)}h ${m % 60}m`; })();
   const joinPulse = () => {
@@ -769,7 +769,7 @@ export default function Home() {
             <div className="pp-guide">
               <img src={guide.url} alt="guide" />
               <div className="pp-guidebody">
-                <small>◎ Guide · how closely to follow <b>{guideFollow}%</b></small>
+                <small>◎ Guide engine · {GUIDED_COST}⚡ · follow <b>{guideFollow}%</b></small>
                 <input type="range" min="0" max="100" value={guideFollow} onChange={(e) => setGuideFollow(+e.target.value)} aria-label="How closely to follow" />
               </div>
               <button className="pp-chip pp-ghost" onClick={() => setGuide(null)} aria-label="Remove guide">✕</button>
@@ -819,9 +819,10 @@ export default function Home() {
             </div>
             {format !== "free" && <p className="pp-sheetnote">{fmtDef.ratio} frame · recommended engine set{format === "sticker" ? " · auto Cutout is free" : ""} · <a className="pp-link" href={`/formats/${format}`}>About {fmtDef.label}</a></p>}
             <h3>Engine</h3>
-            <div className="pp-chips">
+            {guide && <p className="pp-sheetnote">◎ A guide image is attached, so the Guide engine ({GUIDED_COST}⚡) is used. <button className="pp-link" onClick={() => setGuide(null)}>Remove guide</button> to pick an engine.</p>}
+            <div className="pp-chips" style={guide ? { opacity: .4, pointerEvents: "none" } : undefined} aria-disabled={!!guide}>
               {TIERS.map((t) => (
-                <button key={t.id} className={`pp-chip pp-big${tier === t.id ? " on" : ""}`} onClick={() => setTier(t.id)}>
+                <button key={t.id} disabled={!!guide} className={`pp-chip pp-big${tier === t.id && !guide ? " on" : ""}`} onClick={() => setTier(t.id)}>
                   <b>{t.icon} {t.label}</b><small>{t.desc} · {t.cost}⚡</small>
                 </button>
               ))}
