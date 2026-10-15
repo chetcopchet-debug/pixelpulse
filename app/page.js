@@ -5,6 +5,14 @@ export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState("Cinematic");
   const [aspectRatio, setAspectRatio] = useState("1:1");
+  const [tier, setTier] = useState("fast");
+  const TIERS = [
+    { id: "fast", label: "Fast", icon: "⚡", cost: 1, desc: "Flux Schnell" },
+    { id: "quality", label: "Quality", icon: "💎", cost: 2, desc: "Flux 1.1 Pro" },
+    { id: "text", label: "Text", icon: "🔤", cost: 2, desc: "Ideogram v3" },
+  ];
+  const tierCost = (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
+  const tierLabel = (id) => { const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Initializing AI studio...");
@@ -54,6 +62,7 @@ export default function Home() {
     prompt: r.prompt,
     style: r.style,
     aspectRatio: r.aspect_ratio,
+    tier: r.model || null,
     likes: r.likes || 0,
     liked: Boolean(r.liked),
     isPublic: Boolean(r.is_public),
@@ -164,8 +173,8 @@ export default function Home() {
       setError("Please enter a prompt to generate an image.");
       return;
     }
-    if (!isAdmin && credits <= 0) {
-      setError("You are out of credits for today. Come back tomorrow!");
+    if (!isAdmin && credits < tierCost) {
+      setError(credits <= 0 ? "You are out of credits for today. Come back tomorrow!" : `Not enough credits for this model (costs ${tierCost}). Try Fast.`);
       return;
     }
 
@@ -185,7 +194,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, style, aspectRatio, remixOf }),
+        body: JSON.stringify({ prompt, style, aspectRatio, remixOf, tier }),
       });
 
       const data = await res.json();
@@ -204,6 +213,7 @@ export default function Home() {
         prompt: prompt.trim(),
         style,
         aspectRatio,
+        tier: data.tier || tier,
         likes: 0,
         isPublic: false,
         remixOf,
@@ -306,6 +316,7 @@ export default function Home() {
     setPrompt(item.prompt);
     setStyle(item.style || "Cinematic");
     setAspectRatio(item.aspectRatio || "1:1");
+    if (item.tier) setTier(item.tier);
     setRemixOf(item.id || null);
     setActiveTab("create");
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -524,6 +535,32 @@ export default function Home() {
           />
 
           <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
+            Model:
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
+            {TIERS.map((t) => {
+              const isSelected = tier === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTier(t.id)}
+                  style={{
+                    padding: "10px 6px", borderRadius: "12px", cursor: "pointer",
+                    border: isSelected ? "1px solid #a855f7" : "1px solid #222233",
+                    backgroundColor: isSelected ? "rgba(147, 51, 234, 0.25)" : "#151520",
+                    color: isSelected ? "#ffffff" : "#8e8e9e",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: "3px",
+                  }}
+                >
+                  <span style={{ fontSize: "13px", fontWeight: "700" }}>{t.icon} {t.label}</span>
+                  <span style={{ fontSize: "10px", opacity: 0.8 }}>{t.desc}</span>
+                  <span style={{ fontSize: "10px", color: isSelected ? "#d8b4fe" : "#6b6b80" }}>{t.cost} credit{t.cost > 1 ? "s" : ""}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
             Aspect Ratio:
           </label>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
@@ -709,7 +746,7 @@ export default function Home() {
                     "{item.prompt}"
                   </p>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "11px", color: "#7c7c94" }}>{item.style}{item.remixOf ? " • Remix" : ""}</span>
+                    <span style={{ fontSize: "11px", color: "#7c7c94" }}>{item.style}{item.tier ? ` • ${tierLabel(item.tier)}` : ""}{item.remixOf ? " • Remix" : ""}</span>
                     <div style={{ display: "flex", gap: "8px" }}>
                     <button
                       onClick={() => handleLike(item)}
@@ -799,6 +836,7 @@ export default function Home() {
                   <p style={{ margin: 0, fontSize: "12px", color: "#b4b4c4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {item.prompt}
                   </p>
+                  {item.tier && <span style={{ fontSize: "10px", color: "#7c7c94" }}>{tierLabel(item.tier)}</span>}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <button
                       onClick={() => handlePublishToCommunity(item)}

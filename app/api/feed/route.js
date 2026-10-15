@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabase, IMAGE_COLUMNS } from '../../../lib/supabase';
+import { getSupabase, IMAGE_COLUMNS, IMAGE_COLUMNS_LEGACY, isMissingModelColumn } from '../../../lib/supabase';
 import { getCreatorId } from '../../../lib/identity';
 
 export const dynamic = 'force-dynamic';
@@ -16,11 +16,14 @@ export async function GET(request) {
   const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || PAGE_SIZE, 10) || PAGE_SIZE, 1), 50);
   const before = searchParams.get('before');
 
-  let q = supabase.from('images').select(IMAGE_COLUMNS).eq('is_public', true)
-    .order('created_at', { ascending: false }).limit(limit);
-  if (before && !Number.isNaN(Date.parse(before))) q = q.lt('created_at', before);
-
-  const { data, error } = await q;
+  const run = (cols) => {
+    let q = supabase.from('images').select(cols).eq('is_public', true)
+      .order('created_at', { ascending: false }).limit(limit);
+    if (before && !Number.isNaN(Date.parse(before))) q = q.lt('created_at', before);
+    return q;
+  };
+  let { data, error } = await run(IMAGE_COLUMNS);
+  if (error && isMissingModelColumn(error)) ({ data, error } = await run(IMAGE_COLUMNS_LEGACY));
   if (error) {
     console.error('Feed error:', error);
     return NextResponse.json({ error: 'Could not load feed.' }, { status: 500 });
