@@ -18,7 +18,7 @@ export default function Home() {
     { id: "text", label: "Text", icon: "🔤", cost: 3, desc: "Text in images" },
   ];
   const tierCost = (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
-  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
+  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; if (id === "edit") return "✎ Edited"; const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
   const safeTier = (id) => (TIERS.some((t) => t.id === id) ? id : "fast");
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -306,13 +306,38 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" }); showToast("◐ Repainted");
   };
   const openRepaint = (item) => { if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; } setRepaintItem(item); };
+  const EDIT_COST = 4;
+  const [editTarget, setEditTarget] = useState(null); // { id, url }
+  const attachEdit = (item) => {
+    if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
+    setGuide(null); setRemixOf(null); setEditTarget({ id: item.id, url: item.url, format: item.format || null }); setPrompt(""); setActiveTab("create");
+    setTimeout(() => document.getElementById("pp-prompt")?.focus(), 60);
+  };
+  const runEdit = async () => {
+    const instr = promptState.trim();
+    if (!instr) { setError('Describe the change, e.g. "make it night".'); return; }
+    if (!isAdmin && credits < EDIT_COST) { setError(`Edit costs ${EDIT_COST} credits — not enough left today.`); return; }
+    setLoading(true); setError(""); setNotice(""); setLoadingText("Applying your edit...");
+    try {
+      const res = await fetch("/api/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editTarget.id, prompt: instr }) });
+      const d = await res.json().catch(() => ({}));
+      if (d.admin) setIsAdmin(true); else if (typeof d.credits === "number") setCredits(d.credits);
+      if (!res.ok || !d.item) throw new Error(d.error || "Edit failed.");
+      const ni = { ...toItem(d.item), ...(editTarget.format ? { format: editTarget.format } : {}) };
+      setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
+      setImage(ni.url); setCurrentItem(ni); setGalleryKey((k) => k + 1);
+      setEditTarget({ id: ni.id, url: ni.url, format: ni.format || null }); setPrompt("");
+      showToast("✎ Edited — describe another change, or ✕ to finish");
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); setLoadingText("Initializing AI studio..."); }
+  };
   const [guide, setGuide] = useState(null); // { id, url }
   const [guideFollow, setGuideFollow] = useState(55);
   const [uploading, setUploading] = useState(false);
   const GUIDED_COST = 3;
   const attachGuide = (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
-    setGuide({ id: item.id, url: item.url }); setActiveTab("create");
+    setEditTarget(null); setGuide({ id: item.id, url: item.url }); setActiveTab("create");
     showToast("◎ Guide attached — describe the new image");
     setTimeout(() => document.getElementById("pp-prompt")?.focus(), 50);
   };
@@ -539,7 +564,8 @@ export default function Home() {
     const A = {
       variation: { key: "var", icon: "≈", label: "Variation", onClick: () => handleVariation(item), disabled: loading, hint: "New take on the same idea & style" },
       vibe: { key: "vibe", icon: "✦", label: "Pulse this vibe", onClick: () => handlePulseVibe(item), hint: "Prompt + style into the Pulse Bar", tone: ctx === "feed" ? "accent" : undefined },
-      copy: { key: "copy", icon: "✎", label: "Copy prompt", onClick: () => copyPrompt(item) },
+      edit: { key: "edit", icon: "✎", label: "Edit", onClick: () => attachEdit(item), disabled: !item.id || loading, hint: `${EDIT_COST}⚡ · change it with words` },
+      copy: { key: "copy", icon: "⧉", label: "Copy prompt", onClick: () => copyPrompt(item) },
       repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "5⚡ · paint an area" },
       guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => attachGuide(item), disabled: !item.id, hint: "3⚡ · new image from it" },
       sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "HD download", onClick: () => handleTool("sharpen", item, { download: true }), disabled: !!toolBusy || !item.id, hint: "1⚡ · 2x sharper file" },
@@ -552,11 +578,11 @@ export default function Home() {
     };
     const report = { key: "report", icon: "⚑", label: "Report", hint: "Breaks the rules?", tone: "danger", onClick: () => handleReport(item) };
     const hide = isAdmin ? { key: "hide", icon: "⦸", label: "Hide (admin)", tone: "danger", onClick: () => adminHide(item, true) } : null;
-    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
-    if (isUpload) return { primary: [A.guide, A.repaint, A.download], more: [A.sharpen, A.cutout, ...extra] };
+    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.edit, A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
+    if (isUpload) return { primary: [A.edit, A.repaint, A.download], more: [A.guide, A.sharpen, A.cutout, ...extra] };
     return {
-      primary: [A.variation, A.repaint, item.isPublic ? A.share : A.publish],
-      more: [A.vibe, A.guide, A.cutout, A.download, A.sharpen, A.copy, item.isPublic ? A.card : null, ...extra],
+      primary: [A.edit, A.variation, item.isPublic ? A.share : A.publish],
+      more: [A.repaint, A.vibe, A.guide, A.cutout, A.download, A.sharpen, A.copy, item.isPublic ? A.card : null, ...extra],
     };
   };
   const Actions = ({ item, ctx = "own", compact, extra }) => { const a = buildActions(item, ctx, extra); return <ImageActions {...a} compact={compact} title={item.prompt} />; };
@@ -572,7 +598,7 @@ export default function Home() {
     { icon: "🏙️", text: "Rainy neon street market at night, reflections, cinematic" },
     { icon: "🍰", text: "Isometric miniature bakery made of candy, soft pastel colors" },
   ];
-  const settingsSummary = `${guide ? "◎ Guide engine" : `${curTier.icon} ${curTier.label}`} · ${style === "None" ? "No style" : style}${fmtDef.ratio ? "" : ` · ${aspectRatio}`}`;
+  const settingsSummary = `${editTarget ? "✎ Edit engine" : guide ? "◎ Guide engine" : `${curTier.icon} ${curTier.label}`} · ${style === "None" ? "No style" : style}${fmtDef.ratio ? "" : ` · ${aspectRatio}`}`;
   useEffect(() => { if (activeTab !== "community") return; setNow(Date.now()); const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, [activeTab]);
   const pulseIn = (() => { const m = Math.max(0, Math.round(((daily?.nextAt || 0) - now) / 60000)); return `${Math.floor(m / 60)}h ${m % 60}m`; })();
   const joinPulse = () => {
@@ -667,7 +693,7 @@ export default function Home() {
           onStealVibe={handlePulseVibe}
           renderActions={(it, extra) => <Actions item={it} extra={extra} />}
           actions={{
-            repaint: openRepaint, guide: attachGuide, sharpen: (it) => handleTool("sharpen", it), cutout: (it) => handleTool("cutout", it),
+            repaint: openRepaint, guide: attachGuide, edit: attachEdit, sharpen: (it) => handleTool("sharpen", it), cutout: (it) => handleTool("cutout", it),
             variation: handleVariation, usePrompt: handleUsePrompt, publish: handlePublishToCommunity, share: handleShare,
             open: (it) => { setActiveTab("create"); setImage(it.url); setCurrentItem(it); window.scrollTo({ top: 0 }); },
             onDeleted: (ids) => { const d = new Set(ids); setHistory((p) => p.filter((h) => !d.has(h.id))); if (currentItem && d.has(currentItem.id)) { setImage(null); setCurrentItem(null); } },
@@ -751,6 +777,13 @@ export default function Home() {
               )}
             </div>
           )}
+          {editTarget && (
+            <div className="pp-guide pp-editbar">
+              <img src={editTarget.url} alt="" />
+              <div className="pp-guidebody"><small>✎ Editing this image · {EDIT_COST}⚡</small><small style={{ color: "#a1a1b5" }}>Saved as a new image — the original stays</small></div>
+              <button className="pp-chip pp-ghost" onClick={() => setEditTarget(null)} aria-label="Stop editing">✕</button>
+            </div>
+          )}
           {guide && (
             <div className="pp-guide">
               <img src={guide.url} alt="guide" />
@@ -777,14 +810,14 @@ export default function Home() {
           <div className="pp-inputrow">
             <div className="pp-field">
               <textarea id="pp-prompt" maxLength={1500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); generateImage(); } }}
-                placeholder="Describe a vision — any language…" />
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); editTarget ? runEdit() : generateImage(); } }}
+                placeholder={editTarget ? "Describe the change — e.g. make it night" : "Describe a vision — any language…"} />
               {prompt.length > 1200 && <span className="pp-count" aria-live="polite">{prompt.length}/1500</span>}
               <button className={`pp-amp-btn${ampOpen ? " on" : ""}`} onClick={handleEnhancePrompt} title="Amplify prompt" aria-label="Amplify prompt">✦</button>
             </div>
-            <button className="pp-go" onClick={() => generateImage()} disabled={loading}>
+            <button className="pp-go" onClick={() => (editTarget ? runEdit() : generateImage())} disabled={loading}>
               <span className="pp-go-label">{loading ? <i className="pp-spin" /> : "Pulse"}</span>
-              <span className="pp-cost">{isAdmin ? "∞" : `${guide ? GUIDED_COST : curTier.cost}⚡`}</span>
+              <span className="pp-cost">{isAdmin ? "∞" : `${editTarget ? EDIT_COST : guide ? GUIDED_COST : curTier.cost}⚡`}</span>
             </button>
           </div>
         </div>
@@ -805,10 +838,11 @@ export default function Home() {
             </div>
             {format !== "free" && <p className="pp-sheetnote">{fmtDef.ratio} frame · recommended engine set{format === "sticker" ? " · auto Cutout is free" : ""} · <a className="pp-link" href={`/formats/${format}`}>About {fmtDef.label}</a></p>}
             <h3>Engine</h3>
-            {guide && <p className="pp-sheetnote">◎ A guide image is attached, so the Guide engine ({GUIDED_COST}⚡) is used. <button className="pp-link" onClick={() => setGuide(null)}>Remove guide</button> to pick an engine.</p>}
-            <div className="pp-chips" style={guide ? { opacity: .4, pointerEvents: "none" } : undefined} aria-disabled={!!guide}>
+            {editTarget && <p className="pp-sheetnote">✎ Editing an image uses the Edit engine ({EDIT_COST}⚡). <button className="pp-link" onClick={() => setEditTarget(null)}>Stop editing</button> to pick an engine.</p>}
+            {!editTarget && guide && <p className="pp-sheetnote">◎ A guide image is attached, so the Guide engine ({GUIDED_COST}⚡) is used. <button className="pp-link" onClick={() => setGuide(null)}>Remove guide</button> to pick an engine.</p>}
+            <div className="pp-chips" style={guide || editTarget ? { opacity: .4, pointerEvents: "none" } : undefined} aria-disabled={!!(guide || editTarget)}>
               {TIERS.map((t) => (
-                <button key={t.id} disabled={!!guide} className={`pp-chip pp-big${tier === t.id && !guide ? " on" : ""}`} onClick={() => setTier(t.id)}>
+                <button key={t.id} disabled={!!(guide || editTarget)} className={`pp-chip pp-big${tier === t.id && !guide && !editTarget ? " on" : ""}`} onClick={() => setTier(t.id)}>
                   <b>{t.icon} {t.label}</b><small>{t.desc} · {t.cost}⚡</small>
                 </button>
               ))}
