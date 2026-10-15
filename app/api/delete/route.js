@@ -1,3 +1,4 @@
+import { thumbPath } from '../../../lib/thumbs';
 import { NextResponse } from 'next/server';
 import { getSupabase, BUCKET } from '../../../lib/supabase';
 import { getCreatorId, isUuid } from '../../../lib/identity';
@@ -24,7 +25,7 @@ export async function POST(request) {
   const own = rows.map((r) => r.id);
   const { error: delErr } = await supabase.from('images').delete().eq('creator_id', creator.id).in('id', own);
   if (delErr) { console.error('Delete error:', delErr); return NextResponse.json({ error: 'Could not delete.' }, { status: 500 }); }
-  const paths = rows.map((r) => r.storage_path).filter(Boolean);
+  const paths = rows.flatMap((r) => [r.storage_path, thumbPath(r.storage_path)]).filter(Boolean);
   if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch((e) => console.error('Storage remove:', e));
   return NextResponse.json({ success: true, deleted: own });
 }

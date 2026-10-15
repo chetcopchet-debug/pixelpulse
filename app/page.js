@@ -363,6 +363,11 @@ export default function Home() {
       setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
       setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
       window.scrollTo({ top: 0, behavior: "smooth" });
+      if (opts.replace && item.id && ni.id !== item.id) {
+        setHistory((prev) => prev.filter((h) => h.id !== item.id));
+        fetch("/api/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [item.id] }) }).catch(() => {});
+        setGalleryKey((k) => k + 1);
+      }
       showToast(opts.format === "sticker" ? "✂ Sticker ready — transparent PNG" : tool === "sharpen" ? "◇ Sharpened 2x" : "✂ Background removed");
     } catch (e) { setError(e.message); }
     finally { setToolBusy(""); }
@@ -433,7 +438,7 @@ export default function Home() {
       setCurrentItem(newItem);
       setRemixOf(null);
       if (data.daily) { setDailyJoin(false); showToast("◉ Daily entry made — Publish it to join the Pulse"); }
-      if (fmt === "sticker" && data.id) setTimeout(() => handleTool("cutout", newItem, { format: "sticker" }), 50);
+      if (fmt === "sticker" && data.id) setTimeout(() => handleTool("cutout", newItem, { format: "sticker", replace: true }), 50);
       if (data.stored) {
         setHistory((prev) => [newItem, ...prev.filter((h) => h.id !== newItem.id)].slice(0, 24));
       } else {
@@ -529,7 +534,7 @@ export default function Home() {
     const busyTool = (t) => toolBusy === `${t}:${item.id}`;
     const isUpload = item.tier === "upload";
     const A = {
-      variation: { key: "var", icon: "≈", label: "Variation", onClick: () => handleVariation(item), disabled: loading, hint: "New take, same idea" },
+      variation: { key: "var", icon: "≈", label: "Variation", onClick: () => handleVariation(item), disabled: loading, hint: "New take on the same idea & styledea" },
       vibe: { key: "vibe", icon: "✦", label: "Pulse this vibe", onClick: () => handlePulseVibe(item), hint: "Prompt + style into the Pulse Bar", tone: ctx === "feed" ? "accent" : undefined },
       styleOnly: { key: "style", icon: "◈", label: "Style only", onClick: () => handleStealVibe(item), hint: "Keep your prompt" },
       again: { key: "again", icon: "↻", label: "Again", onClick: () => handleAgain(item), disabled: loading, hint: "Same prompt, new seed" },
@@ -546,11 +551,11 @@ export default function Home() {
     };
     const report = { key: "report", icon: "⚑", label: "Report", hint: "Breaks the rules?", tone: "danger", onClick: () => handleReport(item) };
     const hide = isAdmin ? { key: "hide", icon: "⦸", label: "Hide (admin)", tone: "danger", onClick: () => adminHide(item, true) } : null;
-    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.variation, A.styleOnly, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.cutout, A.download, report, hide, ...extra] };
+    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.cutout, A.download, report, hide, ...extra] };
     if (isUpload) return { primary: [A.guide, A.repaint, A.download], more: [A.sharpen, A.cutout, ...extra] };
     return {
       primary: [A.variation, A.repaint, item.isPublic ? A.share : A.publish],
-      more: [A.again, A.vibe, A.guide, A.sharpen, A.cutout, A.download, A.copy, item.isPublic ? A.card : null, ...extra],
+      more: [A.vibe, A.guide, A.sharpen, A.cutout, A.download, A.copy, item.isPublic ? A.card : null, ...extra],
     };
   };
   const Actions = ({ item, ctx = "own", compact, extra }) => { const a = buildActions(item, ctx, extra); return <ImageActions {...a} compact={compact} title={item.prompt} />; };
@@ -602,14 +607,14 @@ export default function Home() {
       <div className="pp-layout">
       {activeTab === "create" ? (
         <main className="pp-main">
-          <section className={`pp-stage${loading ? " pp-generating" : ""}${stageFmt ? ` pp-fmt-${stageFmt}` : ""}`} style={{ aspectRatio: image && stageFmt !== "avatar" ? "auto" : (stageFmt === "avatar" ? "1 / 1" : aspectRatio.replace(":", " / ")) }}>
+          <section className={`pp-stage${loading ? " pp-generating" : ""}${stageFmt ? ` pp-fmt-${stageFmt}` : ""}${!image && !loading ? " pp-is-empty" : ""}`} style={{ aspectRatio: image && stageFmt !== "avatar" ? "auto" : (stageFmt === "avatar" ? "1 / 1" : aspectRatio.replace(":", " / ")) }}>
             {stageFmt === "wallpaper" && <div className="pp-lock" aria-hidden="true"><small>Thursday</small><b>09:41</b></div>}
             {loading ? (
               <div className="pp-ripple"><i /><i /><i /><b>{loadingText}</b></div>
             ) : image ? (
               <img src={image} alt="Generated AI Art" />
             ) : (
-              <div className="pp-empty"><div className="pp-ripple pp-idle"><i /><i /></div><p>Type an idea below and hit <b>Pulse</b>,<br />or start from a spark.</p></div>
+              <div className="pp-empty"><div className="pp-ripple pp-idle"><i /><i /></div><p>Type an idea and hit <b>Pulse</b> — or tap a spark ↓</p></div>
             )}
           </section>
           {image && currentItem && !loading && <Actions item={currentItem} />}
@@ -857,8 +862,6 @@ export default function Home() {
                   ))}
                 </div>
               ) : <p className="pp-modnote">{modList.error}</p>)}
-              <button disabled><b>⇥</b>Sign in<em>Coming soon</em></button>
-              <button disabled><b>⚡</b>Get credits<em>Coming soon</em></button>
             </nav>
             <div className="pp-legal"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/content-policy">Content Policy</a></div>
           </aside>
@@ -1063,6 +1066,17 @@ body{margin:0;background:var(--bg)}
 .pp-card a{position:relative;display:block}.pp-rank{position:absolute;top:8px;left:8px;z-index:2;padding:3px 9px;border-radius:999px;background:rgba(7,7,10,.75);font-size:12px;font-weight:800}
 .pp-streak{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:20px;background:#12121c;border:1px solid rgba(236,72,153,.3);margin:10px 0}
 .pp-streak b{font-size:20px}.pp-streak span{flex:1;font-size:12px;color:#cfcde0}
+.pp-stage.pp-is-empty{aspect-ratio:auto!important;height:118px}
+.pp-stage.pp-is-empty .pp-empty{padding:10px 16px;display:flex;align-items:center;gap:14px;text-align:left}
+.pp-stage.pp-is-empty .pp-empty p{margin:0}
+.pp-stage.pp-is-empty .pp-ripple{width:58px;height:58px;flex:0 0 58px;position:relative}
+.pp-stage.pp-is-empty.pp-fmt-wallpaper,.pp-stage.pp-is-empty.pp-fmt-story,.pp-stage.pp-is-empty.pp-fmt-poster{height:210px;max-width:128px;border-width:6px;border-radius:26px}
+.pp-stage.pp-is-empty.pp-fmt-wallpaper .pp-empty,.pp-stage.pp-is-empty.pp-fmt-story .pp-empty,.pp-stage.pp-is-empty.pp-fmt-poster .pp-empty{display:none}
+.pp-stage.pp-is-empty.pp-fmt-wallpaper::before{width:36px;height:10px;top:6px}
+.pp-stage.pp-is-empty .pp-lock{top:22px}.pp-stage.pp-is-empty .pp-lock b{font-size:26px}.pp-stage.pp-is-empty .pp-lock small{font-size:9px}
+.pp-stage.pp-is-empty.pp-fmt-avatar{height:150px;max-width:150px}
+.pp-stage.pp-is-empty.pp-fmt-avatar .pp-empty p,.pp-stage.pp-is-empty.pp-fmt-sticker .pp-empty p{display:none}
+.pp-start{margin-top:12px!important}
 .pp-legal{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
 .pp-legal a{color:var(--mut)}
 .pp-card .ia-row{max-width:none}
