@@ -307,7 +307,7 @@ export default function Home() {
   const [guideFollow, setGuideFollow] = useState(55);
   const [uploading, setUploading] = useState(false);
   const GUIDED_COST = 3;
-  const useAsGuide = (item) => {
+  const attachGuide = (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
     setGuide({ id: item.id, url: item.url }); setActiveTab("create");
     showToast("◎ Guide attached — describe the new image");
@@ -453,32 +453,6 @@ export default function Home() {
     }
   };
 
-  const handleDownload = async (imgUrl) => {
-    try {
-      setDownloading(true);
-      const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(imgUrl.replace('https://', ''))}&output=webp`;
-      const response = await fetch(proxyUrl);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = `pixelpulse-${Date.now()}.webp`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      const link = document.createElement("a");
-      link.href = imgUrl;
-      link.target = "_blank";
-      link.download = "pixelpulse.webp";
-      link.click();
-    } finally {
-      setDownloading(false);
-    }
-  };
-
   // Publish an image to the shared community feed
   const handlePublishToCommunity = async (item) => {
     if (!item?.id) {
@@ -560,7 +534,7 @@ export default function Home() {
       again: { key: "again", icon: "↻", label: "Again", onClick: () => handleAgain(item), disabled: loading, hint: "Same prompt, new seed" },
       copy: { key: "copy", icon: "✎", label: "Copy prompt", onClick: () => copyPrompt(item) },
       repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "5⚡ · paint an area" },
-      guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => useAsGuide(item), disabled: !item.id, hint: "3⚡ · new image from it" },
+      guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => attachGuide(item), disabled: !item.id, hint: "3⚡ · new image from it" },
       sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "Sharpen 2x", onClick: () => handleTool("sharpen", item), disabled: !!toolBusy || !item.id, hint: "1⚡" },
       cutout: { key: "cutout", icon: busyTool("cutout") ? "…" : "✂", label: "Cutout", onClick: () => handleTool("cutout", item), disabled: !!toolBusy || !item.id, hint: "Free · remove background" },
       download: { key: "dl", icon: "⤓", label: "Download", onClick: () => downloadImage(item.url, fileName(item)) },
@@ -686,7 +660,7 @@ export default function Home() {
           onStealVibe={handlePulseVibe}
           renderActions={(it, extra) => <Actions item={it} extra={extra} />}
           actions={{
-            repaint: openRepaint, guide: useAsGuide, sharpen: (it) => handleTool("sharpen", it), cutout: (it) => handleTool("cutout", it),
+            repaint: openRepaint, guide: attachGuide, sharpen: (it) => handleTool("sharpen", it), cutout: (it) => handleTool("cutout", it),
             again: handleAgain, variation: handleVariation, usePrompt: handleUsePrompt, publish: handlePublishToCommunity, share: handleShare,
             open: (it) => { setActiveTab("create"); setImage(it.url); setCurrentItem(it); window.scrollTo({ top: 0 }); },
             onDeleted: (ids) => { const d = new Set(ids); setHistory((p) => p.filter((h) => !d.has(h.id))); if (currentItem && d.has(currentItem.id)) { setImage(null); setCurrentItem(null); } },

@@ -3,8 +3,9 @@ export const dynamic = 'force-dynamic';
 
 const MSG = { key: 'Wrong key.', rate: 'Too many attempts — wait 10 minutes.', off: 'Admin is disabled.' };
 
-export default function AdminLogin({ searchParams }) {
-  const e = MSG[searchParams?.e];
+export default async function AdminLogin(props) {
+  const sp = await props.searchParams;
+  const e = MSG[sp?.e];
   return (
     <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#07070a', color: '#e9e7f5', fontFamily: 'system-ui,sans-serif', padding: 16 }}>
       <form method="post" action="/api/admin" autoComplete="off" style={{ width: '100%', maxWidth: 340, display: 'flex', flexDirection: 'column', gap: 10 }}>
