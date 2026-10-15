@@ -37,7 +37,8 @@ export async function GET(request) {
     return q;
   };
   const base = 'id, created_at, prompt, style, aspect_ratio, public_url, likes, remix_of, is_public, storage_path';
-  let { data, error } = await run(base + ', model', true);
+  let { data, error } = await run(base + ', model, format, daily_day', true);
+  if (error && /format|daily_day/i.test(error.message || '')) ({ data, error } = await run(base + ', model', true));
   if (error && isMissingModelColumn(error)) ({ data, error } = await run(base, false));
   if (error) {
     console.error('History error:', error);

@@ -1,4 +1,5 @@
 import { getSupabase } from '../lib/supabase';
+import { FORMAT_LIST } from '../lib/formats';
 const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://pixelpulse-omega.vercel.app';
 export const revalidate = 3600;
 
@@ -11,6 +12,7 @@ export default async function sitemap() {
     { url: `${BASE}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${BASE}/content-policy`, changeFrequency: 'yearly', priority: 0.2 },
   ];
+  for (const f of FORMAT_LIST) if (f.id !== 'free') entries.push({ url: `${BASE}/formats/${f.id}`, changeFrequency: 'weekly', priority: 0.7 });
   const supabase = getSupabase();
   if (supabase) {
     const q = (h) => { let x = supabase.from('images').select('id, created_at').eq('is_public', true); if (h) x = x.eq('hidden', false); return x.neq('model', 'upload').order('created_at', { ascending: false }).limit(1000); };

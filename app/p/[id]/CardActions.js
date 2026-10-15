@@ -4,10 +4,10 @@ import ImageActions, { IA_CSS } from '../../ImageActions';
 
 const CSS_VARS = ':root{--txt:#e9e7f5;--mut:#7c7c94}.pp-grab{width:42px;height:5px;border-radius:9px;background:#33334a;margin:0 auto 6px}.pp-done{width:100%;margin-top:14px;padding:13px;border-radius:999px;border:none;background:#e9e7f5;color:#0b0b12;font-weight:800;font-size:15px}@keyframes ppFade{from{opacity:0}}@keyframes ppUp{from{transform:translateY(100%)}to{transform:none}}';
 
-export default function CardActions({ id, prompt, style, ratio, tier, url }) {
+export default function CardActions({ id, prompt, style, ratio, tier, url, format }) {
   const [toast, setToast] = useState('');
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2200); };
-  const vibeQs = new URLSearchParams({ vibe: id, p: prompt || '', ...(style ? { style } : {}), ...(ratio ? { ratio } : {}), ...(tier ? { tier } : {}) });
+  const vibeQs = new URLSearchParams({ vibe: id, p: prompt || '', ...(format && format !== 'free' ? { format } : {}), ...(style ? { style } : {}), ...(ratio ? { ratio } : {}), ...(tier ? { tier } : {}) });
   const styleQs = new URLSearchParams({ vibe: 'style', ...(style ? { style } : {}), ...(ratio ? { ratio } : {}), ...(tier ? { tier } : {}) });
   const copy = async (text, msg) => {
     try { await navigator.clipboard.writeText(text); flash(msg); } catch { window.prompt('Copy:', text); }

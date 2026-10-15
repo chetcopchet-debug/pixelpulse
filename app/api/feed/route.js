@@ -24,7 +24,8 @@ export async function GET(request) {
     if (hideFilter) q = q.eq('hidden', false);
     return q;
   };
-  let { data, error } = await run(IMAGE_COLUMNS);
+  let { data, error } = await run(IMAGE_COLUMNS + ', format, daily_day');
+  if (error && /format|daily_day/i.test(error.message || '')) ({ data, error } = await run(IMAGE_COLUMNS));
   if (error && /hidden/i.test(error.message || '')) { hideFilter = false; ({ data, error } = await run(IMAGE_COLUMNS)); }
   if (error && isMissingModelColumn(error)) ({ data, error } = await run(IMAGE_COLUMNS_LEGACY));
   if (error) {
