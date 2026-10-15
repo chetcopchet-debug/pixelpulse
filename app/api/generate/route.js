@@ -12,29 +12,37 @@ export async function POST(request) {
       return NextResponse.json({ error: 'חסר מפתח API בשרת.' }, { status: 500 });
     }
 
-    // 1. תרגום אוטומטי מעברית לאנגלית כדי שמודל ה-AI יבין כל מילה!
-    let englishPrompt = prompt;
-    try {
-      const translateUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(prompt)}`;
-      const transRes = await fetch(translateUrl);
-      const transData = await transRes.json();
-      if (transData && transData[0]) {
-        englishPrompt = transData[0].map(item => item[0]).join('');
+    // 1. זיהוי אם הטקסט מכיל עברית ותרגום לאנגלית דרך שירות API אמין וחינמי
+    let englishPrompt = prompt.trim();
+    const hasHebrew = /[\u0590-\u05FF]/.test(englishPrompt);
+
+    if (hasHebrew) {
+      try {
+        // ניסיון ראשון: MyMemory Translation API (חינמי ויציב לשרתים)
+        const cleanText = englishPrompt.replace(/\n+/g, ' ');
+        const res = await fetch(
+          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=he|en`
+        );
+        const data = await res.json();
+        
+        if (data?.responseData?.translatedText) {
+          englishPrompt = data.responseData.translatedText;
+        }
+      } catch (err) {
+        console.error("Primary translation error:", err);
       }
-    } catch (e) {
-      console.error("Translation fallback:", e);
     }
 
-    // 2. חיבור הפרומפט המתורגם עם הסגנון האמנותי שנבחר
-    const finalPrompt = `${englishPrompt}, ${style || 'Cinematic'} style, high quality, detailed`;
+    // 2. הרכבת הפרומפט הסופי באנגלית עבור מודל Flux
+    const finalPrompt = `${englishPrompt}, ${style || 'Cinematic'} style, masterpiece, highly detailed, sharp focus`;
 
-    // 3. שליחה לכתובת הרשמית והישירה של מודל Flux-Schnell ב-Replicate
+    // 3. שליחת הבקשה ל-Replicate
     const response = await fetch("https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.REPLICATE_API_TOKEN}`,
         "Content-Type": "application/json",
-        "Prefer": "wait" // מבקש מהשרת להמתין ולהחזיר את התמונה המוכנה מיד!
+        "Prefer": "wait"
       },
       body: JSON.stringify({
         input: {
@@ -55,7 +63,7 @@ export async function POST(request) {
     let imageUrl = prediction.output ? prediction.output[0] : null;
     let getUrl = prediction.urls?.get;
 
-    // 4. אם התמונה עוד לא מוכנה מיד, נמתין לה בלולאה
+    // 4. המתנה לתמונה אם היא עדיין בעיבוד
     for (let i = 0; i < 20; i++) {
       if (imageUrl || !getUrl) break;
       await new Promise(res => setTimeout(res, 1000));
