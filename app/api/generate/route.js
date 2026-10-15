@@ -7,7 +7,8 @@ import { persistImage, runPrediction, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RAT
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
 import { isAdmin } from '../../../lib/admin';
-import { MODEL_TIERS, DEFAULT_TIER } from '../../../lib/models';
+import { MODEL_TIERS, DEFAULT_TIER, guidedTier } from '../../../lib/models';
+import { getSupabase } from '../../../lib/supabase';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,7 @@ export async function POST(request) {
   } catch {
     return jsonError('Invalid request. / בקשה לא תקינה.', 400);
   }
-  const { prompt, style, aspectRatio, remixOf, tier } = body || {};
+  const { prompt, style, aspectRatio, remixOf, tier, guideId, guideFollow } = body || {};
   const creator = getCreatorId(request);
 
   if (typeof prompt !== 'string' || prompt.trim() === '') {
@@ -52,7 +53,19 @@ export async function POST(request) {
   if (typeof selectedTier !== 'string' || !Object.prototype.hasOwnProperty.call(MODEL_TIERS, selectedTier)) {
     return jsonError('Invalid model. / מודל לא תקין.', 400);
   }
-  const tierDef = MODEL_TIERS[selectedTier];
+  let tierDef = MODEL_TIERS[selectedTier];
+  let storedTier = selectedTier;
+  let guideParent = null;
+  if (guideId !== undefined && guideId !== null) {
+    if (!isUuid(guideId)) return jsonError('Invalid guide image.', 400);
+    const supabase = getSupabase();
+    if (!supabase) return jsonError('Cloud storage is not available.', 503);
+    const { data: g } = await supabase.from('images').select('id, public_url, is_public, creator_id').eq('id', guideId).maybeSingle();
+    if (!g || (!g.is_public && (creator.isNew || g.creator_id !== creator.id))) return jsonError('Guide image not found.', 404);
+    tierDef = guidedTier(g.public_url, Number(guideFollow));
+    storedTier = 'guided';
+    guideParent = g.id;
+  }
   const cost = tierDef.cost;
 
   if (!process.env.REPLICATE_API_TOKEN) {
@@ -106,7 +119,7 @@ export async function POST(request) {
 
     const stored = await persistImage({
       sourceUrl: result.url, prompt: prompt.trim(), style: selectedStyle, ratio: selectedRatio,
-      creatorId: creator.id, remixOf: isUuid(remixOf) ? remixOf : null, tier: selectedTier,
+      creatorId: creator.id, remixOf: guideParent || (isUuid(remixOf) ? remixOf : null), tier: storedTier,
     });
 
     const res = NextResponse.json({
@@ -115,7 +128,7 @@ export async function POST(request) {
       id: stored?.id || null,
       stored: Boolean(stored?.id),
       ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
-      tier: selectedTier,
+      tier: storedTier,
       credits: currentCredits(),
       ...(admin ? { admin: true } : {}),
     });

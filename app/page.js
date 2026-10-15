@@ -13,7 +13,8 @@ export default function Home() {
     { id: "text", label: "Text", icon: "🔤", cost: 2, desc: "Ideogram v3" },
   ];
   const tierCost = (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
-  const tierLabel = (id) => { const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
+  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
+  const safeTier = (id) => (TIERS.some((t) => t.id === id) ? id : "fast");
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Initializing AI studio...");
@@ -204,13 +205,13 @@ export default function Home() {
   const handleAgain = (item) => {
     if (!item) return;
     setActiveTab("create");
-    generateImage({ prompt: item.prompt, style: item.style || "Cinematic", aspectRatio: item.aspectRatio || "1:1", tier: item.tier || "fast", remixOf: item.remixOf || null });
+    generateImage({ guide: null, prompt: item.prompt, style: item.style || "Cinematic", aspectRatio: item.aspectRatio || "1:1", tier: safeTier(item.tier), remixOf: item.remixOf || null });
   };
   const handleVariation = (item) => {
     if (!item) return;
     const twist = VARIATION_TWISTS[Math.floor(Math.random() * VARIATION_TWISTS.length)];
     setActiveTab("create");
-    generateImage({ prompt: `${item.prompt}, ${twist}`, style: item.style || "Cinematic", aspectRatio: item.aspectRatio || "1:1", tier: item.tier || "fast", remixOf: item.id || null });
+    generateImage({ guide: null, prompt: `${item.prompt}, ${twist}`, style: item.style || "Cinematic", aspectRatio: item.aspectRatio || "1:1", tier: safeTier(item.tier), remixOf: item.id || null });
   };
   const handleUsePrompt = (item) => {
     setPrompt(item.prompt || "");
@@ -236,6 +237,44 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" }); showToast("◐ Repainted");
   };
   const openRepaint = (item) => { if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; } setRepaintItem(item); };
+  const [guide, setGuide] = useState(null); // { id, url }
+  const [guideFollow, setGuideFollow] = useState(55);
+  const [uploading, setUploading] = useState(false);
+  const GUIDED_COST = 2;
+  const useAsGuide = (item) => {
+    if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
+    setGuide({ id: item.id, url: item.url }); setActiveTab("create");
+    showToast("◎ Guide attached — describe the new image");
+    setTimeout(() => document.getElementById("pp-prompt")?.focus(), 50);
+  };
+  const handleUploadFile = async (file) => {
+    if (!file) return;
+    if (!/^image\//.test(file.type || "")) { setError("Please choose an image file."); return; }
+    if (file.size > 40 * 1024 * 1024) { setError("That image is too large."); return; }
+    setUploading(true); setError("");
+    try {
+      const src = URL.createObjectURL(file);
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Couldn't read that image.")); i.src = src; });
+      const scale = Math.min(1, 1536 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale)), h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      const png = file.type === "image/png";
+      if (!png) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h); }
+      ctx.drawImage(img, 0, 0, w, h); URL.revokeObjectURL(src);
+      let data = c.toDataURL(png ? "image/png" : "image/jpeg", 0.88);
+      if (data.length > 3.6e6) data = c.toDataURL("image/jpeg", 0.85);
+      const r = w / h; const ratio = r > 1.3 ? "16:9" : r < 0.77 ? "9:16" : "1:1";
+      const res = await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data, ratio }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.item) throw new Error(d.error || "Upload failed.");
+      const ni = toItem(d.item);
+      setHistory((prev) => [ni, ...prev].slice(0, 36));
+      setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
+      showToast("⇪ Uploaded — Repaint, Sharpen, Cutout or use as guide");
+    } catch (e) { setError(e.message); }
+    finally { setUploading(false); }
+  };
   const [toolBusy, setToolBusy] = useState(""); // "<tool>:<id>"
   const handleShare = async (item) => {
     if (!item?.id) { showToast("Save failed for this image, can't share"); return; }
@@ -272,7 +311,8 @@ export default function Home() {
     const aspectRatio = ov.aspectRatio ?? ratioState;
     const tier = ov.tier ?? tierState;
     const remixOf = ov.remixOf !== undefined ? ov.remixOf : remixState;
-    const tierCost = (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
+    const useGuide = ov.guide !== undefined ? ov.guide : guide;
+    const tierCost = useGuide ? GUIDED_COST : (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
     if (!prompt.trim()) {
       setError("Please enter a prompt to generate an image.");
       return;
@@ -298,7 +338,7 @@ export default function Home() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, style, aspectRatio, remixOf, tier }),
+        body: JSON.stringify({ prompt, style, aspectRatio, remixOf, tier, ...(useGuide ? { guideId: useGuide.id, guideFollow: guideFollow / 100 } : {}) }),
       });
 
       const data = await res.json();
@@ -320,7 +360,7 @@ export default function Home() {
         tier: data.tier || tier,
         likes: 0,
         isPublic: false,
-        remixOf,
+        remixOf: useGuide ? useGuide.id : remixOf,
         persistError: data.stored ? null : (data.persistError || "unknown error"),
       };
       setCurrentItem(newItem);
@@ -433,9 +473,12 @@ export default function Home() {
 
   const Actions = ({ item, compact }) => (
     <div className={`pp-actions${compact ? " pp-compact" : ""}`}>
+      {item.tier !== "upload" && <>
       <button className="pp-cap" onClick={() => handleAgain(item)} disabled={loading} title="Again">↻<span>Again</span></button>
       <button className="pp-cap" onClick={() => handleVariation(item)} disabled={loading} title="Variation">≈<span>Variation</span></button>
       <button className="pp-cap" onClick={() => handleUsePrompt(item)} title="Use prompt">✎<span>Use prompt</span></button>
+      </>}
+      <button className={`pp-cap${item.tier === "upload" ? " pp-vibe" : ""}`} onClick={() => useAsGuide(item)} disabled={!item.id} title="Use as guide">◎<span>Use as guide</span></button>
       <button className="pp-cap" onClick={() => handleDownload(item.url)} disabled={downloading} title="Download">⤓<span>Download</span></button>
       <button className="pp-cap" onClick={() => handleTool("sharpen", item)} disabled={!!toolBusy || !item.id} title="Sharpen 2x (1 credit)">{toolBusy === `sharpen:${item.id}` ? "…" : "◇"}<span>Sharpen</span></button>
       <button className="pp-cap" onClick={() => openRepaint(item)} disabled={!!toolBusy || !item.id} title="Repaint an area (2 credits)">◐<span>Repaint</span></button>
@@ -491,7 +534,7 @@ export default function Home() {
                     <img src={item.url} alt={item.prompt} onClick={() => { setImage(item.url); setCurrentItem(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
                     <div className="pp-cardbody">
                       <p>{item.prompt}</p>
-                      <span className="pp-meta">{tierLabel(item.tier)} · {item.style} · {item.aspectRatio}</span>
+                      <span className="pp-meta">{[tierLabel(item.tier), item.style, item.aspectRatio].filter(Boolean).join(" · ")}</span>
                       <Actions item={item} compact />
                     </div>
                   </div>
@@ -551,7 +594,21 @@ export default function Home() {
               )}
             </div>
           )}
+          {guide && (
+            <div className="pp-guide">
+              <img src={guide.url} alt="guide" />
+              <div className="pp-guidebody">
+                <small>◎ Guide · how closely to follow <b>{guideFollow}%</b></small>
+                <input type="range" min="0" max="100" value={guideFollow} onChange={(e) => setGuideFollow(+e.target.value)} aria-label="How closely to follow" />
+              </div>
+              <button className="pp-chip pp-ghost" onClick={() => setGuide(null)} aria-label="Remove guide">✕</button>
+            </div>
+          )}
           <div className="pp-chiprow">
+            <label className={`pp-chip pp-upload${uploading ? " pp-generating" : ""}`} title="Upload a photo">
+              {uploading ? "…" : "⇪"} Upload
+              <input type="file" accept="image/*" hidden disabled={uploading} onChange={(e) => { handleUploadFile(e.target.files?.[0]); e.target.value = ""; }} />
+            </label>
             <button className="pp-chip" onClick={() => setSheetOpen(true)}>{curTier.icon} {curTier.label}</button>
             <button className="pp-chip" onClick={() => setSheetOpen(true)}>{style}</button>
             <button className="pp-chip" onClick={() => setSheetOpen(true)}><i className="pp-ar" style={{ width: ratioBox(aspectRatio)[0], height: ratioBox(aspectRatio)[1] }} />{aspectRatio}</button>
@@ -566,7 +623,7 @@ export default function Home() {
               placeholder="Describe a vision — any language…" />
             <button className="pp-go" onClick={() => generateImage()} disabled={loading}>
               <span className="pp-go-label">{loading ? "…" : "Pulse"}</span>
-              <span className="pp-cost">{isAdmin ? "∞" : `${curTier.cost}⚡`}</span>
+              <span className="pp-cost">{isAdmin ? "∞" : `${guide ? GUIDED_COST : curTier.cost}⚡`}</span>
             </button>
           </div>
         </div>
@@ -689,6 +746,12 @@ body{margin:0;background:var(--bg)}
 .pp-big small{font-size:10px;opacity:.8;font-weight:500}
 .pp-done{width:100%;margin-top:20px;padding:13px;border-radius:999px;border:none;background:var(--txt);color:#0b0b12;font-weight:800;font-size:15px}
 .pp-toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:#1d1830;border:1px solid rgba(236,72,153,.5);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;z-index:50;box-shadow:0 0 24px rgba(168,85,247,.45);animation:ppPop .35s cubic-bezier(.2,.9,.3,1.4);white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+.pp-upload{cursor:pointer;border-style:dashed;border-color:rgba(236,72,153,.55);color:#f9a8d4}
+.pp-guide{display:flex;align-items:center;gap:10px;padding:6px;margin-bottom:8px;border-radius:999px;background:linear-gradient(90deg,rgba(147,51,234,.18),rgba(236,72,153,.12));border:1px solid rgba(236,72,153,.4);animation:ppFade .2s}
+.pp-guide img{width:38px;height:38px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 0 0 2px rgba(236,72,153,.6)}
+.pp-guidebody{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pp-guidebody small{font-size:11px;color:#e9d5ff}
+.pp-guidebody input{width:100%;accent-color:#ec4899}
 .pp-amp{border-bottom:1px solid #2a2a40;margin:0 0 8px;padding:2px 2px 8px;animation:ppFade .2s}
 .pp-amphead{display:flex;gap:6px;align-items:center;margin-bottom:8px}
 .pp-amplist{display:flex;flex-direction:column;gap:6px;max-height:38vh;overflow:auto}
