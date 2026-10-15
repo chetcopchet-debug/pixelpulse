@@ -939,6 +939,7 @@ body{margin:0;background:var(--bg)}
 .pp-empty{text-align:center;color:var(--mut);font-size:14px;padding:30px}
 .pp-stage.pp-is-empty:not([class*="pp-fmt-"]){aspect-ratio:auto!important;border-style:dashed;background:transparent}
 .pp-stage.pp-is-empty:not([class*="pp-fmt-"]) .pp-empty{padding:12px 14px;font-size:13px}
+.pp-stage.pp-is-empty:not([class*="pp-fmt-"]){height:auto!important;min-height:0}
 .pp-ripple{position:relative;width:160px;height:160px;display:grid;place-items:center}
 .pp-ripple i{position:absolute;inset:40px;border-radius:50%;border:2px solid var(--v2);animation:ppRipple 2.1s ease-out infinite;opacity:0}
 .pp-ripple i:nth-child(2){animation-delay:.7s;border-color:var(--p)}
@@ -1107,6 +1108,7 @@ body{margin:0;background:var(--bg)}
 .pp-streak{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:20px;background:#12121c;border:1px solid rgba(236,72,153,.3);margin:10px 0}
 .pp-streak b{font-size:20px}.pp-streak span{flex:1;font-size:12px;color:#cfcde0}
 .pp-stage.pp-is-empty{aspect-ratio:auto!important;height:118px}
+.pp-stage.pp-is-empty:not([class*="pp-fmt-"]){height:46px}
 .pp-stage.pp-is-empty .pp-empty{padding:10px 16px;display:flex;align-items:center;gap:14px;text-align:left}
 .pp-stage.pp-is-empty .pp-empty p{margin:0}
 .pp-stage.pp-is-empty .pp-ripple{width:58px;height:58px;flex:0 0 58px;position:relative}
