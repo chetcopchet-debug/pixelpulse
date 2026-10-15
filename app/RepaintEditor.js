@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 
 // Mobile-first mask painter. Strokes live in image pixel space; white = repaint.
-export default function RepaintEditor({ item, isAdmin, credits, onClose, onDone }) {
+export default function RepaintEditor({ item, isAdmin, credits, onClose, onDone, onNeedCredits }) {
   const imgRef = useRef(null);
   const cvRef = useRef(null);
   const [dims, setDims] = useState(null);
@@ -70,12 +70,13 @@ export default function RepaintEditor({ item, isAdmin, credits, onClose, onDone 
   const submit = async () => {
     if (!strokes.length) { setErr("Paint over the area you want to change."); return; }
     if (!text.trim()) { setErr("Describe what should appear there."); return; }
-    if (!isAdmin && credits < 5) { setErr("Repaint costs 5 credits — not enough left today."); return; }
+    if (!isAdmin && credits < 5) { if (onNeedCredits) onNeedCredits(); else setErr("Repaint costs 5 credits — not enough left today."); return; }
     setBusy(true); setErr("");
     try {
       const res = await fetch("/api/repaint", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id, mask: exportMask(), prompt: text.trim() }) });
       const d = await res.json().catch(() => ({}));
+      if (res.status === 402 && onNeedCredits) { onDone(d, false); onNeedCredits(); return; }
       onDone(d, res.ok && d.item);
       if (!res.ok || !d.item) throw new Error(d.error || "Repaint failed.");
     } catch (e) { setErr(e.message); setBusy(false); }
