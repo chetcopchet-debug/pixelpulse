@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request) {
   try {
-    const { prompt, style } = await request.json();
+    const { prompt, style, aspectRatio } = await request.json();
 
     if (!prompt || prompt.trim() === "") {
       return NextResponse.json({ error: 'Please provide a valid prompt.' }, { status: 400 });
@@ -12,7 +12,28 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Server configuration error: Missing API Token.' }, { status: 500 });
     }
 
-    const finalPrompt = `${prompt.trim()}, ${style || 'Cinematic'} style, masterpiece, highly detailed, 8k resolution, sharp focus`;
+    // תרגום אוטומטי אם המשתמש הזין טקסט בעברית
+    let englishPrompt = prompt.trim();
+    const hasHebrew = /[\u0590-\u05FF]/.test(englishPrompt);
+
+    if (hasHebrew) {
+      try {
+        const cleanText = englishPrompt.replace(/\n+/g, ' ');
+        const res = await fetch(
+          `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=he|en`
+        );
+        const data = await res.json();
+        if (data?.responseData?.translatedText) {
+          englishPrompt = data.responseData.translatedText;
+        }
+      } catch (err) {
+        console.error("Translation fallback:", err);
+      }
+    }
+
+    const finalPrompt = `${englishPrompt}, ${style || 'Cinematic'} style, masterpiece, highly detailed, 8k resolution, sharp focus`;
+    const validRatios = ["1:1", "16:9", "9:16"];
+    const selectedRatio = validRatios.includes(aspectRatio) ? aspectRatio : "1:1";
 
     const response = await fetch("https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions", {
       method: "POST",
@@ -24,7 +45,7 @@ export async function POST(request) {
       body: JSON.stringify({
         input: {
           prompt: finalPrompt,
-          aspect_ratio: "1:1",
+          aspect_ratio: selectedRatio,
           output_format: "webp",
           output_quality: 90
         }
