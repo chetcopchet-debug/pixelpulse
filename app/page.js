@@ -168,7 +168,60 @@ export default function Home() {
     setPrompt(enhanced);
   };
 
-  const generateImage = async () => {
+  const promptState = prompt, styleState = style, ratioState = aspectRatio, tierState = tier, remixState = remixOf;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [toast, setToast] = useState("");
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const showToast = (msg) => { setToast(msg); clearTimeout(window.__ppToast); window.__ppToast = setTimeout(() => setToast(""), 2600); };
+
+  // Remember last composer choices
+  useEffect(() => {
+    try {
+      const p = JSON.parse(localStorage.getItem("pp_prefs") || "{}");
+      if (p.tier && TIERS.some((t) => t.id === p.tier)) setTier(p.tier);
+      if (p.style && stylesList.includes(p.style)) setStyle(p.style);
+      if (p.aspectRatio && ratiosList.some((r) => r.id === p.aspectRatio)) setAspectRatio(p.aspectRatio);
+    } catch {}
+    setPrefsLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    try { localStorage.setItem("pp_prefs", JSON.stringify({ tier, style, aspectRatio })); } catch {}
+  }, [tier, style, aspectRatio, prefsLoaded]);
+
+  const VARIATION_TWISTS = ["alternate composition", "different camera angle", "shifted color palette", "new lighting mood", "closer framing", "wider framing"];
+  const handleAgain = (item) => {
+    if (!item) return;
+    setActiveTab("create");
+    generateImage({ prompt: item.prompt, style: item.style || "Cinematic", aspectRatio: item.aspectRatio || "1:1", tier: item.tier || "fast", remixOf: item.remixOf || null });
+  };
+  const handleVariation = (item) => {
+    if (!item) return;
+    const twist = VARIATION_TWISTS[Math.floor(Math.random() * VARIATION_TWISTS.length)];
+    setActiveTab("create");
+    generateImage({ prompt: `${item.prompt}, ${twist}`, style: item.style || "Cinematic", aspectRatio: item.aspectRatio || "1:1", tier: item.tier || "fast", remixOf: item.id || null });
+  };
+  const handleUsePrompt = (item) => {
+    setPrompt(item.prompt || "");
+    setActiveTab("create");
+    showToast("Prompt loaded into the Pulse Bar");
+    setTimeout(() => document.getElementById("pp-prompt")?.focus(), 50);
+  };
+  const handleStealVibe = (item) => {
+    if (item.style && stylesList.includes(item.style)) setStyle(item.style);
+    if (item.aspectRatio && ratiosList.some((r) => r.id === item.aspectRatio)) setAspectRatio(item.aspectRatio);
+    if (item.tier && TIERS.some((t) => t.id === item.tier)) setTier(item.tier);
+    const short = (item.prompt || "").slice(0, 28) + ((item.prompt || "").length > 28 ? "…" : "");
+    showToast(`Vibe loaded from “${short}”`);
+  };
+
+  const generateImage = async (ov = {}) => {
+    const prompt = ov.prompt ?? promptState;
+    const style = ov.style ?? styleState;
+    const aspectRatio = ov.aspectRatio ?? ratioState;
+    const tier = ov.tier ?? tierState;
+    const remixOf = ov.remixOf !== undefined ? ov.remixOf : remixState;
+    const tierCost = (TIERS.find((t) => t.id === tier) || TIERS[0]).cost;
     if (!prompt.trim()) {
       setError("Please enter a prompt to generate an image.");
       return;
@@ -184,10 +237,10 @@ export default function Home() {
     setNotice("");
 
     const textIntervals = [
-      setTimeout(() => setLoadingText("Analyzing prompt context..."), 2000),
-      setTimeout(() => setLoadingText("Optimizing neural pathways..."), 6000),
-      setTimeout(() => setLoadingText("Rendering lighting and textures..."), 12000),
-      setTimeout(() => setLoadingText("Finalizing masterpiece..."), 25000),
+      setTimeout(() => setLoadingText("Catching the pulse..."), 2000),
+      setTimeout(() => setLoadingText("Tuning the frequency..."), 6000),
+      setTimeout(() => setLoadingText("Rendering light & texture..."), 12000),
+      setTimeout(() => setLoadingText("Almost there..."), 25000),
     ];
 
     try {
@@ -274,7 +327,7 @@ export default function Home() {
       return;
     }
     if (item.isPublic) {
-      alert("This masterpiece is already published in the Community Feed!");
+      showToast("Already live in the feed");
       return;
     }
     try {
@@ -289,7 +342,7 @@ export default function Home() {
       setHistory((prev) => prev.map(mark));
       setCurrentItem((c) => (c && c.id === item.id ? { ...c, isPublic: true } : c));
       loadFeed();
-      alert("🚀 Successfully published to Community Feed!");
+      showToast("🚀 Published to the Community Feed");
     } catch (e) {
       alert(e.message);
     }
@@ -322,559 +375,262 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  return (
-    <div
-      dir="ltr"
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#07070a",
-        color: "#ffffff",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        padding: "24px 16px 80px 16px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-      }}
-    >
-      {/* Header */}
-      <header
-        style={{
-          width: "100%",
-          maxWidth: "540px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "20px",
-          paddingBottom: "16px",
-          borderBottom: "1px solid #1a1a26",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
-            style={{
-              width: "36px",
-              height: "36px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #9333ea, #ec4899)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "18px",
-              boxShadow: "0 0 15px rgba(147, 51, 234, 0.5)",
-            }}
-          >
-            ✨
-          </div>
-          <div>
-            <h1
-              style={{
-                fontSize: "22px",
-                fontWeight: "800",
-                margin: 0,
-                background: "linear-gradient(90deg, #a855f7, #ec4899)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                letterSpacing: "-0.5px",
-              }}
-            >
-              PixelPulse AI
-            </h1>
-            <span style={{ fontSize: "11px", color: "#6b6b80", fontWeight: "500" }}>PRO STUDIO V3.1</span>
-          </div>
-        </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <div
-            style={{
-              backgroundColor: "#12121c",
-              border: "1px solid #262638",
-              padding: "6px 14px",
-              borderRadius: "20px",
-              fontSize: "13px",
-              fontWeight: "600",
-              color: "#c084fc",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <span>⚡</span>
-            <span>{isAdmin ? "∞ Admin" : `${credits} Credits`}</span>
+  const curTier = TIERS.find((t) => t.id === tier) || TIERS[0];
+  const curRatio = ratiosList.find((r) => r.id === aspectRatio) || ratiosList[0];
+  const ratioBox = (id) => ({ "1:1": [16, 16], "9:16": [11, 18], "16:9": [20, 12] }[id] || [16, 16]);
+
+  const Actions = ({ item, compact }) => (
+    <div className={`pp-actions${compact ? " pp-compact" : ""}`}>
+      <button className="pp-cap" onClick={() => handleAgain(item)} disabled={loading} title="Again">↻<span>Again</span></button>
+      <button className="pp-cap" onClick={() => handleVariation(item)} disabled={loading} title="Variation">≈<span>Variation</span></button>
+      <button className="pp-cap" onClick={() => handleUsePrompt(item)} title="Use prompt">✎<span>Use prompt</span></button>
+      <button className="pp-cap" onClick={() => handleDownload(item.url)} disabled={downloading} title="Download">⤓<span>Download</span></button>
+      <button className={`pp-cap${item.isPublic ? " pp-on" : " pp-accent"}`} onClick={() => handlePublishToCommunity(item)} title="Publish">{item.isPublic ? "✓" : "◉"}<span>{item.isPublic ? "Live" : "Publish"}</span></button>
+    </div>
+  );
+
+  return (
+    <div dir="ltr" className="pp-root">
+      <style>{CSS}</style>
+      <header className="pp-header">
+        <div className="pp-brand">
+          <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
+          <div>
+            <h1>PixelPulse</h1>
+            <small>feel the pulse · make the pixel</small>
           </div>
         </div>
+        <div className="pp-credits">{isAdmin ? "∞ Admin" : `${credits} credits`}</div>
       </header>
 
-      {/* Navigation Tabs */}
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "540px",
-          display: "flex",
-          backgroundColor: "#101018",
-          border: "1px solid #1f1f2e",
-          borderRadius: "14px",
-          padding: "4px",
-          marginBottom: "20px",
-        }}
-      >
-        <button
-          onClick={() => setActiveTab("create")}
-          style={{
-            flex: 1,
-            padding: "10px",
-            borderRadius: "10px",
-            border: "none",
-            backgroundColor: activeTab === "create" ? "#9333ea" : "transparent",
-            color: activeTab === "create" ? "#ffffff" : "#8e8e9e",
-            fontWeight: "700",
-            fontSize: "14px",
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-        >
-          ✨ Create Studio
-        </button>
-        <button
-          onClick={() => setActiveTab("community")}
-          style={{
-            flex: 1,
-            padding: "10px",
-            borderRadius: "10px",
-            border: "none",
-            backgroundColor: activeTab === "community" ? "#9333ea" : "transparent",
-            color: activeTab === "community" ? "#ffffff" : "#8e8e9e",
-            fontWeight: "700",
-            fontSize: "14px",
-            cursor: "pointer",
-            transition: "all 0.2s",
-          }}
-        >
-          🌍 Community Feed ({communityFeed.length})
-        </button>
-      </div>
+      <nav className="pp-tabs">
+        <button className={activeTab === "create" ? "on" : ""} onClick={() => setActiveTab("create")}>Studio</button>
+        <button className={activeTab === "community" ? "on" : ""} onClick={() => setActiveTab("community")}>Pulse Feed <em>{communityFeed.length}</em></button>
+      </nav>
 
-      {/* Main Content Area */}
+      <div className="pp-layout">
       {activeTab === "create" ? (
-        <main
-          style={{
-            width: "100%",
-            maxWidth: "540px",
-            backgroundColor: "#101018",
-            border: "1px solid #1f1f2e",
-            borderRadius: "24px",
-            padding: "24px",
-            boxSizing: "border-box",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.7)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "10px",
-            }}
-          >
-            <label style={{ color: "#d1d1e0", fontSize: "14px", fontWeight: "600" }}>
-              Describe your vision:
-            </label>
-            <div style={{ display: "flex", gap: "6px" }}>
-              <button
-                onClick={handleEnhancePrompt}
-                style={{
-                  backgroundColor: "rgba(147, 51, 234, 0.15)",
-                  border: "1px solid rgba(147, 51, 234, 0.4)",
-                  color: "#d8b4fe",
-                  padding: "5px 10px",
-                  borderRadius: "8px",
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-              >
-                🪄 Smart Enhance
-              </button>
-              <button
-                onClick={handleSurpriseMe}
-                style={{
-                  backgroundColor: "#191924",
-                  border: "1px solid #2e2e42",
-                  color: "#a0a0b8",
-                  padding: "5px 10px",
-                  borderRadius: "8px",
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-              >
-                🎲 Surprise
-              </button>
-            </div>
-          </div>
+        <main className="pp-main">
+          <section className={`pp-stage${loading ? " pp-generating" : ""}`} style={{ aspectRatio: image ? "auto" : aspectRatio.replace(":", " / ") }}>
+            {loading ? (
+              <div className="pp-ripple"><i /><i /><i /><b>{loadingText}</b></div>
+            ) : image ? (
+              <img src={image} alt="Generated AI Art" />
+            ) : (
+              <div className="pp-empty"><div className="pp-ripple pp-idle"><i /><i /></div><p>Describe it in the Pulse Bar and hit <b>Pulse</b>.</p></div>
+            )}
+          </section>
+          {image && currentItem && !loading && <Actions item={currentItem} />}
+          {notice && <div className="pp-notice">{notice}</div>}
+          {error && <div className="pp-error">{error}</div>}
 
-          <textarea
-            maxLength={500}
-            rows="4"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Type what you want to create in Hebrew or English..."
-            style={{
-              width: "100%",
-              backgroundColor: "#050508",
-              border: "1px solid #222233",
-              borderRadius: "14px",
-              padding: "14px",
-              color: "#ffffff",
-              fontSize: "15px",
-              boxSizing: "border-box",
-              marginBottom: "20px",
-              outline: "none",
-              resize: "none",
-              lineHeight: "1.5",
-            }}
-          />
-
-          <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
-            Model:
-          </label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
-            {TIERS.map((t) => {
-              const isSelected = tier === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTier(t.id)}
-                  style={{
-                    padding: "10px 6px", borderRadius: "12px", cursor: "pointer",
-                    border: isSelected ? "1px solid #a855f7" : "1px solid #222233",
-                    backgroundColor: isSelected ? "rgba(147, 51, 234, 0.25)" : "#151520",
-                    color: isSelected ? "#ffffff" : "#8e8e9e",
-                    display: "flex", flexDirection: "column", alignItems: "center", gap: "3px",
-                  }}
-                >
-                  <span style={{ fontSize: "13px", fontWeight: "700" }}>{t.icon} {t.label}</span>
-                  <span style={{ fontSize: "10px", opacity: 0.8 }}>{t.desc}</span>
-                  <span style={{ fontSize: "10px", color: isSelected ? "#d8b4fe" : "#6b6b80" }}>{t.cost} credit{t.cost > 1 ? "s" : ""}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
-            Aspect Ratio:
-          </label>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
-            {ratiosList.map((r) => {
-              const isSelected = aspectRatio === r.id;
-              return (
-                <button
-                  key={r.id}
-                  onClick={() => setAspectRatio(r.id)}
-                  style={{
-                    padding: "10px 8px",
-                    borderRadius: "12px",
-                    fontSize: "12px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    border: isSelected ? "1px solid #a855f7" : "1px solid #222233",
-                    backgroundColor: isSelected ? "rgba(147, 51, 234, 0.25)" : "#151520",
-                    color: isSelected ? "#ffffff" : "#8e8e9e",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                  }}
-                >
-                  <span>{r.icon}</span>
-                  <span>{r.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <label style={{ display: "block", color: "#d1d1e0", fontSize: "14px", marginBottom: "10px", fontWeight: "600" }}>
-            Choose Art Style:
-          </label>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "26px" }}>
-            {stylesList.map((s) => {
-              const isSelected = style === s;
-              return (
-                <button
-                  key={s}
-                  onClick={() => setStyle(s)}
-                  style={{
-                    padding: "8px 14px",
-                    borderRadius: "10px",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    border: "none",
-                    backgroundColor: isSelected ? "#9333ea" : "#171722",
-                    color: isSelected ? "#ffffff" : "#b0b0c4",
-                    boxShadow: isSelected ? "0 4px 14px rgba(147, 51, 234, 0.4)" : "none",
-                  }}
-                >
-                  {s}
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            onClick={generateImage}
-            disabled={loading}
-            style={{
-              width: "100%",
-              background: "linear-gradient(90deg, #9333ea, #ec4899)",
-              color: "#ffffff",
-              fontWeight: "700",
-              fontSize: "16px",
-              padding: "16px",
-              borderRadius: "14px",
-              border: "none",
-              cursor: loading ? "not-allowed" : "pointer",
-              opacity: loading ? 0.7 : 1,
-              boxShadow: "0 8px 25px rgba(147, 51, 234, 0.4)",
-            }}
-          >
-            {loading ? `✨ ${loadingText}` : "Generate Masterpiece (1 Credit)"}
-          </button>
-
-          {notice && (
-            <div style={{ marginTop: "12px", padding: "10px 14px", borderRadius: "10px", background: "rgba(234,179,8,0.12)", border: "1px solid rgba(234,179,8,0.4)", color: "#fde68a", fontSize: "13px" }}>
-              {notice}
-            </div>
-          )}
-          {error && (
-            <div
-              style={{
-                marginTop: "16px",
-                padding: "12px",
-                backgroundColor: "rgba(239, 68, 68, 0.15)",
-                border: "1px solid rgba(239, 68, 68, 0.4)",
-                borderRadius: "10px",
-                color: "#f87171",
-                textAlign: "center",
-                fontSize: "13px",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {image && (
-            <div style={{ marginTop: "28px", textAlign: "center" }}>
-              <p style={{ color: "#34d399", fontWeight: "600", fontSize: "14px", marginBottom: "12px" }}>
-                ✨ Masterpiece Ready!
-              </p>
-              <div
-                style={{
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  border: "1px solid #262638",
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.7)",
-                  marginBottom: "14px",
-                }}
-              >
-                <img src={image} alt="Generated AI Art" style={{ width: "100%", height: "auto", display: "block" }} />
+          {history.length > 0 && (
+            <section className="pp-section">
+              <div className="pp-sechead"><h2>Your creations</h2>
+                {!storageEnabled && <button className="pp-link" onClick={() => { setHistory([]); localStorage.removeItem("pp_history"); }}>Clear</button>}
               </div>
-
-              <div style={{ display: "flex", gap: "10px" }}>
-                <button
-                  onClick={() => handleDownload(image)}
-                  disabled={downloading}
-                  style={{
-                    flex: 1,
-                    backgroundColor: "#1a1a26",
-                    border: "1px solid #2d2d42",
-                    color: "#ffffff",
-                    padding: "12px",
-                    borderRadius: "12px",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  {downloading ? "Downloading..." : "⬇️ Download"}
-                </button>
-                <button
-                  onClick={() => handlePublishToCommunity(currentItem)}
-                  style={{
-                    flex: 1,
-                    backgroundColor: "rgba(147, 51, 234, 0.25)",
-                    border: "1px solid rgba(147, 51, 234, 0.5)",
-                    color: "#d8b4fe",
-                    padding: "12px",
-                    borderRadius: "12px",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  {currentItem?.isPublic ? "✅ Published" : "🌍 Publish to Feed"}
-                </button>
+              <div className="pp-grid">
+                {history.map((item, idx) => (
+                  <div className="pp-card" key={item.id || idx}>
+                    <img src={item.url} alt={item.prompt} onClick={() => { setImage(item.url); setCurrentItem(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
+                    <div className="pp-cardbody">
+                      <p>{item.prompt}</p>
+                      <span className="pp-meta">{tierLabel(item.tier)} · {item.style} · {item.aspectRatio}</span>
+                      <Actions item={item} compact />
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            </section>
           )}
         </main>
       ) : (
-        /* Community Feed View */
-        <div style={{ width: "100%", maxWidth: "540px" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px", color: "#e2e2f0" }}>
-            🌍 Global Community Feed
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "16px" }}>
-            {communityFeed.length === 0 && !feedLoading && (
-              <p style={{ color: "#7c7c94", fontSize: "13px", textAlign: "center" }}>
-                {storageEnabled ? "No public creations yet. Be the first to publish!" : "The community feed is coming soon."}
-              </p>
-            )}
+        <main className="pp-main">
+          <div className="pp-sechead"><h2>Pulse Feed</h2></div>
+          {communityFeed.length === 0 && !feedLoading && <p className="pp-muted">{storageEnabled ? "No public creations yet. Be the first to publish!" : "The community feed is coming soon."}</p>}
+          <div className="pp-grid pp-feed">
             {communityFeed.map((item, idx) => (
-              <div
-                key={item.id || idx}
-                style={{
-                  backgroundColor: "#101018",
-                  border: "1px solid #1f1f2e",
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-                }}
-              >
-                <img src={item.url} alt={item.prompt} style={{ width: "100%", height: "240px", objectFit: "cover", display: "block" }} />
-                <div style={{ padding: "14px" }}>
-                  <p style={{ margin: "0 0 8px 0", fontSize: "13px", color: "#e2e2f0", fontWeight: "500" }}>
-                    "{item.prompt}"
-                  </p>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "11px", color: "#7c7c94" }}>{item.style}{item.tier ? ` • ${tierLabel(item.tier)}` : ""}{item.remixOf ? " • Remix" : ""}</span>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      onClick={() => handleLike(item)}
-                      disabled={item.liked}
-                      style={{
-                        backgroundColor: item.liked ? "rgba(236, 72, 153, 0.25)" : "transparent",
-                        border: "1px solid rgba(236, 72, 153, 0.5)",
-                        color: "#f9a8d4",
-                        padding: "6px 12px",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        cursor: item.liked ? "default" : "pointer",
-                      }}
-                    >
-                      {item.liked ? "❤️" : "🤍"} {item.likes}
-                    </button>
-                    <button
-                      onClick={() => handleRemix(item)}
-                      style={{
-                        backgroundColor: "rgba(147, 51, 234, 0.25)",
-                        border: "1px solid rgba(147, 51, 234, 0.5)",
-                        color: "#d8b4fe",
-                        padding: "6px 14px",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                      }}
-                    >
-                      🔄 Remix Style
-                    </button>
-                    </div>
+              <div className="pp-card" key={item.id || idx}>
+                <img src={item.url} alt={item.prompt} />
+                <div className="pp-cardbody">
+                  <p>“{item.prompt}”</p>
+                  <span className="pp-meta">{item.style}{item.tier ? ` · ${tierLabel(item.tier)}` : ""} · {item.aspectRatio || "1:1"}{item.remixOf ? " · Remix" : ""}</span>
+                  <div className="pp-actions pp-compact">
+                    <button className="pp-cap pp-vibe" onClick={() => handleStealVibe(item)}>✦<span>Steal the Vibe</span></button>
+                    <button className={`pp-cap${item.liked ? " pp-liked" : ""}`} onClick={() => handleLike(item)} disabled={item.liked}>{item.liked ? "♥" : "♡"}<span>{item.likes}</span></button>
+                    <button className="pp-cap" onClick={() => handleUsePrompt(item)}>✎<span>Use prompt</span></button>
+                    <button className="pp-cap" onClick={() => handleVariation(item)} disabled={loading}>≈<span>Variation</span></button>
+                    <button className="pp-cap" onClick={() => handleDownload(item.url)}>⤓<span>Download</span></button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-          {feedCursor && (
-            <button
-              onClick={() => loadFeed(feedCursor)}
-              disabled={feedLoading}
-              style={{ marginTop: "16px", width: "100%", padding: "12px", borderRadius: "12px", background: "#101018", border: "1px solid #1f1f2e", color: "#e2e2f0", cursor: "pointer" }}
-            >
-              {feedLoading ? "Loading..." : "Load more"}
+          {feedCursor && <button className="pp-more" onClick={() => loadFeed(feedCursor)} disabled={feedLoading}>{feedLoading ? "Loading..." : "Load more"}</button>}
+        </main>
+      )}
+
+      {/* Pulse Bar composer */}
+      <div className="pp-dock">
+        <div className={`pp-bar${loading ? " pp-generating" : ""}`}>
+          <div className="pp-chiprow">
+            <button className="pp-chip" onClick={() => setSheetOpen(true)}>{curTier.icon} {curTier.label}</button>
+            <button className="pp-chip" onClick={() => setSheetOpen(true)}>{style}</button>
+            <button className="pp-chip" onClick={() => setSheetOpen(true)}><i className="pp-ar" style={{ width: ratioBox(aspectRatio)[0], height: ratioBox(aspectRatio)[1] }} />{aspectRatio}</button>
+            <span className="pp-spacer" />
+            <button className="pp-chip pp-ghost" onClick={handleEnhancePrompt} title="Smart Enhance">🪄</button>
+            <button className="pp-chip pp-ghost" onClick={handleSurpriseMe} title="Surprise">🎲</button>
+          </div>
+          <div className="pp-inputrow">
+            <button className="pp-tune" onClick={() => setSheetOpen(true)} aria-label="Tune">◐</button>
+            <textarea id="pp-prompt" maxLength={500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); generateImage(); } }}
+              placeholder="Describe a vision — any language…" />
+            <button className="pp-go" onClick={() => generateImage()} disabled={loading}>
+              <span className="pp-go-label">{loading ? "…" : "Pulse"}</span>
+              <span className="pp-cost">{isAdmin ? "∞" : `${curTier.cost}⚡`}</span>
             </button>
-          )}
+          </div>
+        </div>
+      </div>
+      </div>
+
+      {sheetOpen && (
+        <div className="pp-scrim" onClick={() => setSheetOpen(false)}>
+          <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="pp-grab" />
+            <h3>Engine</h3>
+            <div className="pp-chips">
+              {TIERS.map((t) => (
+                <button key={t.id} className={`pp-chip pp-big${tier === t.id ? " on" : ""}`} onClick={() => setTier(t.id)}>
+                  <b>{t.icon} {t.label}</b><small>{t.desc} · {t.cost}⚡</small>
+                </button>
+              ))}
+            </div>
+            <h3>Style</h3>
+            <div className="pp-chips">
+              {stylesList.map((s) => <button key={s} className={`pp-chip${style === s ? " on" : ""}`} onClick={() => setStyle(s)}>{s}</button>)}
+            </div>
+            <h3>Shape</h3>
+            <div className="pp-chips">
+              {ratiosList.map((r) => (
+                <button key={r.id} className={`pp-chip pp-big${aspectRatio === r.id ? " on" : ""}`} onClick={() => setAspectRatio(r.id)}>
+                  <i className="pp-ar" style={{ width: ratioBox(r.id)[0] * 1.4, height: ratioBox(r.id)[1] * 1.4 }} /><small>{r.label}</small>
+                </button>
+              ))}
+            </div>
+            <button className="pp-done" onClick={() => setSheetOpen(false)}>Done</button>
+          </div>
         </div>
       )}
 
-      {/* History Section */}
-      {activeTab === "create" && history.length > 0 && (
-        <section style={{ width: "100%", maxWidth: "540px", marginTop: "36px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <h2 style={{ fontSize: "17px", fontWeight: "700", margin: 0, color: "#e2e2f0" }}>
-              🖼️ Your Recent Creations
-            </h2>
-            {!storageEnabled && <button
-              onClick={() => {
-                setHistory([]);
-                localStorage.removeItem("pp_history");
-              }}
-              style={{ background: "none", border: "none", color: "#6b6b80", fontSize: "12px", cursor: "pointer", textDecoration: "underline" }}
-            >
-              Clear History
-            </button>}
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            {history.map((item, idx) => (
-              <div
-                key={item.id || idx}
-                style={{
-                  backgroundColor: "#101018",
-                  border: "1px solid #1f1f2e",
-                  borderRadius: "14px",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                  justify: "space-between"
-                }}
-              >
-                <div onClick={() => { setImage(item.url); setCurrentItem(item); }} style={{ cursor: "pointer" }}>
-                  <img src={item.url} alt={item.prompt} style={{ width: "100%", height: "140px", objectFit: "cover", display: "block" }} />
-                </div>
-                <div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: "12px", color: "#b4b4c4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {item.prompt}
-                  </p>
-                  {item.tier && <span style={{ fontSize: "10px", color: "#7c7c94" }}>{tierLabel(item.tier)}</span>}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <button
-                      onClick={() => handlePublishToCommunity(item)}
-                      style={{
-                        backgroundColor: "rgba(52, 211, 153, 0.15)",
-                        border: "1px solid rgba(52, 211, 153, 0.4)",
-                        color: "#34d399",
-                        padding: "3px 6px",
-                        borderRadius: "6px",
-                        fontSize: "10px",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {item.isPublic ? "✅ Public" : "🌍 Publish"}
-                    </button>
-                    <button
-                      onClick={() => handleRemix(item)}
-                      style={{
-                        backgroundColor: "rgba(147, 51, 234, 0.2)",
-                        border: "1px solid rgba(147, 51, 234, 0.4)",
-                        color: "#d8b4fe",
-                        padding: "3px 8px",
-                        borderRadius: "6px",
-                        fontSize: "10px",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                      }}
-                    >
-                      🔄 Remix
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {toast && <div className="pp-toast" key={toast}>{toast}</div>}
     </div>
   );
 }
+
+const CSS = `
+:root{--bg:#07070a;--panel:#101018;--line:#1f1f2e;--v:#9333ea;--v2:#a855f7;--p:#ec4899;--txt:#e9e7f5;--mut:#7c7c94}
+body{margin:0;background:var(--bg)}
+.pp-root{min-height:100vh;background:radial-gradient(1200px 500px at 50% -200px,rgba(147,51,234,.18),transparent),var(--bg);color:var(--txt);font-family:system-ui,-apple-system,sans-serif;padding:16px 14px 190px;box-sizing:border-box}
+.pp-root *{box-sizing:border-box}
+.pp-root button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pp-root button:disabled{opacity:.5;cursor:default}
+.pp-header{max-width:1100px;margin:0 auto 14px;display:flex;justify-content:space-between;align-items:center}
+.pp-brand{display:flex;gap:10px;align-items:center}
+.pp-brand h1{margin:0;font-size:21px;font-weight:800;letter-spacing:-.5px;background:linear-gradient(90deg,#c084fc,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.pp-brand small{font-size:10px;color:var(--mut);letter-spacing:.08em}
+.pp-logo{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--v),var(--p));display:grid;place-items:center;box-shadow:0 0 18px rgba(147,51,234,.55);position:relative}
+.pp-logo span{width:10px;height:10px;border-radius:50%;background:#fff}
+.pp-logo::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid rgba(236,72,153,.7);animation:ppRing 2.8s ease-out infinite}
+.pp-beat::after{animation-duration:.9s}
+.pp-credits{padding:7px 14px;border-radius:999px;background:#12121c;border:1px solid #2a2a40;color:#d8b4fe;font-size:13px;font-weight:700}
+.pp-tabs{max-width:1100px;margin:0 auto 16px;display:flex;gap:6px}
+.pp-tabs button{border:1px solid var(--line);background:transparent;color:var(--mut);padding:8px 16px;border-radius:999px;font-weight:700;font-size:13px;transition:all .2s}
+.pp-tabs button.on{background:var(--txt);color:#0b0b12;border-color:var(--txt)}
+.pp-tabs em{font-style:normal;opacity:.6;margin-left:4px}
+.pp-layout{max-width:1100px;margin:0 auto}
+.pp-main{width:100%}
+.pp-stage{width:100%;max-width:560px;margin:0 auto;border-radius:28px;background:var(--panel);border:1px solid var(--line);overflow:hidden;display:grid;place-items:center;max-height:70vh;position:relative;transition:box-shadow .4s}
+.pp-stage img{width:100%;height:auto;display:block;animation:ppReveal .6s ease}
+.pp-generating{box-shadow:0 0 0 1px rgba(168,85,247,.6),0 0 40px rgba(168,85,247,.35);animation:ppGlow 1.6s ease-in-out infinite}
+.pp-empty{text-align:center;color:var(--mut);font-size:14px;padding:30px}
+.pp-ripple{position:relative;width:160px;height:160px;display:grid;place-items:center}
+.pp-ripple i{position:absolute;inset:40px;border-radius:50%;border:2px solid var(--v2);animation:ppRipple 2.1s ease-out infinite;opacity:0}
+.pp-ripple i:nth-child(2){animation-delay:.7s;border-color:var(--p)}
+.pp-ripple i:nth-child(3){animation-delay:1.4s}
+.pp-ripple b{position:relative;font-size:12px;font-weight:600;color:#d8b4fe;text-align:center;max-width:150px}
+.pp-idle i{animation-duration:3.4s}
+.pp-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:560px;margin:12px auto 0}
+.pp-cap{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:999px;border:1px solid #2a2a40;background:#151520;color:var(--txt);font-size:13px;font-weight:600;transition:transform .12s,background .2s}
+.pp-cap:active{transform:scale(.92)}
+.pp-cap:hover:not(:disabled){background:#1d1d2c}
+.pp-accent{background:linear-gradient(90deg,rgba(147,51,234,.35),rgba(236,72,153,.35));border-color:rgba(236,72,153,.5)}
+.pp-on{border-color:rgba(52,211,153,.5);color:#6ee7b7}
+.pp-liked{color:#f9a8d4;border-color:rgba(236,72,153,.5)}
+.pp-vibe{background:linear-gradient(90deg,#9333ea,#ec4899);border-color:transparent;color:#fff}
+.pp-compact{justify-content:flex-start;margin-top:8px;gap:5px}
+.pp-compact .pp-cap{padding:5px 9px;font-size:11px;gap:4px}
+.pp-notice{max-width:560px;margin:12px auto 0;padding:10px 14px;border-radius:16px;background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.4);color:#fde68a;font-size:13px}
+.pp-error{max-width:560px;margin:12px auto 0;padding:10px 14px;border-radius:16px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.4);color:#f87171;font-size:13px;text-align:center}
+.pp-section{margin-top:30px}
+.pp-sechead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.pp-sechead h2{font-size:16px;margin:0}
+.pp-link{background:none;border:none;color:var(--mut);text-decoration:underline;font-size:12px}
+.pp-muted{color:var(--mut);font-size:13px;text-align:center}
+.pp-grid{display:grid;grid-template-columns:1fr;gap:14px}
+.pp-card{background:var(--panel);border:1px solid var(--line);border-radius:22px;overflow:hidden}
+.pp-card img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;cursor:pointer}
+.pp-cardbody{padding:12px}
+.pp-cardbody p{margin:0 0 4px;font-size:13px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pp-meta{font-size:11px;color:var(--mut)}
+.pp-more{display:block;margin:16px auto;padding:10px 22px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--txt)}
+.pp-dock{position:fixed;left:0;right:0;bottom:0;padding:10px 10px calc(10px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(7,7,10,.92) 30%);z-index:20}
+.pp-bar{max-width:640px;margin:0 auto;background:rgba(18,18,28,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid #2c2c44;border-radius:28px;padding:8px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.pp-chiprow{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}
+.pp-chiprow::-webkit-scrollbar{display:none}
+.pp-spacer{flex:1}
+.pp-chip{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:6px 12px;border-radius:999px;border:1px solid #2a2a40;background:#161622;color:#cfcde0;font-size:12px;font-weight:600;transition:all .15s}
+.pp-chip:active{transform:scale(.94)}
+.pp-chip.on{background:linear-gradient(90deg,var(--v),var(--p));border-color:transparent;color:#fff;box-shadow:0 0 16px rgba(168,85,247,.45)}
+.pp-ghost{background:transparent}
+.pp-ar{display:inline-block;border:2px solid currentColor;border-radius:4px}
+.pp-inputrow{display:flex;align-items:flex-end;gap:8px}
+.pp-tune{width:42px;height:42px;flex:none;border-radius:50%;border:1px solid #2a2a40;background:#161622;color:#d8b4fe;font-size:18px}
+.pp-inputrow textarea{flex:1;min-height:42px;max-height:120px;resize:none;border:none;outline:none;background:transparent;color:#fff;font-size:16px;line-height:1.4;padding:10px 4px;font-family:inherit;field-sizing:content}
+.pp-go{flex:none;height:42px;padding:0 6px 0 16px;border-radius:999px;border:none;background:linear-gradient(90deg,var(--v),var(--p));color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(236,72,153,.35);position:relative}
+.pp-go:not(:disabled){animation:ppBreathe 3s ease-in-out infinite}
+.pp-cost{background:rgba(0,0,0,.28);border-radius:999px;padding:5px 9px;font-size:12px}
+.pp-scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40;display:flex;align-items:flex-end;justify-content:center;animation:ppFade .2s}
+.pp-sheet{width:100%;max-width:640px;background:#11111a;border:1px solid #2a2a40;border-bottom:none;border-radius:28px 28px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom));animation:ppUp .28s cubic-bezier(.2,.9,.3,1.2);max-height:85vh;overflow:auto}
+.pp-grab{width:42px;height:5px;border-radius:9px;background:#33334a;margin:0 auto 6px}
+.pp-sheet h3{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin:16px 0 8px}
+.pp-chips{display:flex;flex-wrap:wrap;gap:8px}
+.pp-big{flex-direction:column;gap:4px;padding:10px 16px;border-radius:20px;min-width:92px}
+.pp-big small{font-size:10px;opacity:.8;font-weight:500}
+.pp-done{width:100%;margin-top:20px;padding:13px;border-radius:999px;border:none;background:var(--txt);color:#0b0b12;font-weight:800;font-size:15px}
+.pp-toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:#1d1830;border:1px solid rgba(236,72,153,.5);color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;z-index:50;box-shadow:0 0 24px rgba(168,85,247,.45);animation:ppPop .35s cubic-bezier(.2,.9,.3,1.4);white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+@keyframes ppRipple{0%{transform:scale(.4);opacity:.9}100%{transform:scale(2.2);opacity:0}}
+@keyframes ppRing{0%{transform:scale(1);opacity:.8}100%{transform:scale(1.7);opacity:0}}
+@keyframes ppGlow{50%{box-shadow:0 0 0 1px rgba(236,72,153,.7),0 0 60px rgba(236,72,153,.35)}}
+@keyframes ppBreathe{50%{box-shadow:0 6px 30px rgba(168,85,247,.6)}}
+@keyframes ppReveal{from{opacity:0;filter:blur(14px);transform:scale(1.03)}to{opacity:1;filter:none;transform:none}}
+@keyframes ppUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes ppFade{from{opacity:0}}
+@keyframes ppPop{from{opacity:0;transform:translate(-50%,16px) scale(.9)}}
+@media (min-width:640px){.pp-grid{grid-template-columns:1fr 1fr}}
+@media (min-width:1000px){
+ .pp-root{padding:24px 28px 40px}
+ .pp-layout{display:grid;grid-template-columns:1fr 380px;gap:28px;align-items:start}
+ .pp-dock{position:sticky;top:20px;grid-column:2;grid-row:1;padding:0;background:none}
+ .pp-bar{border-radius:30px;padding:14px}
+ .pp-chiprow{flex-wrap:wrap;overflow:visible}
+ .pp-inputrow{flex-wrap:wrap}
+ .pp-inputrow textarea{min-height:110px;flex-basis:calc(100% - 50px);background:#0b0b12;border-radius:20px;padding:12px 14px}
+ .pp-go{width:100%;justify-content:center;height:48px}
+ .pp-toast{bottom:40px}
+ .pp-grid{grid-template-columns:repeat(3,1fr)}
+}
+@media (prefers-reduced-motion:reduce){.pp-root *{animation:none!important}}
+`;
