@@ -3,6 +3,7 @@ import { getSupabase, IMAGE_COLUMNS } from '../../../lib/supabase';
 import { getCreatorId } from '../../../lib/identity';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 const PAGE_SIZE = 20;
 
