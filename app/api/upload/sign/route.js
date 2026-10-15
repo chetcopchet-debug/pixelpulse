@@ -15,7 +15,7 @@ export async function POST(request) {
   if (!supabase) return NextResponse.json({ error: 'Cloud storage is not available.' }, { status: 503 });
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
-  if (!isAdmin(request) && !rateLimit(`upsign:${ip}`, 30, 60 * 60_000)) return NextResponse.json({ error: 'Upload limit reached.' }, { status: 429 });
+  if (!isAdmin(request) && !await rateLimit(`upsign:${ip}`, 30, 60 * 60_000)) return NextResponse.json({ error: 'Upload limit reached.' }, { status: 429 });
   const body = await request.json().catch(() => ({}));
   const size = Number(body?.size) || 0;
   if (size > 8 * 1024 * 1024) return NextResponse.json({ error: 'Photo is too large (max 8MB).' }, { status: 413 });

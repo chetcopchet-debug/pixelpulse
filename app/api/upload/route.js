@@ -25,7 +25,7 @@ export async function POST(request) {
   if (!supabase) return err('Cloud storage is not available.', 503);
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
-  if (!isAdmin(request) && (!rateLimit(`up:${creator.isNew ? ip : creator.id}`, 20, 60 * 60_000) || !rateLimit(`up:ip:${ip}`, 40, 60 * 60_000))) {
+  if (!isAdmin(request) && (!await rateLimit(`up:${creator.isNew ? ip : creator.id}`, 20, 60 * 60_000) || !await rateLimit(`up:ip:${ip}`, 40, 60 * 60_000))) {
     return err('Upload limit reached (20/hour). Try again later.', 429);
   }
 

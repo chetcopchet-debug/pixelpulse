@@ -11,7 +11,7 @@ export async function POST(request) {
   const isForm = (request.headers.get('content-type') || '').includes('application/x-www-form-urlencoded');
   const back = (q) => NextResponse.redirect(new URL(q, request.url), 303);
   if (!adminEnabled()) return isForm ? back('/admin?e=off') : NextResponse.json({ error: 'Not found.' }, { status: 404 });
-  if (!rateLimit(`admin:ip:${getClientIp(request)}`, 10, 10 * 60_000)) {
+  if (!await rateLimit(`admin:ip:${getClientIp(request)}`, 10, 10 * 60_000)) {
     return isForm ? back('/admin?e=rate') : NextResponse.json({ error: 'Too many attempts.' }, { status: 429 });
   }
   let key = '', logout = false;

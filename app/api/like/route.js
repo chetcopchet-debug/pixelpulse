@@ -15,7 +15,7 @@ export async function POST(request) {
 
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
-  if (!isAdmin(request) && (!rateLimit(`like:ip:${ip}`, 30, 60_000) || !rateLimit(`like:uid:${creator.id}`, 20, 60_000))) {
+  if (!isAdmin(request) && (!await rateLimit(`like:ip:${ip}`, 30, 60_000) || !await rateLimit(`like:uid:${creator.id}`, 20, 60_000))) {
     return NextResponse.json({ error: 'Too many likes. Slow down a bit.' }, { status: 429 });
   }
 

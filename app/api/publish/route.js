@@ -22,7 +22,7 @@ export async function POST(request) {
   if (creator.isNew) return NextResponse.json({ error: 'You can only publish your own images.' }, { status: 403 });
 
   const ip = getClientIp(request);
-  if (!isAdmin(request) && (!rateLimit(`pub:ip:${ip}`, 10, 60_000) || !rateLimit(`pub:uid:${creator.id}`, 30, 60 * 60_000))) {
+  if (!isAdmin(request) && (!await rateLimit(`pub:ip:${ip}`, 10, 60_000) || !await rateLimit(`pub:uid:${creator.id}`, 30, 60 * 60_000))) {
     return NextResponse.json({ error: 'Too many requests. Please wait a minute.' }, { status: 429 });
   }
 
