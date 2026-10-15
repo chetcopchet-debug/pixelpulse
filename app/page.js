@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import { prepareUpload, uploadRaw } from "./clientImage";
+import Gallery, { GALLERY_CSS, downloadImage } from "./Gallery";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -122,6 +123,7 @@ export default function Home() {
       })
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
+    if (["me", "community", "create"].includes(params.get("tab"))) setActiveTab(params.get("tab"));
     if (params.get("vibe")) {
       const st = params.get("style"), ra = params.get("ratio"), ti = params.get("tier");
       if (st && stylesList.includes(st)) setStyle(st);
@@ -159,7 +161,14 @@ export default function Home() {
 
   useEffect(() => {
     if (activeTab === "community") loadFeed();
+    try {
+      const u = new URL(window.location.href);
+      if (activeTab === "create") u.searchParams.delete("tab"); else u.searchParams.set("tab", activeTab);
+      window.history.replaceState(null, "", u.pathname + u.search + u.hash);
+    } catch {}
   }, [activeTab]);
+  const [galleryKey, setGalleryKey] = useState(0);
+  useEffect(() => { setGalleryKey((k) => k + 1); }, [history.length]);
 
   const handleSurpriseMe = () => {
     const random = surprisePrompts[Math.floor(Math.random() * surprisePrompts.length)];
@@ -432,8 +441,10 @@ export default function Home() {
       setCurrentItem((c) => (c && c.id === item.id ? { ...c, isPublic: true } : c));
       loadFeed();
       showToast("🚀 Published to the Community Feed");
+      return true;
     } catch (e) {
       alert(e.message);
+      return false;
     }
   };
 
@@ -480,6 +491,8 @@ export default function Home() {
     });
   })();
 
+  const recentList = (() => { const seen = new Set(); return history.filter((h) => !h.id || (!seen.has(h.id) && seen.add(h.id))).slice(0, 8); })();
+
   const Actions = ({ item, compact }) => (
     <div className={`pp-actions${compact ? " pp-compact" : ""}`}>
       {item.tier !== "upload" && <>
@@ -488,7 +501,7 @@ export default function Home() {
       <button className="pp-cap" onClick={() => handleUsePrompt(item)} title="Use prompt">✎<span>Use prompt</span></button>
       </>}
       <button className={`pp-cap${item.tier === "upload" ? " pp-vibe" : ""}`} onClick={() => useAsGuide(item)} disabled={!item.id} title="Use as guide">◎<span>Use as guide</span></button>
-      <button className="pp-cap" onClick={() => handleDownload(item.url)} disabled={downloading} title="Download">⤓<span>Download</span></button>
+      <button className="pp-cap" onClick={() => downloadImage(item.url)} title="Download">⤓<span>Download</span></button>
       <button className="pp-cap" onClick={() => handleTool("sharpen", item)} disabled={!!toolBusy || !item.id} title="Sharpen 2x (1 credit)">{toolBusy === `sharpen:${item.id}` ? "…" : "◇"}<span>Sharpen</span></button>
       <button className="pp-cap" onClick={() => openRepaint(item)} disabled={!!toolBusy || !item.id} title="Repaint an area (2 credits)">◐<span>Repaint</span></button>
       <button className="pp-cap" onClick={() => handleTool("cutout", item)} disabled={!!toolBusy || !item.id} title="Remove background (free)">{toolBusy === `cutout:${item.id}` ? "…" : "✂"}<span>Cutout</span></button>
@@ -499,7 +512,7 @@ export default function Home() {
 
   return (
     <div dir="ltr" className="pp-root">
-      <style>{CSS + REPAINT_CSS}</style>
+      <style>{CSS + REPAINT_CSS + GALLERY_CSS}</style>
       <header className="pp-header">
         <div className="pp-brand">
           <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
@@ -514,6 +527,7 @@ export default function Home() {
       <nav className="pp-tabs">
         <button className={activeTab === "create" ? "on" : ""} onClick={() => setActiveTab("create")}>Studio</button>
         <button className={activeTab === "community" ? "on" : ""} onClick={() => setActiveTab("community")}>Pulse Feed <em>{communityFeed.length}</em></button>
+        <button className={activeTab === "me" ? "on" : ""} onClick={() => setActiveTab("me")}>My Pulses</button>
       </nav>
 
       <div className="pp-layout">
@@ -532,26 +546,32 @@ export default function Home() {
           {notice && <div className="pp-notice">{notice}</div>}
           {error && <div className="pp-error">{error}</div>}
 
-          {shownHistory.length > 0 && (
+          {history.length > 0 && (
             <section className="pp-section">
-              <div className="pp-sechead"><h2>Your creations</h2>
-                {!storageEnabled && <button className="pp-link" onClick={() => { setHistory([]); localStorage.removeItem("pp_history"); }}>Clear</button>}
+              <div className="pp-sechead"><h2>Recent</h2>
+                {storageEnabled ? <button className="pp-link" onClick={() => setActiveTab("me")}>See all →</button>
+                  : <button className="pp-link" onClick={() => { setHistory([]); localStorage.removeItem("pp_history"); }}>Clear</button>}
               </div>
-              <div className="pp-grid">
-                {shownHistory.map((item, idx) => (
-                  <div className="pp-card" key={item.id || idx}>
-                    <img src={item.url} alt={item.prompt} onClick={() => { setImage(item.url); setCurrentItem(item); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
-                    <div className="pp-cardbody">
-                      <p>{item.prompt}</p>
-                      <span className="pp-meta">{[tierLabel(item.tier), item.style, item.aspectRatio].filter(Boolean).join(" · ")}</span>
-                      <Actions item={item} compact />
-                    </div>
-                  </div>
+              <div className="pp-recent">
+                {recentList.map((item, idx) => (
+                  <button key={item.id || idx} className={image && item.url === image ? "on" : ""} onClick={() => { setImage(item.url); setCurrentItem(item); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                    <img src={item.url} alt={item.prompt} loading="lazy" />
+                  </button>
                 ))}
+                {storageEnabled && <button className="pp-seeall" onClick={() => setActiveTab("me")}>See all</button>}
               </div>
             </section>
           )}
         </main>
+      ) : activeTab === "me" ? (
+        <Gallery toItem={toItem} refreshKey={galleryKey} inspiration={communityFeed} tierLabel={tierLabel} notify={showToast}
+          onStealVibe={(x) => { handleStealVibe(x); setActiveTab("create"); }}
+          actions={{
+            repaint: openRepaint, guide: useAsGuide, sharpen: (it) => handleTool("sharpen", it), cutout: (it) => handleTool("cutout", it),
+            again: handleAgain, variation: handleVariation, usePrompt: handleUsePrompt, publish: handlePublishToCommunity, share: handleShare,
+            open: (it) => { setActiveTab("create"); setImage(it.url); setCurrentItem(it); window.scrollTo({ top: 0 }); },
+            onDeleted: (ids) => { const d = new Set(ids); setHistory((p) => p.filter((h) => !d.has(h.id))); if (currentItem && d.has(currentItem.id)) { setImage(null); setCurrentItem(null); } },
+          }} />
       ) : (
         <main className="pp-main">
           <div className="pp-sechead"><h2>Pulse Feed</h2></div>
