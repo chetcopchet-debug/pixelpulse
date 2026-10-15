@@ -513,7 +513,7 @@ export default function Home() {
       again: { key: "again", icon: "↻", label: "Again", onClick: () => handleAgain(item), disabled: loading, hint: "Same prompt, new seed" },
       copy: { key: "copy", icon: "✎", label: "Copy prompt", onClick: () => copyPrompt(item) },
       repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "2⚡ · paint an area" },
-      guide: { key: "guide", icon: "◎", label: "Use as guide", onClick: () => useAsGuide(item), disabled: !item.id, hint: "2⚡ · new image from it" },
+      guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => useAsGuide(item), disabled: !item.id, hint: "2⚡ · new image from it" },
       sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "Sharpen 2x", onClick: () => handleTool("sharpen", item), disabled: !!toolBusy || !item.id, hint: "1⚡" },
       cutout: { key: "cutout", icon: busyTool("cutout") ? "…" : "✂", label: "Cutout", onClick: () => handleTool("cutout", item), disabled: !!toolBusy || !item.id, hint: "Free · remove background" },
       download: { key: "dl", icon: "⤓", label: "Download", onClick: () => downloadImage(item.url) },

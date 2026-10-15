@@ -40,7 +40,7 @@ export default function ImageActions({ primary = [], more = [], compact = false,
 
 export const IA_CSS = `
 .ia-row{display:flex;gap:6px;max-width:560px;margin:12px auto 0}
-.ia-pill{flex:1 1 0;min-width:0;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;border-radius:999px;border:1px solid #2a2a40;background:#151520;color:var(--txt);font-size:13px;font-weight:700;transition:transform .12s,background .2s;white-space:nowrap}
+.ia-pill{flex:1 1 0;min-width:0;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 8px;border-radius:999px;border:1px solid #2a2a40;background:#151520;color:var(--txt);font-size:13px;font-weight:700;transition:transform .12s,background .2s;white-space:nowrap}
 .ia-pill b{font-size:15px;font-weight:700}
 .ia-pill span{overflow:hidden;text-overflow:ellipsis}
 .ia-pill:active{transform:scale(.94)}
