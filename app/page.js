@@ -789,6 +789,8 @@ export default function Home() {
         </main>
       )}
 
+      <footer className="pp-foot"><a href="/pricing">Pricing</a><a href="/formats">Formats</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a></footer>
+
       {/* Pulse Bar composer */}
       <div className="pp-dock">
         <div className={`pp-bar${loading ? " pp-generating" : ""}`}>
@@ -947,7 +949,7 @@ export default function Home() {
                 </div>
               ) : <p className="pp-modnote">{modList.error}</p>)}
             </nav>
-            <div className="pp-legal"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/content-policy">Content Policy</a></div>
+            <div className="pp-legal"><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a><a href="/content-policy">Content Policy</a></div>
           </aside>
         </div>
       )}
@@ -1176,6 +1178,8 @@ body{margin:0;background:var(--bg)}
 .pp-start{margin-top:12px!important}
 .pp-legal{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
 .pp-legal a{color:var(--mut)}
+.pp-foot{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;padding:18px 16px 190px;font-size:12px}
+.pp-foot a{color:var(--mut);text-decoration:none}
 .pp-card .ia-row{max-width:none}
 .pp-toast{bottom:170px}
 .pp-stage:has(img){background:#0b0b12}

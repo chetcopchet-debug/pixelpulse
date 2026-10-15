@@ -8,6 +8,9 @@ export default async function sitemap() {
   const entries = [
     { url: `${BASE}/`, lastModified: now, changeFrequency: 'daily', priority: 1 },
     { url: `${BASE}/?tab=community`, lastModified: now, changeFrequency: 'hourly', priority: 0.8 },
+    { url: `${BASE}/pricing`, changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${BASE}/contact`, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${BASE}/refund-policy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${BASE}/terms`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${BASE}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${BASE}/content-policy`, changeFrequency: 'yearly', priority: 0.2 },
