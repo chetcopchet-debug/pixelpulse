@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   readCreditsCookie, setCreditsCookie, getClientIp, ipRemaining,
-  chargeIpAsync, refundIpAsync, COOKIE_NAME,
+  chargeIpAsync, refundIpAsync, COOKIE_NAME, chargeCredits, paidFor,
 } from '../../../lib/credits';
 import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RATIOS } from '../../../lib/generation';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
@@ -77,22 +77,20 @@ export async function POST(request) {
     return jsonError('Service temporarily unavailable. / השירות אינו זמין כרגע.', 503);
   }
 
-  // Charge before calling Replicate (admin bypasses credits and rate limits)
-  const notEnough = () => jsonError(`Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`, 402, currentCredits());
-  if (!admin && state.remaining < cost) return notEnough();
-  const ipBlock = admin ? null : await chargeIpAsync(ip, cost);
-  if (ipBlock === 'daily') return notEnough();
-  if (ipBlock === 'minute') {
+  // Charge before calling Replicate (admin bypasses credits and rate limits). Free first, then paid balance.
+  const notEnough = async () => NextResponse.json({ error: `Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`, needCredits: { cost, label: tierDef.label }, credits: currentCredits(), paid: await paidFor(creator) }, { status: 402 });
+  const charge = await chargeCredits({ admin, state, ip, creator, cost });
+  if (!charge.ok && charge.block === 'minute') {
     return jsonError('Too many requests. Please wait a minute. / יותר מדי בקשות, נא להמתין דקה.', 429, currentCredits());
   }
-  if (!admin) state.remaining -= cost;
+  if (!charge.ok) return notEnough();
 
-  const spend = await reserveSpend(tierDef.usd || 0.01, { admin });
+  const spend = await reserveSpend(tierDef.usd || 0.01, { admin: admin || charge.source === 'paid' });
   if (!spend.ok) {
-    await refundIpAsync(ip, cost);
-    return jsonError(PAUSED_MSG, 503, admin ? null : Math.min(state.remaining + cost, 10));
+    await charge.refund();
+    return jsonError(PAUSED_MSG, 503, admin ? null : currentCredits());
   }
-  const refund = async () => { await spend.release(); if (admin) return; state.remaining += cost; await refundIpAsync(ip, cost); };
+  const refund = async () => { await spend.release(); await charge.refund(); };
 
   try {
     // תרגום אוטומטי חכם אם הוזן טקסט בעברית
@@ -140,7 +138,7 @@ export async function POST(request) {
       stored: Boolean(stored?.id),
       ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
       tier: storedTier, format, ...(dailyTheme ? { daily: dailyTheme.day } : {}),
-      credits: currentCredits(),
+      credits: currentCredits(), ...(admin ? {} : { paid: await paidFor(creator) }),
       ...(admin ? { admin: true } : {}),
     });
     if (!admin) setCreditsCookie(res, state);
