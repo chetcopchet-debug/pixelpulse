@@ -12,6 +12,7 @@ export default async function sitemap() {
     { url: `${BASE}/privacy`, changeFrequency: 'yearly', priority: 0.2 },
     { url: `${BASE}/content-policy`, changeFrequency: 'yearly', priority: 0.2 },
   ];
+  entries.push({ url: `${BASE}/formats`, changeFrequency: 'weekly', priority: 0.6 });
   for (const f of FORMAT_LIST) if (f.id !== 'free') entries.push({ url: `${BASE}/formats/${f.id}`, changeFrequency: 'weekly', priority: 0.7 });
   const supabase = getSupabase();
   if (supabase) {

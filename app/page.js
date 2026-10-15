@@ -245,11 +245,6 @@ export default function Home() {
   }, [tier, style, aspectRatio, format, prefsLoaded]);
 
   const VARIATION_TWISTS = ["alternate composition", "different camera angle", "shifted color palette", "new lighting mood", "closer framing", "wider framing"];
-  const handleAgain = (item) => {
-    if (!item) return;
-    setActiveTab("create");
-    generateImage({ guide: null, prompt: item.prompt, style: item.style || "Cinematic", aspectRatio: item.aspectRatio || "1:1", tier: safeTier(item.tier), remixOf: item.remixOf || null });
-  };
   const handleVariation = (item) => {
     if (!item) return;
     const twist = VARIATION_TWISTS[Math.floor(Math.random() * VARIATION_TWISTS.length)];
@@ -300,14 +295,6 @@ export default function Home() {
   const copyPrompt = async (item) => {
     try { await navigator.clipboard.writeText(item.prompt || ""); showToast("✎ Prompt copied"); } catch { window.prompt("Copy prompt:", item.prompt || ""); }
   };
-  const handleStealVibe = (item) => {
-    if (item.style && stylesList.includes(item.style)) setStyle(item.style);
-    if (item.aspectRatio && ratiosList.some((r) => r.id === item.aspectRatio)) setAspectRatio(item.aspectRatio);
-    if (item.tier && TIERS.some((t) => t.id === item.tier)) setTier(item.tier);
-    const short = (item.prompt || "").slice(0, 28) + ((item.prompt || "").length > 28 ? "…" : "");
-    setActiveTab("create");
-    showToast(`Style loaded from “${short}”`);
-  };
 
   const [repaintItem, setRepaintItem] = useState(null);
   const handleRepaintDone = (d, ok) => {
@@ -349,7 +336,7 @@ export default function Home() {
       const ni = toItem(d.item);
       setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
       setActiveTab("create"); setImage(ni.url); setCurrentItem(ni);
-      showToast("⇪ Uploaded — Repaint, Sharpen, Cutout or use as guide");
+      showToast("⇪ Uploaded — edit, Repaint, Cutout or use as guide");
     } catch (e) { setError(e.message || "Upload failed."); }
     finally { setUploading(false); uploadLock.current = false; }
   };
@@ -366,9 +353,9 @@ export default function Home() {
   const handleTool = async (tool, item, opts = {}) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
     if (toolBusy) return;
-    if (tool === "sharpen" && !isAdmin && credits < 1) { setError("Sharpen costs 1 credit — you're out for today."); return; }
+    if (tool === "sharpen" && !isAdmin && credits < 1) { setError("HD download costs 1 credit — you're out for today."); return; }
     setToolBusy(`${tool}:${item.id}`); setError("");
-    showToast(tool === "sharpen" ? "◇ Sharpening… (2x)" : "✂ Cutting out…");
+    showToast(tool === "sharpen" ? "◇ Preparing HD (2x)…" : "✂ Cutting out…");
     try {
       const res = await fetch(`/api/${tool}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id }) });
       const d = await res.json();
@@ -383,6 +370,7 @@ export default function Home() {
         fetch("/api/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [item.id] }) }).catch(() => {});
         setGalleryKey((k) => k + 1);
       }
+      if (opts.download) { downloadImage(ni.url, fileName(ni)); showToast("⤓ HD image downloading (2x)"); return; }
       showToast(opts.format === "sticker" ? "✂ Sticker ready — transparent PNG" : tool === "sharpen" ? "◇ Sharpened 2x" : "✂ Background removed");
     } catch (e) { setError(e.message); }
     finally { setToolBusy(""); }
@@ -549,14 +537,12 @@ export default function Home() {
     const busyTool = (t) => toolBusy === `${t}:${item.id}`;
     const isUpload = item.tier === "upload";
     const A = {
-      variation: { key: "var", icon: "≈", label: "Variation", onClick: () => handleVariation(item), disabled: loading, hint: "New take on the same idea & styledea" },
+      variation: { key: "var", icon: "≈", label: "Variation", onClick: () => handleVariation(item), disabled: loading, hint: "New take on the same idea & style" },
       vibe: { key: "vibe", icon: "✦", label: "Pulse this vibe", onClick: () => handlePulseVibe(item), hint: "Prompt + style into the Pulse Bar", tone: ctx === "feed" ? "accent" : undefined },
-      styleOnly: { key: "style", icon: "◈", label: "Style only", onClick: () => handleStealVibe(item), hint: "Keep your prompt" },
-      again: { key: "again", icon: "↻", label: "Again", onClick: () => handleAgain(item), disabled: loading, hint: "Same prompt, new seed" },
       copy: { key: "copy", icon: "✎", label: "Copy prompt", onClick: () => copyPrompt(item) },
       repaint: { key: "repaint", icon: "◐", label: "Repaint", onClick: () => openRepaint(item), disabled: !!toolBusy || !item.id, hint: "5⚡ · paint an area" },
       guide: { key: "guide", icon: "◎", label: "Guide", onClick: () => attachGuide(item), disabled: !item.id, hint: "3⚡ · new image from it" },
-      sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "Sharpen 2x", onClick: () => handleTool("sharpen", item), disabled: !!toolBusy || !item.id, hint: "1⚡" },
+      sharpen: { key: "sharpen", icon: busyTool("sharpen") ? "…" : "◇", label: "HD download", onClick: () => handleTool("sharpen", item, { download: true }), disabled: !!toolBusy || !item.id, hint: "1⚡ · 2x sharper file" },
       cutout: { key: "cutout", icon: busyTool("cutout") ? "…" : "✂", label: "Cutout", onClick: () => handleTool("cutout", item), disabled: !!toolBusy || !item.id, hint: "Free · remove background" },
       download: { key: "dl", icon: "⤓", label: "Download", onClick: () => downloadImage(item.url, fileName(item)) },
       share: { key: "share", icon: "↗", label: "Share", onClick: () => handleShare(ctx === "feed" ? { ...item, isPublic: true } : item) },
@@ -566,11 +552,11 @@ export default function Home() {
     };
     const report = { key: "report", icon: "⚑", label: "Report", hint: "Breaks the rules?", tone: "danger", onClick: () => handleReport(item) };
     const hide = isAdmin ? { key: "hide", icon: "⦸", label: "Hide (admin)", tone: "danger", onClick: () => adminHide(item, true) } : null;
-    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.cutout, A.download, report, hide, ...extra] };
+    if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.sharpen, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
     if (isUpload) return { primary: [A.guide, A.repaint, A.download], more: [A.sharpen, A.cutout, ...extra] };
     return {
       primary: [A.variation, A.repaint, item.isPublic ? A.share : A.publish],
-      more: [A.vibe, A.guide, A.sharpen, A.cutout, A.download, A.copy, item.isPublic ? A.card : null, ...extra],
+      more: [A.vibe, A.guide, A.cutout, A.download, A.sharpen, A.copy, item.isPublic ? A.card : null, ...extra],
     };
   };
   const Actions = ({ item, ctx = "own", compact, extra }) => { const a = buildActions(item, ctx, extra); return <ImageActions {...a} compact={compact} title={item.prompt} />; };
@@ -629,7 +615,7 @@ export default function Home() {
             ) : image ? (
               <img src={image} alt="Generated AI Art" />
             ) : (
-              <div className="pp-empty"><div className="pp-ripple pp-idle"><i /><i /></div><p>Type an idea and hit <b>Pulse</b> — or tap a spark ↓</p></div>
+              <div className="pp-empty"><p>Type an idea and hit <b>Pulse</b> — or tap a spark ↓</p></div>
             )}
           </section>
           {image && currentItem && !loading && <Actions item={currentItem} />}
@@ -682,7 +668,7 @@ export default function Home() {
           renderActions={(it, extra) => <Actions item={it} extra={extra} />}
           actions={{
             repaint: openRepaint, guide: attachGuide, sharpen: (it) => handleTool("sharpen", it), cutout: (it) => handleTool("cutout", it),
-            again: handleAgain, variation: handleVariation, usePrompt: handleUsePrompt, publish: handlePublishToCommunity, share: handleShare,
+            variation: handleVariation, usePrompt: handleUsePrompt, publish: handlePublishToCommunity, share: handleShare,
             open: (it) => { setActiveTab("create"); setImage(it.url); setCurrentItem(it); window.scrollTo({ top: 0 }); },
             onDeleted: (ids) => { const d = new Set(ids); setHistory((p) => p.filter((h) => !d.has(h.id))); if (currentItem && d.has(currentItem.id)) { setImage(null); setCurrentItem(null); } },
           }} />
@@ -917,6 +903,8 @@ body{margin:0;background:var(--bg)}
 .pp-stage img{max-width:100%;max-height:58vh;width:auto;height:auto;display:block;margin:0 auto;animation:ppReveal .6s ease}
 .pp-generating{box-shadow:0 0 0 1px rgba(168,85,247,.6),0 0 40px rgba(168,85,247,.35);animation:ppGlow 1.6s ease-in-out infinite}
 .pp-empty{text-align:center;color:var(--mut);font-size:14px;padding:30px}
+.pp-stage.pp-is-empty:not([class*="pp-fmt-"]){aspect-ratio:auto!important;border-style:dashed;background:transparent}
+.pp-stage.pp-is-empty:not([class*="pp-fmt-"]) .pp-empty{padding:12px 14px;font-size:13px}
 .pp-ripple{position:relative;width:160px;height:160px;display:grid;place-items:center}
 .pp-ripple i{position:absolute;inset:40px;border-radius:50%;border:2px solid var(--v2);animation:ppRipple 2.1s ease-out infinite;opacity:0}
 .pp-ripple i:nth-child(2){animation-delay:.7s;border-color:var(--p)}
