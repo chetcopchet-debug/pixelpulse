@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getSupabase } from '../../../lib/supabase';
 import { FORMATS, FORMAT_LIST, isFormat } from '../../../lib/formats';
+import Thumb from '../../Thumb';
 
 export const revalidate = 600;
 export function generateStaticParams() { return FORMAT_LIST.filter((f) => f.id !== 'free').map((f) => ({ slug: f.id })); }
@@ -45,7 +46,7 @@ export default async function FormatPage(props) {
         {items.length > 0 && <h2>From the Pulse Feed</h2>}
         <div className="fp-grid">
           {items.map((x) => (
-            <a key={x.id} href={`/p/${x.id}`} className={shape}><img src={x.public_url} alt={x.prompt} loading="lazy" /></a>
+            <a key={x.id} href={`/p/${x.id}`} className={shape}><Thumb src={x.public_url} ratio={f.ratio || "1:1"} alt={x.prompt} /></a>
           ))}
         </div>
         <nav className="fp-others">{FORMAT_LIST.filter((o) => o.id !== 'free' && o.id !== f.id).map((o) => <a key={o.id} href={`/formats/${o.id}`}>{o.icon} {o.label}</a>)}</nav>
