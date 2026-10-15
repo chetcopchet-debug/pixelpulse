@@ -7,6 +7,7 @@ export default function Home() {
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState("Initializing AI...");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
   const [credits, setCredits] = useState(5);
@@ -37,7 +38,6 @@ export default function Home() {
     "Hyper-realistic close-up of a sleek black panther with glowing emerald eyes walking through a misty bamboo forest at dawn"
   ];
 
-  // טעינת היסטוריה וקרדיטים מהדפדפן בעליית האתר
   useEffect(() => {
     try {
       const savedCredits = localStorage.getItem("pp_credits");
@@ -68,6 +68,14 @@ export default function Home() {
     setLoading(true);
     setError("");
     setImage(null);
+
+    // מחזור הודעות טעינה חיות כדי שהמשתמש יראה התקדמות
+    const textIntervals = [
+      setTimeout(() => setLoadingText("Translating & optimizing prompt..."), 2000),
+      setTimeout(() => setLoadingText("Connecting to Flux AI neural network..."), 6000),
+      setTimeout(() => setLoadingText("Rendering pixels and lighting..."), 12000),
+      setTimeout(() => setLoadingText("Finalizing masterpiece, almost ready..."), 22000),
+    ];
 
     try {
       const res = await fetch("/api/generate", {
@@ -101,7 +109,9 @@ export default function Home() {
     } catch (err) {
       setError(err.message);
     } finally {
+      textIntervals.forEach(clearTimeout);
       setLoading(false);
+      setLoadingText("Initializing AI...");
     }
   };
 
@@ -195,7 +205,6 @@ export default function Home() {
           boxShadow: "0 12px 35px rgba(0,0,0,0.6)",
         }}
       >
-        {/* Prompt Header + Surprise Me */}
         <div
           style={{
             display: "flex",
@@ -204,13 +213,7 @@ export default function Home() {
             marginBottom: "10px",
           }}
         >
-          <label
-            style={{
-              color: "#d1d1e0",
-              fontSize: "15px",
-              fontWeight: "600",
-            }}
-          >
+          <label style={{ color: "#d1d1e0", fontSize: "15px", fontWeight: "600" }}>
             Describe your vision:
           </label>
           <button
@@ -251,26 +254,10 @@ export default function Home() {
           }}
         />
 
-        {/* Aspect Ratio Selector */}
-        <label
-          style={{
-            display: "block",
-            color: "#d1d1e0",
-            fontSize: "15px",
-            marginBottom: "10px",
-            fontWeight: "600",
-          }}
-        >
+        <label style={{ display: "block", color: "#d1d1e0", fontSize: "15px", marginBottom: "10px", fontWeight: "600" }}>
           Aspect Ratio:
         </label>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: "10px",
-            marginBottom: "22px",
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "22px" }}>
           {ratiosList.map((r) => {
             const isSelected = aspectRatio === r.id;
             return (
@@ -299,26 +286,10 @@ export default function Home() {
           })}
         </div>
 
-        {/* Art Style Selector */}
-        <label
-          style={{
-            display: "block",
-            color: "#d1d1e0",
-            fontSize: "15px",
-            marginBottom: "10px",
-            fontWeight: "600",
-          }}
-        >
+        <label style={{ display: "block", color: "#d1d1e0", fontSize: "15px", marginBottom: "10px", fontWeight: "600" }}>
           Choose Art Style:
         </label>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "8px",
-            marginBottom: "24px",
-          }}
-        >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "24px" }}>
           {stylesList.map((s) => {
             const isSelected = style === s;
             return (
@@ -343,7 +314,6 @@ export default function Home() {
           })}
         </div>
 
-        {/* Generate Button */}
         <button
           onClick={generateImage}
           disabled={loading}
@@ -361,10 +331,9 @@ export default function Home() {
             boxShadow: "0 6px 20px rgba(147, 51, 234, 0.35)",
           }}
         >
-          {loading ? "✨ Creating Magic (Wait ~4s)..." : "Generate Image (1 Credit)"}
+          {loading ? `✨ ${loadingText}` : "Generate Image (1 Credit)"}
         </button>
 
-        {/* Error Box */}
         {error && (
           <div
             style={{
@@ -382,17 +351,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* Generated Result */}
         {image && (
           <div style={{ marginTop: "28px", textAlign: "center" }}>
-            <p
-              style={{
-                color: "#34d399",
-                fontWeight: "600",
-                fontSize: "15px",
-                marginBottom: "12px",
-              }}
-            >
+            <p style={{ color: "#34d399", fontWeight: "600", fontSize: "15px", marginBottom: "12px" }}>
               ✨ Masterpiece Ready!
             </p>
             <div
@@ -404,11 +365,7 @@ export default function Home() {
                 marginBottom: "14px",
               }}
             >
-              <img
-                src={image}
-                alt="Generated AI Art"
-                style={{ width: "100%", height: "auto", display: "block" }}
-              />
+              <img src={image} alt="Generated AI Art" style={{ width: "100%", height: "auto", display: "block" }} />
             </div>
 
             <button
@@ -432,23 +389,10 @@ export default function Home() {
         )}
       </main>
 
-      {/* Personal Gallery History */}
+      {/* History */}
       {history.length > 0 && (
-        <section
-          style={{
-            width: "100%",
-            maxWidth: "520px",
-            marginTop: "32px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "14px",
-            }}
-          >
+        <section style={{ width: "100%", maxWidth: "520px", marginTop: "32px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
             <h2 style={{ fontSize: "18px", fontWeight: "700", margin: 0, color: "#e2e2f0" }}>
               🖼️ Your Recent Creations
             </h2>
@@ -457,26 +401,13 @@ export default function Home() {
                 setHistory([]);
                 localStorage.removeItem("pp_history");
               }}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#7a7a90",
-                fontSize: "12px",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
+              style={{ background: "none", border: "none", color: "#7a7a90", fontSize: "12px", cursor: "pointer", textDecoration: "underline" }}
             >
               Clear History
             </button>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "12px",
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             {history.map((item, idx) => (
               <div
                 key={idx}
@@ -489,32 +420,12 @@ export default function Home() {
                   cursor: "pointer",
                 }}
               >
-                <img
-                  src={item.url}
-                  alt={item.prompt}
-                  style={{
-                    width: "100%",
-                    height: "150px",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
+                <img src={item.url} alt={item.prompt} style={{ width: "100%", height: "150px", objectFit: "cover", display: "block" }} />
                 <div style={{ padding: "8px 10px" }}>
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "12px",
-                      color: "#b4b4c4",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
+                  <p style={{ margin: 0, fontSize: "12px", color: "#b4b4c4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {item.prompt}
                   </p>
-                  <span style={{ fontSize: "10px", color: "#7c7c94" }}>
-                    {item.style} • {item.aspectRatio || "1:1"}
-                  </span>
+                  <span style={{ fontSize: "10px", color: "#7c7c94" }}>{item.style} • {item.aspectRatio || "1:1"}</span>
                 </div>
               </div>
             ))}
