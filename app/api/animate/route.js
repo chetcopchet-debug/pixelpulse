@@ -14,6 +14,7 @@ import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
 import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
 import { effectById } from '../../../lib/effects';
+import { videoQuote, VIDEO_PRICING } from '../../../lib/videoPricing';
 import sharp from 'sharp';
 
 // Pulse Effects: center-crop the photo to 9:16 (720x1280) so wan outputs a vertical, share-ready clip.
@@ -87,22 +88,27 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   if (!raw) return NextResponse.json({ error: 'Describe the video you want.' }, { status: 400 });
   if (raw.length > MAX_PROMPT_LENGTH) return NextResponse.json({ error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` }, { status: 400 });
   if (!process.env.REPLICATE_API_TOKEN || !getSupabase()) return NextResponse.json({ error: 'Service temporarily unavailable.' }, { status: 503 });
-  const ratio = VALID_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : '16:9';
+  // Price is computed here from the chosen duration/resolution (never trusted from the client).
+  const pd = VIDEO_PRICING[body.model].def;
+  const q = videoQuote(body.model, body?.duration ?? pd.d, body?.resolution ?? pd.r, VALID_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : '16:9');
+  if (!q) return NextResponse.json({ error: 'That duration / quality is not available for this model.' }, { status: 400 });
+  const ratio = q.ratio;
+  const tier = { ...def, cost: q.cost, usd: q.usd };
   const en = await toEnglishPrompt(raw);
   const bad = checkPromptText(en);
   if (bad && !/published to the feed/.test(bad)) return NextResponse.json({ error: bad }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
-  const charge = await chargePaidCredits({ admin, creator, cost: def.cost });
-  if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${def.cost}⚡).`, needCredits: { cost: def.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
-  const spend = await reserveSpend(def.usd, { admin: true });
-  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio) }) }).catch(() => null);
+  const charge = await chargePaidCredits({ admin, creator, cost: tier.cost });
+  if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost}⚡).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
+  const spend = await reserveSpend(tier.usd, { admin: true });
+  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio, q.d, q.r) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
     console.error('t2v start', body.model, r?.status, p?.detail || p?.error || '');
     await spend.release(); await charge.refund();
     return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
   }
-  const job = makeJob({ p: p.id, u: creator.id, s: null, c: charge.source === 'paid' ? def.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio });
+  const job = makeJob({ p: p.id, u: creator.id, s: null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio });
   const res = NextResponse.json({ job, status: 'processing', ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
   setCreatorCookie(res, creator);
   return res;

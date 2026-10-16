@@ -13,6 +13,8 @@ import ModelPicker, { MP_CSS } from "./ModelPicker";
 import { IMAGE_MODELS, VIDEO_MODELS, isVideoModel } from "../lib/catalog";
 import AuthSheet from "./AuthSheet";
 import EffectsGallery, { FX_CSS } from "./EffectsGallery";
+import Hero, { HERO_CSS } from "./Hero";
+import { VIDEO_PRICING, videoQuote } from "../lib/videoPricing";
 import { EFFECTS, EFFECT_COST, effectById } from "../lib/effects";
 
 export default function Home() {
@@ -29,6 +31,8 @@ export default function Home() {
   const [mode, setModeRaw] = useState("image"); // image | video | effects
   const [fxId, setFxId] = useState(null);
   const [fxPhoto, setFxPhoto] = useState(null); // { id, url }
+  const [vDur, setVDur] = useState(null); // video duration (s); null = model default
+  const [vRes, setVRes] = useState(null); // video resolution; null = model default
   const [eta, setEta] = useState(null); // { t0, secs } while a job runs
   const [tick, setTick] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -374,11 +378,14 @@ export default function Home() {
   };
   // Text-to-video from the Model picker (paid credits only).
   const runTextVideo = async (prompt, modelId, ratio) => {
-    const m = VIDEO_MODELS.find((x) => x.id === modelId);
+    const m0 = VIDEO_MODELS.find((x) => x.id === modelId);
+    const pd = VIDEO_PRICING[modelId]?.def || {};
+    const q = videoQuote(modelId, vDur ?? pd.d, vRes ?? pd.r, ratio) || videoQuote(modelId, pd.d, pd.r, ratio);
+    const m = { ...m0, cost: q?.cost ?? m0.cost };
     if (!isAdmin && paid < m.cost) { openPricing(m.label, m.cost, true); return; }
-    setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText(`${m.label} is filming…`); setEta({ t0: Date.now(), secs: m.eta || 120 });
+    setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText(`${m.label} is filming…`); setEta({ t0: Date.now(), secs: Math.round((m.eta || 120) * ((q?.d || 5) > 6 ? 1.6 : 1)) });
     try {
-      const res = await fetch("/api/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: modelId, prompt, aspectRatio: ratio }) });
+      const res = await fetch("/api/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: modelId, prompt, aspectRatio: q?.ratio || ratio, duration: q?.d, resolution: q?.r }) });
       const d = await res.json().catch(() => ({}));
       syncCredits(d);
       if (res.status === 402) { openPricing(m.label, m.cost, true); return; }
@@ -734,10 +741,15 @@ export default function Home() {
   const etaPct = eta ? Math.min(96, Math.round(100 * (1 - Math.exp(-((Date.now() - eta.t0) / 1000) / (eta.secs * 0.6))))) : 0;
   void tick;
   const curFx = effectById(fxId);
-  const pulseCost = mode === "effects" ? EFFECT_COST : faceTarget ? FACE_COST : editTarget ? EDIT_COST : guide ? GUIDED_COST : curTier.cost;
+  const vp = VIDEO_PRICING[tier];
+  const vd = vp ? (vp.durations.includes(vDur) ? vDur : vp.def.d) : null;
+  const vr0 = vp ? (vp.resolutions.includes(vRes) ? vRes : vp.def.r) : null;
+  const vratio = vp ? (vp.ratios.includes(aspectRatio) ? aspectRatio : vp.ratios[0]) : aspectRatio;
+  const vq = vp ? (videoQuote(tier, vd, vr0, vratio) || videoQuote(tier, vd, vp.def.r, vratio) || videoQuote(tier, vp.def.d, vp.def.r, vratio)) : null;
+  const pulseCost = mode === "video" && vq ? vq.cost : mode === "effects" ? EFFECT_COST : faceTarget ? FACE_COST : editTarget ? EDIT_COST : guide ? GUIDED_COST : curTier.cost;
   const onPulse = () => (mode === "effects" ? runEffect() : faceTarget ? runFaceLock() : editTarget ? runEdit() : generateImage());
   const chipText = mode === "effects" ? "Wan 2.2 · 480p · 5s · 9:16"
-    : mode === "video" ? `${curTier.label} · ${curTier.res || "720p"} · ${curTier.secs || 5}s · ${["9:16", "16:9", "1:1"].includes(aspectRatio) ? aspectRatio : "16:9"}`
+    : mode === "video" ? `${curTier.label} · ${vq?.r || curTier.res} · ${vq?.d || curTier.secs}s · ${vq?.ratio || vratio}`
     : editTarget ? "✎ Edit engine" : guide ? "◎ Guide engine" : `${curTier.label} · ${fmtDef.ratio || aspectRatio} · ${style === "None" ? "No style" : style}`;
   const toolItem = currentItem && currentItem.id && !isVideo(currentItem.url) ? currentItem : null;
   const curRatio = ratiosList.find((r) => r.id === aspectRatio) || ratiosList[0];
@@ -826,7 +838,7 @@ export default function Home() {
 
   return (
     <div dir="ltr" className="pp-root">
-      <style>{CSS + UI_CSS + FX_CSS + MP_CSS + COMPARE_CSS + MASONRY_CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
+      <style>{CSS + UI_CSS + POLISH_CSS + HERO_CSS + FX_CSS + MP_CSS + COMPARE_CSS + MASONRY_CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
       <header className="pp-header">
         <div className="pp-brand">
           <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
@@ -847,7 +859,10 @@ export default function Home() {
       <div className="pp-layout">
       {activeTab === "create" ? (
         <main className="pp-main">
-          {(mode !== "effects" || loading || (image && isVideo(image))) && <section className={`pp-stage${loading ? " pp-generating" : ""}${stageFmt ? ` pp-fmt-${stageFmt}` : ""}${!image && !loading ? " pp-is-empty" : ""}`} style={{ aspectRatio: image && stageFmt !== "avatar" ? "auto" : (stageFmt === "avatar" ? "1 / 1" : aspectRatio.replace(":", " / ")) }}>
+          {mode !== "effects" && !image && !loading && (
+            <Hero onTry={(sl) => { setMode(sl.mode === "video" ? "video" : "image"); setPrompt(sl.prompt); setRemixOf(null); showToast("✦ Prompt loaded — hit " + (sl.mode === "video" ? "Generate video" : "Pulse")); setTimeout(() => document.getElementById("pp-prompt")?.focus(), 60); }} />
+          )}
+          {((mode !== "effects" && (image || loading)) || loading || (image && isVideo(image))) && <section className={`pp-stage${loading ? " pp-generating" : ""}${stageFmt ? ` pp-fmt-${stageFmt}` : ""}${!image && !loading ? " pp-is-empty" : ""}`} style={{ aspectRatio: image && stageFmt !== "avatar" ? "auto" : (stageFmt === "avatar" ? "1 / 1" : aspectRatio.replace(":", " / ")) }}>
             {stageFmt === "wallpaper" && <div className="pp-lock" aria-hidden="true"><small>Thursday</small><b>09:41</b></div>}
             {loading ? (
               <div className="pp-ripple"><i /><i /><i /><b>{loadingText}</b>
@@ -1054,10 +1069,10 @@ export default function Home() {
           </div>
           ) : (
           <div className="pp-chiprow">
-            <label className={`pp-chip pp-upload${uploading ? " pp-generating" : ""}`} title="Upload a photo">
+            {mode !== "video" && <label className={`pp-chip pp-upload${uploading ? " pp-generating" : ""}`} title="Upload a photo">
               {uploading ? "…" : "⇪"} <span>Upload</span>
               <input type="file" accept="image/*,.heic,.heif" hidden disabled={uploading} onChange={(e) => { handleUploadFile(e.target.files?.[0]); e.target.value = ""; }} />
-            </label>
+            </label>}
             {mode === "image" && <button className={`pp-chip pp-fmtchip${format !== "free" ? " on" : ""}`} onClick={() => setSheetOpen(true)} aria-label="Format">{fmtDef.icon} <span>{fmtDef.label}</span></button>}
             <button className="pp-chip pp-summary pp-setchip" onClick={() => setSheetOpen(true)} aria-label="Model and settings">
               <b className="pp-setic">{curTier.icon}</b><span>{chipText}</span><i>▾</i>
@@ -1067,7 +1082,14 @@ export default function Home() {
           )}
           {dailyJoin && daily?.theme && <div className="pp-remixnote pp-dailynote">◉ Daily Pulse · {FORMATS[daily.theme.format].label}: “{daily.theme.text}” <button className="pp-link" onClick={() => setDailyJoin(false)}>leave</button></div>}
           {remixOf && <div className="pp-remixnote">✦ Remixing a vibe <button className="pp-link" onClick={() => setRemixOf(null)}>clear</button></div>}
-          <div className="pp-inputrow">
+          {mode === "video" && vp && (
+            <div className="pp-vctl" aria-label="Video settings">
+              <div><small>Length</small>{vp.durations.map((d) => <button key={d} className={vd === d ? "on" : ""} disabled={!videoQuote(tier, d, vr0) && !videoQuote(tier, d, vp.resolutions[0])} onClick={() => { setVDur(d); if (!videoQuote(tier, d, vr0)) setVRes(vp.resolutions.find((r) => videoQuote(tier, d, r))); }}>{d}s</button>)}</div>
+              <div><small>Quality</small>{vp.resolutions.map((r) => <button key={r} className={vq?.r === r ? "on" : ""} disabled={!videoQuote(tier, vd, r)} onClick={() => setVRes(r)}>{r}</button>)}</div>
+              <div><small>Shape</small>{vp.ratios.map((r) => <button key={r} className={vratio === r ? "on" : ""} onClick={() => setAspectRatio(r)}>{r}</button>)}</div>
+            </div>
+          )}
+          <div className={`pp-inputrow${mode === "video" ? " pp-vrow" : ""}`}>
             {mode === "effects" ? (
             <div className="pp-field pp-fxfield">
               <span>{fxPhoto ? <img src={fxPhoto.url} alt="" /> : <b>⇪</b>}</span>
@@ -1082,10 +1104,15 @@ export default function Home() {
               <button className={`pp-amp-btn${ampOpen ? " on" : ""}`} onClick={handleEnhancePrompt} title="Amplify prompt" aria-label="Amplify prompt">✦</button>
             </div>
             )}
+            {mode === "video" ? (
+            <button className="pp-vgo" onClick={() => generateImage()} disabled={loading}>
+              {loading ? <i className="pp-spin" /> : <><b>🎬</b><span>Generate video<small>{vq ? `${vq.d}s · ${vq.r} · ${vq.ratio}` : ""}</small></span><em>{isAdmin ? "∞" : `${pulseCost}⚡`}</em></>}
+            </button>
+            ) :
             <button className="pp-go" onClick={onPulse} disabled={loading || (mode === "effects" && (!curFx || !fxPhoto))}>
               <span className="pp-go-label">{loading ? <i className="pp-spin" /> : "Pulse"}</span>
               <span className="pp-cost">{isAdmin ? "∞" : `${pulseCost}⚡`}</span>
-            </button>
+            </button>}
           </div>
         </div>
       </div>
@@ -1117,7 +1144,7 @@ export default function Home() {
             <h3>{mode === "video" ? "Video model" : "Model"}</h3>
             {editTarget && <p className="pp-sheetnote">✎ Editing an image uses the Edit engine ({EDIT_COST}⚡). <button className="pp-link" onClick={() => setEditTarget(null)}>Stop editing</button> to pick an engine.</p>}
             {!editTarget && guide && <p className="pp-sheetnote">◎ A guide image is attached, so the Guide engine ({GUIDED_COST}⚡) is used. <button className="pp-link" onClick={() => setGuide(null)}>Remove guide</button> to pick an engine.</p>}
-            <ModelPicker value={tier} onChange={setTier} disabled={!!(guide || editTarget)} isAdmin={isAdmin} only={mode === "video" ? "video" : "image"} startOpen />
+            <ModelPicker value={tier} onChange={(id) => { setTier(id); setVDur(null); setVRes(null); }} disabled={!!(guide || editTarget)} isAdmin={isAdmin} only={mode === "video" ? "video" : "image"} startOpen />
             {mode === "image" && <>
             <h3>Style</h3>
             <div className="pp-styles" role="radiogroup" aria-label="Style">
@@ -1203,6 +1230,34 @@ export default function Home() {
   );
 }
 
+const POLISH_CSS = `
+.pp-root{background:radial-gradient(900px 420px at 85% -120px,rgba(236,72,153,.16),transparent 70%),radial-gradient(1100px 520px at 0% -160px,rgba(147,51,234,.22),transparent 70%),var(--bg)!important}
+.pp-main>section,.pp-main>.fx{animation:ppRise .5s cubic-bezier(.2,.8,.2,1) both}
+.pp-main>section:nth-child(2){animation-delay:.06s}.pp-main>section:nth-child(3){animation-delay:.12s}.pp-main>section:nth-child(4){animation-delay:.18s}
+.pp-bar{background:linear-gradient(180deg,rgba(24,20,40,.92),rgba(12,12,20,.94))!important;box-shadow:0 -10px 40px rgba(0,0,0,.45),0 0 0 1px rgba(168,85,247,.18),inset 0 1px 0 rgba(255,255,255,.06)!important}
+.pp-go{position:relative;animation:ppGlow 2.4s ease-in-out infinite}
+.pp-go:active,.pp-vgo:active,.pp-tool:active,.fx-card:active,.pp-chip:active{transform:scale(.96)}
+.pp-tool,.fx-card,.pp-card{transition:transform .18s ease,border-color .2s,box-shadow .2s}
+.pp-tool:hover,.fx-card:hover{transform:translateY(-2px);border-color:rgba(236,72,153,.45);box-shadow:0 10px 30px rgba(147,51,234,.25)}
+.pp-tool b{background:linear-gradient(135deg,rgba(147,51,234,.35),rgba(236,72,153,.25))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.pp-sechead h2{background:linear-gradient(90deg,#fff,#e9d5ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pp-vctl{display:flex;flex-wrap:wrap;gap:6px 8px;margin:2px 0 8px}
+.pp-vctl>div{flex:none;display:flex;align-items:center;gap:4px;padding:3px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.pp-vctl small{flex:none;padding:0 4px 0 6px;font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--mut)}
+.pp-vctl button{flex:none;padding:6px 9px;border-radius:10px;border:1px solid transparent;background:#141420;color:#d4d4e4;font-weight:800;font-size:13px;transition:all .15s}
+.pp-vctl button.on{border-color:transparent;background:linear-gradient(90deg,#0891b2,#f97316);color:#fff;box-shadow:0 4px 16px rgba(249,115,22,.3)}
+.pp-vctl button:disabled{opacity:.3}
+.pp-vrow{flex-direction:column;align-items:stretch!important}
+.pp-vgo{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;border:0;border-radius:18px;color:#fff;background:linear-gradient(100deg,#0e7490,#7c3aed 55%,#f97316);background-size:200% 100%;animation:ppSlide 5s ease infinite;box-shadow:0 8px 30px rgba(249,115,22,.28),inset 0 1px 0 rgba(255,255,255,.2);text-align:left;min-height:56px}
+.pp-vgo b{font-size:22px}.pp-vgo span{flex:1;display:flex;flex-direction:column;font-weight:900;font-size:16.5px}.pp-vgo small{font-size:11.5px;font-weight:700;opacity:.85}
+.pp-vgo em{font-style:normal;font-weight:900;font-size:15px;padding:7px 12px;border-radius:12px;background:rgba(0,0,0,.28)}
+.pp-modes button.on[aria-selected=true]{animation:ppPop .3s}
+@keyframes ppRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes ppGlow{0%,100%{box-shadow:0 6px 22px rgba(236,72,153,.35)}50%{box-shadow:0 6px 34px rgba(236,72,153,.7),0 0 0 4px rgba(236,72,153,.12)}}
+@keyframes ppSlide{0%,100%{background-position:0 0}50%{background-position:100% 0}}
+@keyframes ppPop{50%{transform:scale(1.06)}}
+@media (prefers-reduced-motion:reduce){.pp-go,.pp-vgo,.pp-main>section{animation:none!important}}
+`;
 const UI_CSS = `
 .pp-modes{display:flex;gap:4px;max-width:420px;margin:0 auto 8px;padding:4px;border-radius:999px;background:rgba(16,16,24,.92);border:1px solid var(--line);backdrop-filter:blur(14px);pointer-events:auto}
 .pp-modes button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 0;border:0;border-radius:999px;background:transparent;color:var(--mut);font-weight:800;font-size:14px}
