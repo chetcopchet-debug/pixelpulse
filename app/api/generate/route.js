@@ -14,7 +14,7 @@ import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
 import { getTheme } from '../../../lib/daily';
 import { issueCutoutPass } from '../../../lib/cutoutPass';
 import { toEnglishPrompt } from '../../../lib/translate';
-import { checkPromptText, blockedMessage } from '../../../lib/moderation';
+import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -124,6 +124,16 @@ export async function POST(request) {
         ? 'Generation timed out. Your credits were refunded. / היצירה לקחה יותר מדי זמן, הקרדיט הוחזר.'
         : 'Image generation failed. Your credits were refunded. / יצירת התמונה נכשלה, הקרדיט הוחזר.';
       const res = jsonError(msg, status, currentCredits());
+      if (!admin) setCreditsCookie(res, state);
+      return res;
+    }
+
+    // Output safety check before saving: NSFW -> refund, nothing stored. Plain text-to-image fails OPEN if the classifier
+    // is unavailable (prompt was already text-checked); a guide image (could be a real photo) fails CLOSED.
+    const gate = await checkOutputImage(result.url, guideParent ? 'closed' : 'open');
+    if (gate) {
+      await refund();
+      const res = jsonError(gate.error, gate.status, currentCredits());
       if (!admin) setCreditsCookie(res, state);
       return res;
     }

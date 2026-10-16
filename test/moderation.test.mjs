@@ -86,3 +86,39 @@ test('all prompt routes use the shared blockedMessage', () => {
     assert.ok(!/error: bad\b/.test(s), `${f} returns the raw reason`);
   }
 });
+
+// ---- Minors + revealing clothing, obfuscation, person-edit ----
+for (const p of ['a little girl in a bikini', 'teen girl in underwear', 'schoolgirl in a swimsuit', 'child in a sexually suggestive pose']) {
+  test(`blocks as minors: ${p}`, () => { assert.match(checkPromptText(p), /minors/); });
+}
+for (const p of ['n4ked woman', 's e x y woman', 's.e.x.y woman', 'p0rn']) {
+  test(`blocks obfuscated: ${p}`, () => { assert.ok(checkPromptText(p)); });
+}
+for (const p of ['cinematic city at night, 16:9, 4K', 'a 3D render of a robot, 8k', 'a b c blocks for toddlers', 'logo for C3PO fan club', 'woman in a swimsuit at the beach']) {
+  test(`normalization keeps benign: ${p}`, () => { assert.equal(checkPromptText(p), null); });
+}
+test('checkPersonEditText blocks undressing requests, allows normal edits', async () => {
+  const { checkPersonEditText } = await import('../lib/moderation.js');
+  assert.ok(checkPersonEditText('remove her clothes'));
+  assert.ok(checkPersonEditText('without clothes'));
+  assert.ok(checkPersonEditText('put him in a bikini'));
+  assert.equal(checkPersonEditText('make it night and add rain'), null);
+});
+test('outputGate: nsfw blocks, normal passes, unavailable depends on policy', async () => {
+  const { outputGate } = await import('../lib/moderation.js');
+  assert.equal(outputGate('normal', 'closed'), null);
+  const n = outputGate('nsfw', 'open'); assert.equal(n.status, 422); assert.match(n.error, /אסור/);
+  assert.equal(outputGate('unavailable', 'open'), null);
+  assert.equal(outputGate('unavailable', 'closed').status, 503);
+});
+test('output check runs before the result is saved', () => {
+  const tool = readFileSync(new URL('../lib/imagetool.js', import.meta.url), 'utf8');
+  assert.ok(tool.indexOf('checkOutputImage(url') < tool.indexOf('persistImage({'));
+  const gen = readFileSync(new URL('../app/api/generate/route.js', import.meta.url), 'utf8');
+  assert.ok(gen.indexOf('checkOutputImage(result.url') < gen.indexOf('persistImage({'));
+  for (const [f, pol] of [['edit', 'closed'], ['facelock', 'closed'], ['repaint', 'closed']]) {
+    assert.match(readFileSync(new URL(`../app/api/${f}/route.js`, import.meta.url), 'utf8'), new RegExp(`outputPolicy: '${pol}'`), f);
+  }
+  const an = readFileSync(new URL('../app/api/animate/route.js', import.meta.url), 'utf8');
+  assert.ok(an.indexOf("checkOutputImage(row.public_url, 'closed')") < an.indexOf('chargePaidCredits({ admin, creator, cost: AN.cost })'));
+});
