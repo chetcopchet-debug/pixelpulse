@@ -12,6 +12,18 @@ import { toEnglishPrompt } from '../../../lib/translate';
 import { checkPromptText } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
+import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
+import { effectById } from '../../../lib/effects';
+import sharp from 'sharp';
+
+// Pulse Effects: center-crop the photo to 9:16 (720x1280) so wan outputs a vertical, share-ready clip.
+async function toVertical(url) {
+  try {
+    const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) return url;
+    const buf = await sharp(Buffer.from(await r.arrayBuffer())).rotate().resize(720, 1280, { fit: 'cover', position: 'attention' }).jpeg({ quality: 90 }).toBuffer();
+    return `data:image/jpeg;base64,${buf.toString('base64')}`;
+  } catch { return url; }
+}
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -39,8 +51,11 @@ export async function POST(request) {
   const { data: row } = await sb.from('images').select('id, public_url, prompt, aspect_ratio, is_public, creator_id, storage_path').eq('id', body.id).maybeSingle();
   if (!row || (!row.is_public && (creator.isNew || row.creator_id !== creator.id))) return NextResponse.json({ error: 'Image not found.' }, { status: 404 });
   if (/\.mp4$/i.test(row.storage_path || '')) return NextResponse.json({ error: 'This is already a video.' }, { status: 400 });
+  const effect = typeof body?.effect === 'string' && Object.prototype.hasOwnProperty.call(EFFECT_PROMPTS, body.effect) ? body.effect : null;
+  if (body?.effect && !effect) return NextResponse.json({ error: 'Unknown effect.' }, { status: 400 });
   let motion = DEFAULT_MOTION;
-  if (raw) {
+  if (effect) motion = EFFECT_PROMPTS[effect];
+  else if (raw) {
     const en = await toEnglishPrompt(raw);
     const bad = checkPromptText(en);
     if (bad && !/published to the feed/.test(bad)) return NextResponse.json({ error: bad }, { status: 400 });
@@ -51,14 +66,14 @@ export async function POST(request) {
   const charge = await chargePaidCredits({ admin, creator, cost: AN.cost });
   if (!charge.ok) return NextResponse.json({ error: `Animate uses purchased credits (${AN.cost}⚡).`, needCredits: { cost: AN.cost, label: AN.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(AN.usd, { admin: true }); // paid work is never blocked by the free budget cap
-  const r = await api(`models/${AN.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: AN.input(row.public_url, motion) }) }).catch(() => null);
+  const r = await api(`models/${AN.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: AN.input(effect ? await toVertical(row.public_url) : row.public_url, motion) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
     console.error('animate start', r?.status, p?.detail || p?.error || '');
     await spend.release(); await charge.refund();
     return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
   }
-  const job = makeJob({ p: p.id, u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL });
+  const job = makeJob({ p: p.id, u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL, ...(effect ? { e: effect } : {}) });
   const res = NextResponse.json({ job, status: 'processing', paid: admin ? undefined : await paidFor(creator), ...(admin ? { admin: true } : {}) });
   setCreatorCookie(res, creator);
   return res;
@@ -116,16 +131,20 @@ export async function GET(request) {
   }
   if (p.status !== 'succeeded') return NextResponse.json({ status: 'processing' });
   const url = Array.isArray(p.output) ? p.output[0] : typeof p.output === 'string' ? p.output : null;
-  if (!url) return NextResponse.json({ status: 'failed', error: 'The video failed.' });
+  if (!url) { // succeeded without an output: treat as a failure and refund (once)
+    if (job.c > 0 && await bump(`animref:${job.p}`, 1, 1) !== null) await grantPaid(job.u, job.c).catch((e) => console.error('animate refund', e));
+    return NextResponse.json({ status: 'failed', error: `The video failed${job.c ? ', your credits were refunded' : ''}.`, paid: await paidFor(creator) });
+  }
   if (await bump(`animsave:${job.p}`, 1, 1) === null) return NextResponse.json({ status: 'processing' }); // another poll is saving it
   try {
     const v = await fetch(url, { cache: 'no-store' });
     if (!v.ok) throw new Error(`download ${v.status}`);
     const bytes = Buffer.from(await v.arrayBuffer());
     const { data: src0 } = job.s ? await sb.from('images').select('prompt, style, aspect_ratio').eq('id', job.s).maybeSingle() : { data: null };
-    const src = src0 || (job.pr ? { prompt: job.pr, style: 'None', aspect_ratio: job.r || '16:9' } : null);
+    const fx = job.e ? effectById(job.e) : null;
+    const src = fx ? { prompt: `✦ Pulse Effect: ${fx.name}`, style: 'None', aspect_ratio: '9:16' } : (src0 || (job.pr ? { prompt: job.pr, style: 'None', aspect_ratio: job.r || '16:9' } : null));
     const stored = await persistBytes({ bytes, contentType: 'video/mp4', prompt: src?.prompt || 'Animated image', style: src?.style || 'None',
-      ratio: src?.aspect_ratio || '1:1', creatorId: job.u, remixOf: job.s || null, tier: job.t ? `video:${job.t}` : 'animate', fixedName: name });
+      ratio: src?.aspect_ratio || '1:1', creatorId: job.u, remixOf: job.s || null, tier: job.e ? `effect:${job.e}` : job.t ? `video:${job.t}` : 'animate', fixedName: name });
     if (!stored?.id) throw new Error(stored?.error || 'save failed');
     return (await done()) || NextResponse.json({ status: 'done', item: toItem({ id: stored.id, public_url: stored.url, prompt: src?.prompt, style: src?.style, aspect_ratio: src?.aspect_ratio, remix_of: job.s }) });
   } catch (e) {
