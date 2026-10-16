@@ -9,7 +9,7 @@ import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
 import { persistBytes, MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
 import { toEnglishPrompt } from '../../../lib/translate';
-import { checkPromptText } from '../../../lib/moderation';
+import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
 import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
@@ -59,11 +59,15 @@ export async function POST(request) {
   else if (raw) {
     const en = await toEnglishPrompt(raw);
     const bad = checkPromptText(en);
-    if (bad && !/published to the feed/.test(bad)) return NextResponse.json({ error: bad }, { status: 400 });
+    if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
     motion = `${en}. Keep the scene and subject consistent.`;
   }
   if (!admin && !await rateLimit(`animate:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Animate limit reached. Try again later.' }, { status: 429 });
 
+  // Video outputs can't be classified with the image model (no frame extraction on the server), so the INPUT image is
+  // checked before charging. Fails CLOSED (often a photo of a person). Nothing is charged yet, so there is nothing to refund.
+  const inGate = await checkOutputImage(row.public_url, 'closed');
+  if (inGate) return NextResponse.json({ error: inGate.status === 503 ? inGate.error.replace(/ Your credits were refunded\.| הקרדיטים הוחזרו\./g, '') : inGate.error }, { status: inGate.status });
   const charge = await chargePaidCredits({ admin, creator, cost: AN.cost });
   if (!charge.ok) return NextResponse.json({ error: `Animate uses purchased credits (${AN.cost}⚡).`, needCredits: { cost: AN.cost, label: AN.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(AN.usd, { admin: true }); // paid work is never blocked by the free budget cap
@@ -96,7 +100,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const tier = { ...def, cost: q.cost, usd: q.usd };
   const en = await toEnglishPrompt(raw);
   const bad = checkPromptText(en);
-  if (bad && !/published to the feed/.test(bad)) return NextResponse.json({ error: bad }, { status: 400 });
+  if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
   const charge = await chargePaidCredits({ admin, creator, cost: tier.cost });
   if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost}⚡).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
