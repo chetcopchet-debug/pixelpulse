@@ -14,11 +14,17 @@ import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
 import { getTheme } from '../../../lib/daily';
 import { issueCutoutPass } from '../../../lib/cutoutPass';
 import { toEnglishPrompt } from '../../../lib/translate';
+import { checkPromptText } from '../../../lib/moderation';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
+
+// Any moderation hit blocks generation (private creation included), not just publishing.
+function blockedMessage(reason) {
+  return `${String(reason).replace(/ can’t be published to the feed\./, ' is not allowed.')} / התוכן הזה אסור ליצירה.`;
+}
 
 function jsonError(message, status, credits) {
   return NextResponse.json({ error: message, ...(credits !== undefined ? { credits } : {}) }, { status });
@@ -79,6 +85,10 @@ export async function POST(request) {
     return jsonError('Service temporarily unavailable. / השירות אינו זמין כרגע.', 503);
   }
 
+  // Prompt safety check on the original text, before any charge or spend.
+  const badOriginal = checkPromptText(prompt);
+  if (badOriginal) return jsonError(blockedMessage(badOriginal), 400);
+
   // Charge before calling Replicate (admin bypasses credits and rate limits). Free first, then paid balance.
   const notEnough = async () => NextResponse.json({ error: `Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`, needCredits: { cost, label: tierDef.label }, credits: currentCredits(), paid: await paidFor(creator) }, { status: 402 });
   const charge = await chargeCredits({ admin, state, ip, creator, cost });
@@ -97,6 +107,14 @@ export async function POST(request) {
   try {
     // Transparent translation: any language -> descriptive English (on-image text kept verbatim in Text mode). Fails open.
     const englishPrompt = await toEnglishPrompt(prompt.trim(), { keepText: TEXT_TIERS.includes(selectedTier) && storedTier === selectedTier, admin });
+
+    const badEnglish = checkPromptText(englishPrompt);
+    if (badEnglish) {
+      await refund();
+      const res = jsonError(blockedMessage(badEnglish), 400, currentCredits());
+      if (!admin) setCreditsCookie(res, state);
+      return res;
+    }
 
     const finalPrompt = buildFinalPrompt(applyFormat(englishPrompt, format), selectedStyle);
     const dailyTheme = daily === true ? await getTheme() : null;

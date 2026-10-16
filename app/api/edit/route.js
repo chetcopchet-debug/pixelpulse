@@ -13,7 +13,7 @@ async function prepare(body) {
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
   const english = await toEnglishPrompt(prompt);
   const bad = checkPromptText(english);
-  if (bad && !/published to the feed/.test(bad)) return { error: bad };
+  if (bad) return { error: bad };
   const args = [english];
   args.promptLabel = prompt;
   return { args };

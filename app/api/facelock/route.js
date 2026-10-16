@@ -15,7 +15,7 @@ async function prepare(body) {
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
   const english = await toEnglishPrompt(prompt);
   const bad = checkPromptText(english);
-  if (bad && !/published to the feed/.test(bad)) return { error: bad };
+  if (bad) return { error: bad };
   const ratio = VALID_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : '1:1';
   const full = `Use the person in the reference photo. Keep their exact face, facial features, skin tone, age and identity unchanged and clearly recognizable. New image: ${english}`;
   const args = [full, ratio];
