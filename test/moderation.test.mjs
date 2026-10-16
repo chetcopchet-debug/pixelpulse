@@ -32,3 +32,29 @@ test('no route keeps the published-to-feed exception', () => {
     assert.ok(!/published to the feed\/\.test/.test(src), f);
   }
 });
+
+test('blocks a Hebrew sexual prompt (porn word)', () => { assert.ok(checkPromptText('תמונת פורנו של זוג')); });
+test('blocks a mixed English + Hebrew sexual prompt', () => {
+  assert.ok(checkPromptText('a beautiful woman עירומה on the beach'));
+  assert.ok(checkPromptText('naked אישה בחוף'));
+});
+test('mixed Hebrew minor + English sexual is treated as minors', () => { assert.match(checkPromptText('ילדה sexy'), /minors/); });
+
+const src = (f) => readFileSync(new URL(`../app/api/${f}/route.js`, import.meta.url), 'utf8');
+test('repaint checks original and English prompt inside prepare (before runImageTool charges)', () => {
+  const s = src('repaint');
+  const o = s.indexOf('checkPromptText(prompt)'), t = s.indexOf('toEnglishPrompt(prompt)'), e = s.indexOf('checkPromptText(english)');
+  assert.ok(o > 0 && o < t && t < e, 'order: check original -> translate -> check English');
+  assert.ok(e < s.indexOf('return { args }'), 'English check must run before args are returned to the charging tool');
+  const tool = readFileSync(new URL('../lib/imagetool.js', import.meta.url), 'utf8');
+  assert.ok(tool.indexOf('prepare(body)') < tool.indexOf('chargeCredits({') && tool.indexOf('prepare(body)') < tool.indexOf('reserveSpend('), 'prepare runs before charge/spend');
+});
+test('amplify checks input before spend, English after translation, and model output', () => {
+  const s = src('amplify');
+  const i = s.indexOf('checkPromptText(prompt)');
+  assert.ok(i > 0 && i < s.indexOf('reserveSpend('), 'input check before reserveSpend');
+  const e = s.indexOf('checkPromptText(english)');
+  assert.ok(e > s.indexOf('translateIfHebrew(seed)') && e < s.indexOf('runReplicate('), 'English check before the model call');
+  assert.match(s.slice(e, e + 120), /spend\.release\(\)/);
+  assert.ok(s.indexOf('suggestions.map(checkPromptText)') > s.indexOf('parseSuggestions(text)'), 'output check missing');
+});
