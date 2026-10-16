@@ -11,7 +11,7 @@ export function LegalPage({ title, children, noRemoval }) {
         {children}
         {!noRemoval && <><h2>Contact & removal requests</h2>
         <p>Email <a href={`mailto:${CONTACT_EMAIL}?subject=Removal%20request`}>{CONTACT_EMAIL}</a> with the image link (pixelpulse…/p/&lt;id&gt;) and the reason. We aim to act on valid removal requests within 48 hours.</p></>}
-        <p style={{ marginTop: 30, fontSize: 13 }}><a href="/pricing">Pricing</a> · <a href="/contact">Contact</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund-policy">Refunds</a> · <a href="/content-policy">Content Policy</a></p>
+        <p style={{ marginTop: 30, fontSize: 13 }}><a href="/pricing">Pricing</a> · <a href="/contact">Contact</a> · <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/refund-policy">Refunds</a> · <a href="/content-policy">Content Policy</a> · <a href="/terms#safety">Safety &amp; Reporting</a></p>
       </div>
     </div>
   );

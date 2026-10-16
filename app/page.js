@@ -1,4 +1,5 @@
 "use client";
+import ReportSheet from "./ReportSheet";
 import { useState, useEffect, useRef } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import CompareSlider, { COMPARE_CSS } from "./CompareSlider";
@@ -12,6 +13,10 @@ import PricingModal from "./PricingModal";
 import ModelPicker, { MP_CSS } from "./ModelPicker";
 import { IMAGE_MODELS, VIDEO_MODELS, isVideoModel } from "../lib/catalog";
 import AuthSheet from "./AuthSheet";
+import EffectsGallery, { FX_CSS } from "./EffectsGallery";
+import Hero, { HERO_CSS } from "./Hero";
+import { VIDEO_PRICING, videoQuote } from "../lib/videoPricing";
+import { EFFECTS, EFFECT_COST, effectById } from "../lib/effects";
 
 export default function Home() {
   const [prompt, setPrompt] = useState("");
@@ -21,9 +26,16 @@ export default function Home() {
   const TIERS = IMAGE_MODELS; // image models (best-first); video models live in VIDEO_MODELS
   const ALL_TIERS = [...IMAGE_MODELS, ...VIDEO_MODELS];
   const tierCost = (TIERS.find((t) => t.id === tier) || TIERS.find((t) => t.id === "fast")).cost;
-  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; if (id === "edit") return "✎ Edited"; if (id === "animate") return "▶ Video"; if (id === "facelock") return "◉ Face Lock"; if (String(id || "").startsWith("video:")) { const v = VIDEO_MODELS.find((x) => `video:${x.id}` === id); return `▶ ${v ? v.label : "Video"}`; } const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
+  const tierLabel = (id) => { if (id === "upload") return "⇪ Upload"; if (id === "guided") return "◎ Guided"; if (id === "edit") return "✎ Edited"; if (id === "animate") return "▶ Video"; if (id === "facelock") return "◉ Face Lock"; if (String(id || "").startsWith("effect:")) { const e = effectById(String(id).slice(7)); return `✦ ${e ? e.name : "Effect"}`; } if (String(id || "").startsWith("video:")) { const v = VIDEO_MODELS.find((x) => `video:${x.id}` === id); return `▶ ${v ? v.label : "Video"}`; } const t = TIERS.find((x) => x.id === (id || "fast")); return t ? `${t.icon} ${t.label}` : ""; };
   const safeTier = (id) => (TIERS.some((t) => t.id === id) ? id : "fast");
   const [image, setImage] = useState(null);
+  const [mode, setModeRaw] = useState("image"); // image | video | effects
+  const [fxId, setFxId] = useState(null);
+  const [fxPhoto, setFxPhoto] = useState(null); // { id, url }
+  const [vDur, setVDur] = useState(null); // video duration (s); null = model default
+  const [vRes, setVRes] = useState(null); // video resolution; null = model default
+  const [eta, setEta] = useState(null); // { t0, secs } while a job runs
+  const [tick, setTick] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState("Initializing AI studio...");
   const [downloading, setDownloading] = useState(false);
@@ -303,22 +315,19 @@ export default function Home() {
     setPrompt(item.prompt && item.prompt !== "Uploaded image" ? item.prompt : "");
     if (item.style && stylesList.includes(item.style)) setStyle(item.style);
     if (item.aspectRatio && ratiosList.some((r) => r.id === item.aspectRatio)) setAspectRatio(item.aspectRatio);
-    if (item.tier && TIERS.some((t) => t.id === item.tier)) setTier(item.tier);
+    const tv = String(item.tier || "");
+    if (tv.startsWith("effect:") && effectById(tv.slice(7))) { setMode("effects"); setFxId(tv.slice(7)); setRemixOf(null); setActiveTab("create"); window.scrollTo({ top: 0, behavior: "smooth" }); showToast("✦ Effect loaded — add your photo and Pulse"); return; }
+    if (tv.startsWith("video:") && VIDEO_MODELS.some((m) => `video:${m.id}` === tv)) { setMode("video", tv.slice(6)); }
+    else { setMode("image", TIERS.some((t) => t.id === item.tier) ? item.tier : undefined); }
     setFormat(item.format && FORMATS[item.format] ? item.format : "free");
     setRemixOf(item.id || null);
     setActiveTab("create");
-    showToast("✦ Vibe loaded — tweak it and Pulse");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    showToast("↻ Remix loaded — prompt, style & model set. Tweak it and Pulse");
     setTimeout(() => { const el = document.getElementById("pp-prompt"); el?.focus(); el?.setSelectionRange?.(el.value.length, el.value.length); }, 60);
   };
-  const handleReport = async (item) => {
-    const reason = window.prompt("Why are you reporting this image? (e.g. explicit, real person, hateful, copyright)", "");
-    if (reason === null) return;
-    try {
-      const r = await fetch("/api/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, reason }) });
-      const d = await r.json().catch(() => ({}));
-      showToast(r.ok ? "⚑ Thanks — we'll review it" : (d.error || "Couldn't send report"));
-    } catch { showToast("Couldn't send report"); }
-  };
+  const [reportItem, setReportItem] = useState(null);
+  const handleReport = (item) => { if (item?.id) setReportItem(item); };
   const [modList, setModList] = useState(null);
   const loadModList = async () => {
     const r = await fetch("/api/admin/hide", { cache: "no-store" }); const d = await r.json().catch(() => ({}));
@@ -363,18 +372,39 @@ export default function Home() {
   };
   // Text-to-video from the Model picker (paid credits only).
   const runTextVideo = async (prompt, modelId, ratio) => {
-    const m = VIDEO_MODELS.find((x) => x.id === modelId);
+    const m0 = VIDEO_MODELS.find((x) => x.id === modelId);
+    const pd = VIDEO_PRICING[modelId]?.def || {};
+    const q = videoQuote(modelId, vDur ?? pd.d, vRes ?? pd.r, ratio) || videoQuote(modelId, pd.d, pd.r, ratio);
+    const m = { ...m0, cost: q?.cost ?? m0.cost };
     if (!isAdmin && paid < m.cost) { openPricing(m.label, m.cost, true); return; }
-    setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText(`${m.label} is filming… about 1–3 min`);
+    setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText(`${m.label} is filming…`); setEta({ t0: Date.now(), secs: Math.round((m.eta || 120) * ((q?.d || 5) > 6 ? 1.6 : 1)) });
     try {
-      const res = await fetch("/api/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: modelId, prompt, aspectRatio: ratio }) });
+      const res = await fetch("/api/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: modelId, prompt, aspectRatio: q?.ratio || ratio, duration: q?.d, resolution: q?.r }) });
       const d = await res.json().catch(() => ({}));
       syncCredits(d);
       if (res.status === 402) { openPricing(m.label, m.cost, true); return; }
       if (!res.ok || !d.job) throw new Error(d.error || "Could not start the video.");
       await pollVideoJob(d.job);
     } catch (e) { setError(e.message); }
-    finally { setLoading(false); setLoadingText("Initializing AI studio..."); }
+    finally { setLoading(false); setEta(null); setLoadingText("Initializing AI studio..."); }
+  };
+  // Pulse Effects: one photo + one effect -> 9:16 clip (paid credits, refunded by the server if it fails).
+  const runEffect = async () => {
+    const fx = effectById(fxId);
+    if (!fxPhoto?.id) { setError("Add a photo first — tap “Add a photo”."); return; }
+    if (!fx) { setError("Pick an effect below."); return; }
+    if (!isAdmin && paid < EFFECT_COST) { openPricing(fx.name, EFFECT_COST, true); return; }
+    setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText(`${fx.icon} ${fx.name} in progress…`); setEta({ t0: Date.now(), secs: 75 });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      const res = await fetch("/api/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: fxPhoto.id, effect: fx.id }) });
+      const d = await res.json().catch(() => ({}));
+      syncCredits(d);
+      if (res.status === 402) { openPricing(fx.name, EFFECT_COST, true); return; }
+      if (!res.ok || !d.job) throw new Error(d.error || "Could not start the effect.");
+      await pollVideoJob(d.job);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); setEta(null); setLoadingText("Initializing AI studio..."); }
   };
   const handleAnimate = async (item) => {
     if (!item?.id) { showToast("This image wasn't saved to the cloud"); return; }
@@ -684,6 +714,38 @@ export default function Home() {
   };
 
   const curTier = ALL_TIERS.find((t) => t.id === tier) || TIERS.find((t) => t.id === "fast");
+  // Mode switcher: Image / Video / Effects. Each mode remembers its last model.
+  const lastTier = useRef({ image: "fast", video: "wan" });
+  const setMode = (m, t) => {
+    if (TIERS.some((x) => x.id === tier)) lastTier.current.image = tier; else if (isVideoModel(tier)) lastTier.current.video = tier;
+    setModeRaw(m);
+    if (m === "image") setTier(t || lastTier.current.image || "fast");
+    if (m === "video") { setTier(t || lastTier.current.video || "wan"); setEditTarget(null); setFaceTarget(null); setGuide(null); setFormat("free"); }
+    if (m === "effects") { setEditTarget(null); setFaceTarget(null); setGuide(null); if (currentItem?.id && !isVideo(currentItem.url)) setFxPhoto({ id: currentItem.id, url: currentItem.url }); }
+  };
+  useEffect(() => { if (prefsLoaded && isVideoModel(tier) && mode === "image") setModeRaw("video"); /* eslint-disable-next-line */ }, [prefsLoaded]);
+  useEffect(() => { if (mode === "effects" && currentItem?.id && !isVideo(currentItem.url)) setFxPhoto({ id: currentItem.id, url: currentItem.url }); /* eslint-disable-next-line */ }, [currentItem, mode]);
+  useEffect(() => {
+    if (!loading) { setEta(null); return; }
+    setEta((e) => e || { t0: Date.now(), secs: curTier.id === "fast" ? 5 : 15 });
+    const t = setInterval(() => setTick((n) => n + 1), 500); return () => clearInterval(t);
+    /* eslint-disable-next-line */
+  }, [loading]);
+  const etaLeft = eta ? Math.max(0, Math.round(eta.secs - (Date.now() - eta.t0) / 1000)) : 0;
+  const etaPct = eta ? Math.min(96, Math.round(100 * (1 - Math.exp(-((Date.now() - eta.t0) / 1000) / (eta.secs * 0.6))))) : 0;
+  void tick;
+  const curFx = effectById(fxId);
+  const vp = VIDEO_PRICING[tier];
+  const vd = vp ? (vp.durations.includes(vDur) ? vDur : vp.def.d) : null;
+  const vr0 = vp ? (vp.resolutions.includes(vRes) ? vRes : vp.def.r) : null;
+  const vratio = vp ? (vp.ratios.includes(aspectRatio) ? aspectRatio : vp.ratios[0]) : aspectRatio;
+  const vq = vp ? (videoQuote(tier, vd, vr0, vratio) || videoQuote(tier, vd, vp.def.r, vratio) || videoQuote(tier, vp.def.d, vp.def.r, vratio)) : null;
+  const pulseCost = mode === "video" && vq ? vq.cost : mode === "effects" ? EFFECT_COST : faceTarget ? FACE_COST : editTarget ? EDIT_COST : guide ? GUIDED_COST : curTier.cost;
+  const onPulse = () => (mode === "effects" ? runEffect() : faceTarget ? runFaceLock() : editTarget ? runEdit() : generateImage());
+  const chipText = mode === "effects" ? "Wan 2.2 · 480p · 5s · 9:16"
+    : mode === "video" ? `${curTier.label} · ${vq?.r || curTier.res} · ${vq?.d || curTier.secs}s · ${vq?.ratio || vratio}`
+    : editTarget ? "✎ Edit engine" : guide ? "◎ Guide engine" : `${curTier.label} · ${fmtDef.ratio || aspectRatio} · ${style === "None" ? "No style" : style}`;
+  const toolItem = currentItem && currentItem.id && !isVideo(currentItem.url) ? currentItem : null;
   const curRatio = ratiosList.find((r) => r.id === aspectRatio) || ratiosList[0];
   const ratioBox = (id) => ({ "1:1": [16, 16], "9:16": [11, 18], "16:9": [20, 12] }[id] || [16, 16]);
 
@@ -723,7 +785,7 @@ export default function Home() {
     };
     const report = { key: "report", icon: "⚑", label: "Report", hint: "Breaks the rules?", tone: "danger", onClick: () => handleReport(item) };
     const hide = isAdmin ? { key: "hide", icon: "⦸", label: "Hide (admin)", tone: "danger", onClick: () => adminHide(item, true) } : null;
-    if (isVideo(item.url)) return { primary: [A.download, ctx === "feed" ? null : A.copy], more: [] };
+    if (isVideo(item.url)) return { primary: [A.download, ctx === "feed" ? null : A.copy], more: ctx === "feed" ? [report, hide] : [] };
     if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.edit, A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.animate, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
     if (isUpload) return { primary: [A.edit, A.facelock, A.download], more: [A.repaint, A.animate, A.guide, A.sharpen, A.cutout, ...extra] };
     return {
@@ -770,7 +832,7 @@ export default function Home() {
 
   return (
     <div dir="ltr" className="pp-root">
-      <style>{CSS + MP_CSS + COMPARE_CSS + MASONRY_CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
+      <style>{CSS + UI_CSS + POLISH_CSS + HERO_CSS + FX_CSS + MP_CSS + COMPARE_CSS + MASONRY_CSS + REPAINT_CSS + GALLERY_CSS + IA_CSS + THUMB_CSS}</style>
       <header className="pp-header">
         <div className="pp-brand">
           <div className={`pp-logo${loading ? " pp-beat" : ""}`}><span /></div>
@@ -791,22 +853,51 @@ export default function Home() {
       <div className="pp-layout">
       {activeTab === "create" ? (
         <main className="pp-main">
-          <section className={`pp-stage${loading ? " pp-generating" : ""}${stageFmt ? ` pp-fmt-${stageFmt}` : ""}${!image && !loading ? " pp-is-empty" : ""}`} style={{ aspectRatio: image && stageFmt !== "avatar" ? "auto" : (stageFmt === "avatar" ? "1 / 1" : aspectRatio.replace(":", " / ")) }}>
+          {mode !== "effects" && !image && !loading && (
+            <Hero onTry={(sl) => { setMode(sl.mode === "video" ? "video" : "image"); setPrompt(sl.prompt); setRemixOf(null); showToast("✦ Prompt loaded — hit " + (sl.mode === "video" ? "Generate video" : "Pulse")); setTimeout(() => document.getElementById("pp-prompt")?.focus(), 60); }} />
+          )}
+          {((mode !== "effects" && (image || loading)) || loading || (image && isVideo(image))) && <section className={`pp-stage${loading ? " pp-generating" : ""}${stageFmt ? ` pp-fmt-${stageFmt}` : ""}${!image && !loading ? " pp-is-empty" : ""}`} style={{ aspectRatio: image && stageFmt !== "avatar" ? "auto" : (stageFmt === "avatar" ? "1 / 1" : aspectRatio.replace(":", " / ")) }}>
             {stageFmt === "wallpaper" && <div className="pp-lock" aria-hidden="true"><small>Thursday</small><b>09:41</b></div>}
             {loading ? (
-              <div className="pp-ripple"><i /><i /><i /><b>{loadingText}</b></div>
+              <div className="pp-ripple"><i /><i /><i /><b>{loadingText}</b>
+                {eta && <div className="pp-eta" role="progressbar" aria-valuenow={etaPct} aria-valuemin={0} aria-valuemax={100}><span><i style={{ width: `${etaPct}%` }} /></span><small>{etaLeft > 0 ? `≈ ${etaLeft >= 60 ? `${Math.floor(etaLeft / 60)}m ${etaLeft % 60}s` : `${etaLeft}s`} left` : "Finishing up…"} · credits auto-refund if it fails</small></div>}
+              </div>
             ) : image && compare && compare.after === image ? (
               <CompareSlider before={compare.before} after={compare.after} label={compare.label} onKeep={() => setCompare(null)} onRevert={revertCompare} />
             ) : image && isVideo(image) ? (
-              <video className="pp-video" src={image} controls autoPlay loop muted playsInline />
+              <div className="pp-vwrap"><video className="pp-video" src={image} controls autoPlay loop muted playsInline />{!isAdmin && !purchased && paid === 0 && <span className="pp-wm">made with pixelpulse</span>}</div>
             ) : image ? (
               <img src={image} alt="Generated AI Art" />
             ) : (
               <div className="pp-empty"><p>Type an idea and hit <b>Pulse</b> — or tap a spark ↓</p></div>
             )}
-          </section>
-          {image && currentItem && !loading && <Actions item={currentItem} />}
-          {!image && !loading && (
+          </section>}
+          {image && currentItem && !loading && (mode !== "effects" || isVideo(image)) && <Actions item={currentItem} />}
+          {mode === "effects" && (
+            <EffectsGallery photo={fxPhoto} selected={fxId} onSelect={(id) => { setFxId(id); setError(""); }} onUpload={handleUploadFile} uploading={uploading} isAdmin={isAdmin}
+              recent={history.filter((h) => h.id && !isVideo(h.url))} onPickRecent={(r) => setFxPhoto(r ? { id: r.id, url: r.url } : null)} />
+          )}
+          {mode !== "effects" && !loading && (
+            <section className="pp-tools" aria-label="Tools">
+              <div className="pp-sechead"><h2>Tools</h2><small className="pp-muted2">{toolItem ? "for the image above" : "create or upload an image first"}</small></div>
+              <div className="pp-toolrow">
+                {[
+                  { k: "edit", ic: "✎", n: "Edit", d: "Change it with words", c: EDIT_COST, run: () => attachEdit(toolItem) },
+                  { k: "cutout", ic: "✂", n: "Cutout", d: "Remove background", c: 1, run: () => handleTool("cutout", toolItem) },
+                  { k: "face", ic: "◉", n: "Face Lock", d: "Same face, new scene", c: FACE_COST, paid: true, run: () => attachFace(toolItem) },
+                  { k: "animate", ic: "▶", n: "Animate", d: "Bring it to life", c: ANIMATE_COST, paid: true, run: () => handleAnimate(toolItem) },
+                  { k: "hd", ic: "◇", n: "HD", d: "2x sharper", c: 1, run: () => handleTool("sharpen", toolItem) },
+                ].map((t) => (
+                  <label key={t.k} className={`pp-tool${toolItem ? "" : " pp-tool-up"}${toolBusy.startsWith(t.k === "hd" ? "sharpen" : t.k) || (t.k === "animate" && toolItem && animating[toolItem.id]) ? " pp-generating" : ""}`}
+                    onClick={(e) => { if (toolItem) { e.preventDefault(); t.run(); } }}>
+                    <b>{t.ic}</b><span>{t.n}</span><small>{t.d}</small><em>{isAdmin ? "∞" : `${t.c}⚡`}{t.paid ? " · paid" : ""}</em>
+                    {!toolItem && <input type="file" accept="image/*,.heic,.heif" hidden disabled={uploading} onChange={(e) => { handleUploadFile(e.target.files?.[0]); e.target.value = ""; }} />}
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
+          {mode !== "effects" && !image && !loading && (
             <section className="pp-start">
               <div className="pp-starters">
                 {STARTERS.map((st) => (
@@ -891,7 +982,7 @@ export default function Home() {
               <Masonry className="pp-feed" items={(daily?.entries || []).map(toItem)} getRatio={(it) => it.aspectRatio} renderItem={(item, idx) => (
                   <div className="pp-card" key={item.id}>
                     <a href={`/p/${item.id}`}><span className="pp-rank">{idx === 0 ? "👑" : `#${idx + 1}`}</span><Thumb src={item.url} ratio={item.aspectRatio || "1:1"} alt={item.prompt} style={{ aspectRatio: (item.aspectRatio || "1:1").replace(":", " / ") }} /></a>
-                    <div className="pp-cardbody"><p>“{item.prompt}”</p><Actions item={item} ctx="feed" compact /></div>
+                    <div className="pp-cardbody"><p>“{item.prompt}”</p><button className="pp-remixbtn" onClick={() => handlePulseVibe(item)}>↻ Remix</button><Actions item={item} ctx="feed" compact /></div>
                   </div>
               )} />
             </>
@@ -904,6 +995,7 @@ export default function Home() {
                 <div className="pp-cardbody">
                   <p>“{item.prompt}”</p>
                   <span className="pp-meta">{[item.style === "None" ? "No style" : item.style, tierLabel(item.tier), item.aspectRatio || "1:1", item.remixOf ? "Remix" : ""].filter(Boolean).join(" · ")}</span>
+                  <button className="pp-remixbtn" onClick={() => handlePulseVibe(item)} aria-label={`Remix: ${item.prompt}`}>↻ Remix</button>
                   <Actions item={item} ctx="feed" compact />
                 </div>
               </div>
@@ -913,10 +1005,15 @@ export default function Home() {
         </main>
       )}
 
-      <footer className="pp-foot"><a href="/pricing">Pricing</a><a href="/formats">Formats</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a></footer>
+      <footer className="pp-foot"><a href="/pricing">Pricing</a><a href="/formats">Formats</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a><a href="/content-policy">Content Policy</a><a href="/terms#safety">Safety &amp; Reporting</a></footer>
 
       {/* Pulse Bar composer */}
       <div className="pp-dock">
+        <div className="pp-modes" role="tablist" aria-label="Mode">
+          {[["image", "◐", "Image"], ["video", "▶", "Video"], ["effects", "✦", "Effects"]].map(([m, ic, l]) => (
+            <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? "on" : ""} onClick={() => { setMode(m); setActiveTab("create"); }}><i>{ic}</i>{l}</button>
+          ))}
+        </div>
         <div className={`pp-bar${loading ? " pp-generating" : ""}`}>
           {ampOpen && (
             <div className="pp-amp">
@@ -960,31 +1057,56 @@ export default function Home() {
               <button className="pp-chip pp-ghost" onClick={() => setGuide(null)} aria-label="Remove guide">✕</button>
             </div>
           )}
+          {mode === "effects" ? (
           <div className="pp-chiprow">
-            <label className={`pp-chip pp-upload${uploading ? " pp-generating" : ""}`} title="Upload a photo">
+            <span className="pp-chip pp-summary pp-setchip"><span>{chipText}</span></span>
+          </div>
+          ) : (
+          <div className="pp-chiprow">
+            {mode !== "video" && <label className={`pp-chip pp-upload${uploading ? " pp-generating" : ""}`} title="Upload a photo">
               {uploading ? "…" : "⇪"} <span>Upload</span>
               <input type="file" accept="image/*,.heic,.heif" hidden disabled={uploading} onChange={(e) => { handleUploadFile(e.target.files?.[0]); e.target.value = ""; }} />
-            </label>
-            <button className={`pp-chip pp-fmtchip${format !== "free" ? " on" : ""}`} onClick={() => setSheetOpen(true)} aria-label="Format">{fmtDef.icon} <span>{fmtDef.label}</span></button>
-            <button className="pp-chip pp-summary" onClick={() => setSheetOpen(true)} aria-label="Engine, style and shape">
-              <span>{settingsSummary}</span><i>▾</i>
+            </label>}
+            {mode === "image" && <button className={`pp-chip pp-fmtchip${format !== "free" ? " on" : ""}`} onClick={() => setSheetOpen(true)} aria-label="Format">{fmtDef.icon} <span>{fmtDef.label}</span></button>}
+            <button className="pp-chip pp-summary pp-setchip" onClick={() => setSheetOpen(true)} aria-label="Model and settings">
+              <b className="pp-setic">{curTier.icon}</b><span>{chipText}</span><i>▾</i>
             </button>
-            <button className="pp-chip pp-ghost pp-icon" onClick={handleSurpriseMe} title="Surprise me" aria-label="Surprise me">🎲</button>
+            {mode === "image" && <button className="pp-chip pp-ghost pp-icon" onClick={handleSurpriseMe} title="Surprise me" aria-label="Surprise me">🎲</button>}
           </div>
+          )}
           {dailyJoin && daily?.theme && <div className="pp-remixnote pp-dailynote">◉ Daily Pulse · {FORMATS[daily.theme.format].label}: “{daily.theme.text}” <button className="pp-link" onClick={() => setDailyJoin(false)}>leave</button></div>}
           {remixOf && <div className="pp-remixnote">✦ Remixing a vibe <button className="pp-link" onClick={() => setRemixOf(null)}>clear</button></div>}
-          <div className="pp-inputrow">
+          {mode === "video" && vp && (
+            <div className="pp-vctl" aria-label="Video settings">
+              <div><small>Length</small>{vp.durations.map((d) => <button key={d} className={vd === d ? "on" : ""} disabled={!videoQuote(tier, d, vr0) && !videoQuote(tier, d, vp.resolutions[0])} onClick={() => { setVDur(d); if (!videoQuote(tier, d, vr0)) setVRes(vp.resolutions.find((r) => videoQuote(tier, d, r))); }}>{d}s</button>)}</div>
+              <div><small>Quality</small>{vp.resolutions.map((r) => <button key={r} className={vq?.r === r ? "on" : ""} disabled={!videoQuote(tier, vd, r)} onClick={() => setVRes(r)}>{r}</button>)}</div>
+              <div><small>Shape</small>{vp.ratios.map((r) => <button key={r} className={vratio === r ? "on" : ""} onClick={() => setAspectRatio(r)}>{r}</button>)}</div>
+            </div>
+          )}
+          <div className={`pp-inputrow${mode === "video" ? " pp-vrow" : ""}`}>
+            {mode === "effects" ? (
+            <div className="pp-field pp-fxfield">
+              <span>{fxPhoto ? <img src={fxPhoto.url} alt="" /> : <b>⇪</b>}</span>
+              <p>{curFx ? <><b>{curFx.icon} {curFx.name}</b><small>{fxPhoto ? "No prompt needed — just Pulse" : "Add a photo above"}</small></> : <><b>Pick an effect</b><small>{fxPhoto ? "Tap one of the effects above" : "Add a photo, then tap an effect"}</small></>}</p>
+            </div>
+            ) : (
             <div className="pp-field">
               <textarea id="pp-prompt" maxLength={1500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); faceTarget ? runFaceLock() : editTarget ? runEdit() : generateImage(); } }}
-                placeholder={faceTarget ? "New scene for this face — e.g. as an astronaut on Mars" : editTarget ? "Describe the change — e.g. make it night" : "Describe a vision — any language…"} />
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); onPulse(); } }}
+                placeholder={faceTarget ? "New scene for this face — e.g. as an astronaut on Mars" : editTarget ? "Describe the change — e.g. make it night" : mode === "video" ? "Describe a scene in motion — any language…" : "Describe an image — any language…"} />
               {prompt.length > 1200 && <span className="pp-count" aria-live="polite">{prompt.length}/1500</span>}
               <button className={`pp-amp-btn${ampOpen ? " on" : ""}`} onClick={handleEnhancePrompt} title="Amplify prompt" aria-label="Amplify prompt">✦</button>
             </div>
-            <button className="pp-go" onClick={() => (faceTarget ? runFaceLock() : editTarget ? runEdit() : generateImage())} disabled={loading}>
-              <span className="pp-go-label">{loading ? <i className="pp-spin" /> : "Pulse"}</span>
-              <span className="pp-cost">{isAdmin ? "∞" : `${faceTarget ? FACE_COST : editTarget ? EDIT_COST : guide ? GUIDED_COST : curTier.cost}⚡`}</span>
+            )}
+            {mode === "video" ? (
+            <button className="pp-vgo" onClick={() => generateImage()} disabled={loading}>
+              {loading ? <i className="pp-spin" /> : <><b>🎬</b><span>Generate video<small>{vq ? `${vq.d}s · ${vq.r} · ${vq.ratio}` : ""}</small></span><em>{isAdmin ? "∞" : `${pulseCost}⚡`}</em></>}
             </button>
+            ) :
+            <button className="pp-go" onClick={onPulse} disabled={loading || (mode === "effects" && (!curFx || !fxPhoto))}>
+              <span className="pp-go-label">{loading ? <i className="pp-spin" /> : "Pulse"}</span>
+              <span className="pp-cost">{isAdmin ? "∞" : `${pulseCost}⚡`}</span>
+            </button>}
           </div>
         </div>
       </div>
@@ -994,6 +1116,7 @@ export default function Home() {
         <div className="pp-scrim" onClick={() => setSheetOpen(false)}>
           <div className="pp-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="pp-grab" />
+            {mode === "image" && <>
             <h3>Format</h3>
             <input className="pp-fmtsearch" type="search" placeholder="Search 30 formats — logo, thumbnail, tattoo…" value={fmtQuery} onChange={(e) => setFmtQuery(e.target.value)} aria-label="Search formats" />
             {Object.entries(FORMAT_GROUPS).map(([g, gl]) => {
@@ -1011,10 +1134,12 @@ export default function Home() {
               );
             })}
             {format !== "free" && <p className="pp-sheetnote">{fmtDef.ratio} frame · recommended engine set{fmtDef.autoCutout ? " · auto Cutout is free" : ""} · <a className="pp-link" href={`/formats/${format}`}>About {fmtDef.label}</a></p>}
-            <h3>Model</h3>
+            </>}
+            <h3>{mode === "video" ? "Video model" : "Model"}</h3>
             {editTarget && <p className="pp-sheetnote">✎ Editing an image uses the Edit engine ({EDIT_COST}⚡). <button className="pp-link" onClick={() => setEditTarget(null)}>Stop editing</button> to pick an engine.</p>}
             {!editTarget && guide && <p className="pp-sheetnote">◎ A guide image is attached, so the Guide engine ({GUIDED_COST}⚡) is used. <button className="pp-link" onClick={() => setGuide(null)}>Remove guide</button> to pick an engine.</p>}
-            <ModelPicker value={tier} onChange={setTier} disabled={!!(guide || editTarget)} isAdmin={isAdmin} />
+            <ModelPicker value={tier} onChange={(id) => { setTier(id); setVDur(null); setVRes(null); }} disabled={!!(guide || editTarget)} isAdmin={isAdmin} only={mode === "video" ? "video" : "image"} startOpen />
+            {mode === "image" && <>
             <h3>Style</h3>
             <div className="pp-styles" role="radiogroup" aria-label="Style">
               {stylesList.map((s) => (
@@ -1024,9 +1149,10 @@ export default function Home() {
                 </button>
               ))}
             </div>
+            </>}
             <h3>Shape</h3>
             <div className="pp-chips">
-              {ratiosList.map((r) => (
+              {ratiosList.filter((r) => mode !== "video" || ["9:16", "16:9", "1:1"].includes(r.id)).map((r) => (
                 <button key={r.id} disabled={!!fmtDef.ratio && fmtDef.ratio !== r.id} className={`pp-chip pp-big${aspectRatio === r.id ? " on" : ""}`} onClick={() => setAspectRatio(r.id)}>
                   <i className="pp-ar" style={{ width: ratioBox(r.id)[0] * 1.4, height: ratioBox(r.id)[1] * 1.4 }} /><small>{r.label}</small>
                 </button>
@@ -1088,16 +1214,68 @@ export default function Home() {
                 </div>
               ) : <p className="pp-modnote">{modList.error}</p>)}
             </nav>
-            <div className="pp-legal"><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a><a href="/content-policy">Content Policy</a></div>
+            <div className="pp-legal"><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a><a href="/content-policy">Content Policy</a><a href="/terms#safety">Safety &amp; Reporting</a></div>
           </aside>
         </div>
       )}
 
+      {reportItem && <ReportSheet id={reportItem.id} onClose={() => setReportItem(null)} onDone={(m) => showToast(m)} />}
       {toast && <div className="pp-toast" key={toast}>{toast}</div>}
     </div>
   );
 }
 
+const POLISH_CSS = `
+.pp-root{background:radial-gradient(900px 420px at 85% -120px,rgba(236,72,153,.16),transparent 70%),radial-gradient(1100px 520px at 0% -160px,rgba(147,51,234,.22),transparent 70%),var(--bg)!important}
+.pp-main>section,.pp-main>.fx{animation:ppRise .5s cubic-bezier(.2,.8,.2,1) both}
+.pp-main>section:nth-child(2){animation-delay:.06s}.pp-main>section:nth-child(3){animation-delay:.12s}.pp-main>section:nth-child(4){animation-delay:.18s}
+.pp-bar{background:linear-gradient(180deg,rgba(24,20,40,.92),rgba(12,12,20,.94))!important;box-shadow:0 -10px 40px rgba(0,0,0,.45),0 0 0 1px rgba(168,85,247,.18),inset 0 1px 0 rgba(255,255,255,.06)!important}
+.pp-go{position:relative;animation:ppGlow 2.4s ease-in-out infinite}
+.pp-go:active,.pp-vgo:active,.pp-tool:active,.fx-card:active,.pp-chip:active{transform:scale(.96)}
+.pp-tool,.fx-card,.pp-card{transition:transform .18s ease,border-color .2s,box-shadow .2s}
+.pp-tool:hover,.fx-card:hover{transform:translateY(-2px);border-color:rgba(236,72,153,.45);box-shadow:0 10px 30px rgba(147,51,234,.25)}
+.pp-tool b{background:linear-gradient(135deg,rgba(147,51,234,.35),rgba(236,72,153,.25))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.pp-sechead h2{background:linear-gradient(90deg,#fff,#e9d5ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pp-vctl{display:flex;flex-wrap:wrap;gap:6px 8px;margin:2px 0 8px}
+.pp-vctl>div{flex:none;display:flex;align-items:center;gap:4px;padding:3px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.pp-vctl small{flex:none;padding:0 4px 0 6px;font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--mut)}
+.pp-vctl button{flex:none;padding:6px 9px;border-radius:10px;border:1px solid transparent;background:#141420;color:#d4d4e4;font-weight:800;font-size:13px;transition:all .15s}
+.pp-vctl button.on{border-color:transparent;background:linear-gradient(90deg,#0891b2,#f97316);color:#fff;box-shadow:0 4px 16px rgba(249,115,22,.3)}
+.pp-vctl button:disabled{opacity:.3}
+.pp-vrow{flex-direction:column;align-items:stretch!important}
+.pp-vgo{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;border:0;border-radius:18px;color:#fff;background:linear-gradient(100deg,#0e7490,#7c3aed 55%,#f97316);background-size:200% 100%;animation:ppSlide 5s ease infinite;box-shadow:0 8px 30px rgba(249,115,22,.28),inset 0 1px 0 rgba(255,255,255,.2);text-align:left;min-height:56px}
+.pp-vgo b{font-size:22px}.pp-vgo span{flex:1;display:flex;flex-direction:column;font-weight:900;font-size:16.5px}.pp-vgo small{font-size:11.5px;font-weight:700;opacity:.85}
+.pp-vgo em{font-style:normal;font-weight:900;font-size:15px;padding:7px 12px;border-radius:12px;background:rgba(0,0,0,.28)}
+.pp-modes button.on[aria-selected=true]{animation:ppPop .3s}
+@keyframes ppRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes ppGlow{0%,100%{box-shadow:0 6px 22px rgba(236,72,153,.35)}50%{box-shadow:0 6px 34px rgba(236,72,153,.7),0 0 0 4px rgba(236,72,153,.12)}}
+@keyframes ppSlide{0%,100%{background-position:0 0}50%{background-position:100% 0}}
+@keyframes ppPop{50%{transform:scale(1.06)}}
+@media (prefers-reduced-motion:reduce){.pp-go,.pp-vgo,.pp-main>section{animation:none!important}}
+`;
+const UI_CSS = `
+.pp-modes{display:flex;gap:4px;max-width:420px;margin:0 auto 8px;padding:4px;border-radius:999px;background:rgba(16,16,24,.92);border:1px solid var(--line);backdrop-filter:blur(14px);pointer-events:auto}
+.pp-modes button{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 0;border:0;border-radius:999px;background:transparent;color:var(--mut);font-weight:800;font-size:14px}
+.pp-modes button i{font-style:normal;font-size:12px}
+.pp-modes button.on{background:linear-gradient(90deg,var(--v),var(--p));color:#fff;box-shadow:0 4px 18px rgba(236,72,153,.35)}
+.pp-setchip{display:flex;align-items:center;gap:6px;min-width:0}.pp-setchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pp-setic{font-size:12px}
+.pp-fxfield{display:flex;align-items:center;gap:10px;padding:6px 10px!important;min-height:52px}
+.pp-fxfield>span{flex:0 0 36px;height:44px;border-radius:9px;overflow:hidden;display:grid;place-items:center;background:#1d1d2c}
+.pp-fxfield img{width:100%;height:100%;object-fit:cover}
+.pp-fxfield p{margin:0;display:flex;flex-direction:column;min-width:0}.pp-fxfield p b{font-size:15px}.pp-fxfield p small{font-size:12px;color:var(--mut)}
+.pp-eta{width:min(260px,80%);margin-top:10px;display:flex;flex-direction:column;gap:6px;align-items:center}
+.pp-eta span{display:block;width:100%;height:6px;border-radius:9px;background:rgba(255,255,255,.1);overflow:hidden}
+.pp-eta span i{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--v),var(--p));transition:width .5s}
+.pp-eta small{font-size:11.5px;color:#cfcde0;text-align:center}
+.pp-vwrap{position:relative;width:100%}.pp-wm{position:absolute;right:10px;top:10px;font-size:11px;font-weight:800;color:rgba(255,255,255,.75);text-shadow:0 1px 4px #000;pointer-events:none}
+.pp-tools{max-width:560px;margin:14px auto 0}.pp-muted2{color:var(--mut);font-size:12px}
+.pp-toolrow{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 6px;scroll-snap-type:x mandatory}
+.pp-tool{flex:0 0 100px;width:100px;min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:18px;border:1px solid var(--line);background:linear-gradient(160deg,#16162a,#0f0f18);cursor:pointer}
+.pp-tool b{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:rgba(168,85,247,.18);color:#f0abfc;font-size:16px;margin-bottom:4px}
+.pp-tool span{font-weight:800;font-size:14px}.pp-tool small{font-size:11px;color:var(--mut);line-height:1.25}.pp-tool em{font-style:normal;font-size:11px;font-weight:800;color:#f9a8d4;margin-top:4px}
+.pp-tool-up{opacity:.7}
+.pp-remixbtn{align-self:flex-start;margin:6px 0 4px;padding:6px 12px;border-radius:999px;border:1px solid rgba(236,72,153,.55);background:rgba(236,72,153,.12);color:#fbcfe8;font-weight:800;font-size:12.5px}
+`;
 const CSS = `
 :root{--bg:#07070a;--panel:#101018;--line:#1f1f2e;--v:#9333ea;--v2:#a855f7;--p:#ec4899;--txt:#e9e7f5;--mut:#7c7c94}
 body{margin:0;background:var(--bg)}

@@ -7,6 +7,9 @@ import { rateLimit } from '../../../lib/ratelimit';
 import { translateIfHebrew, MAX_PROMPT_LENGTH } from '../../../lib/generation';
 import { runReplicate, TOOLS } from '../../../lib/replicate';
 import { ruleEnhance } from '../../../lib/enhance';
+import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
+
+
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -35,10 +38,15 @@ export async function POST(request) {
   if (!isAdmin(request) && !await rateLimit(`amp:${creator.isNew ? ip : creator.id}`, 20, 60 * 60_000)) {
     return NextResponse.json({ error: 'Amplify limit reached (20/hour). Try again later.' }, { status: 429 });
   }
+  // Safety check on the user's text before any spend record or model call (Amplify charges no credits).
+  const badInput = checkPromptText(prompt);
+  if (badInput) return NextResponse.json({ error: blocked(badInput) }, { status: 400 });
   const seed = prompt || 'a surprising, beautiful scene';
   // Counted in the global daily spend cap (Llama 3 8B ≈ $0.0005/call). When the cap is hit, fall back to free rule-based ideas.
   const spend = await reserveSpend(0.0005, { admin: isAdmin(request) });
   const english = await translateIfHebrew(seed);
+  const badEnglish = checkPromptText(english);
+  if (badEnglish) { await spend.release(); return NextResponse.json({ error: blocked(badEnglish) }, { status: 400 }); }
 
   if (process.env.REPLICATE_API_TOKEN && spend.ok) {
     const r = await runReplicate({
@@ -51,6 +59,9 @@ export async function POST(request) {
     });
     const text = Array.isArray(r.output) ? r.output.join('') : r.output;
     const suggestions = parseSuggestions(text);
+    // Check the model's output too: any unsafe suggestion blocks the whole reply (no credits are charged here).
+    const badOut = suggestions.map(checkPromptText).find(Boolean);
+    if (badOut) return NextResponse.json({ error: blocked(badOut) }, { status: 400 });
     if (suggestions.length >= 2) return NextResponse.json({ suggestions, source: 'llm', intensity });
     if (r.error) await spend.release();
     console.error('Amplify LLM fallback:', r.error || 'unparseable output');

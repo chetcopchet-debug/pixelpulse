@@ -3,14 +3,15 @@ import { useState } from "react";
 import { IMAGE_MODELS, VIDEO_MODELS } from "../lib/catalog";
 
 // One compact Model selector: shows the current model; tap to expand the full best-first list (Image / Video).
-export default function ModelPicker({ value, onChange, disabled, isAdmin }) {
-  const [open, setOpen] = useState(false);
+export default function ModelPicker({ value, onChange, disabled, isAdmin, only, startOpen }) {
+  const [open, setOpen] = useState(!!startOpen);
   const all = [...IMAGE_MODELS, ...VIDEO_MODELS];
   const cur = all.find((m) => m.id === value) || IMAGE_MODELS[IMAGE_MODELS.length - 1];
   const isVid = VIDEO_MODELS.some((m) => m.id === cur.id);
+  const rank = (m, video) => (video ? VIDEO_MODELS : IMAGE_MODELS).findIndex((x) => x.id === m.id) + 1;
   const Row = ({ m, video }) => (
     <button role="option" aria-selected={m.id === value} className={`mp-row${m.id === value ? " on" : ""}`} onClick={() => { onChange(m.id); setOpen(false); }}>
-      <i className="mp-ic" aria-hidden="true">{m.icon}</i>
+      <i className="mp-ic" aria-hidden="true">{m.icon}<em className="mp-rank" title="Quality rank">#{rank(m, video)}</em></i>
       <span className="mp-main"><b>{m.label}<em className={`mp-badge mp-b-${m.badge.toLowerCase()}`}>{m.badge}</em></b><small>{m.desc}</small><small className="mp-by">{m.by}</small></span>
       <span className="mp-cost">{isAdmin ? "∞" : `${m.cost}⚡`}{video && <small>paid</small>}</span>
     </button>
@@ -24,10 +25,10 @@ export default function ModelPicker({ value, onChange, disabled, isAdmin }) {
       </button>
       {open && (
         <div className="mp-list" role="listbox" aria-label="Models">
-          <p className="mp-sec">Image</p>
-          {IMAGE_MODELS.map((m) => <Row key={m.id} m={m} />)}
-          <p className="mp-sec">Video <small>purchased credits</small></p>
-          {VIDEO_MODELS.map((m) => <Row key={m.id} m={m} video />)}
+          {only !== "video" && <><p className="mp-sec">Image <small>ranked by quality</small></p>
+          {IMAGE_MODELS.map((m) => <Row key={m.id} m={m} />)}</>}
+          {only !== "image" && <><p className="mp-sec">Video <small>ranked by quality · purchased credits</small></p>
+          {VIDEO_MODELS.map((m) => <Row key={m.id} m={m} video />)}</>}
         </div>
       )}
     </div>
@@ -39,6 +40,7 @@ export const MP_CSS = `
 .mp-cur,.mp-row{width:100%;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:18px;border:1px solid var(--line);background:#141420;color:var(--txt);text-align:left;cursor:pointer}
 .mp-cur{border-color:rgba(236,72,153,.45);background:linear-gradient(90deg,rgba(147,51,234,.16),rgba(236,72,153,.08))}
 .mp-ic{flex:0 0 34px;height:34px;border-radius:12px;display:grid;place-items:center;font-style:normal;font-size:16px;background:#1d1d2c;color:#e9d5ff}
+.mp-ic{position:relative}.mp-rank{position:absolute;right:-5px;bottom:-5px;font-style:normal;font-size:9px;font-weight:800;padding:1px 4px;border-radius:7px;background:#2a2a40;color:#f0abfc;border:1px solid #0b0b12}
 .mp-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .mp-main b{font-size:14px;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .mp-main small{font-size:11.5px;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

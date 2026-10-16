@@ -14,11 +14,15 @@ import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
 import { getTheme } from '../../../lib/daily';
 import { issueCutoutPass } from '../../../lib/cutoutPass';
 import { toEnglishPrompt } from '../../../lib/translate';
+import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
+import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
+
+// Any moderation hit blocks generation (private creation included), not just publishing.
 
 function jsonError(message, status, credits) {
   return NextResponse.json({ error: message, ...(credits !== undefined ? { credits } : {}) }, { status });
@@ -79,6 +83,12 @@ export async function POST(request) {
     return jsonError('Service temporarily unavailable. / השירות אינו זמין כרגע.', 503);
   }
 
+  // Prompt safety check on the original text, before any charge or spend.
+  const glog = (moderation, outputRef) => logGeneration({ userId: creator.id, ip, mode: guideParent ? 'generate:guided' : 'generate', prompt, inputRef: guideParent, outputRef, moderation });
+  if (!admin && await isBanned(creator.id)) return jsonError(BANNED_MSG, 403);
+  const badOriginal = checkPromptText(prompt);
+  if (badOriginal) { await glog('blocked:text'); return jsonError(blockedMessage(badOriginal), 400); }
+
   // Charge before calling Replicate (admin bypasses credits and rate limits). Free first, then paid balance.
   const notEnough = async () => NextResponse.json({ error: `Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`, needCredits: { cost, label: tierDef.label }, credits: currentCredits(), paid: await paidFor(creator) }, { status: 402 });
   const charge = await chargeCredits({ admin, state, ip, creator, cost });
@@ -98,6 +108,15 @@ export async function POST(request) {
     // Transparent translation: any language -> descriptive English (on-image text kept verbatim in Text mode). Fails open.
     const englishPrompt = await toEnglishPrompt(prompt.trim(), { keepText: TEXT_TIERS.includes(selectedTier) && storedTier === selectedTier, admin });
 
+    const badEnglish = checkPromptText(englishPrompt);
+    if (badEnglish) {
+      await glog('blocked:text');
+      await refund();
+      const res = jsonError(blockedMessage(badEnglish), 400, currentCredits());
+      if (!admin) setCreditsCookie(res, state);
+      return res;
+    }
+
     const finalPrompt = buildFinalPrompt(applyFormat(englishPrompt, format), selectedStyle);
     const dailyTheme = daily === true ? await getTheme() : null;
     const result = await runPrediction(finalPrompt, selectedRatio, tierDef);
@@ -113,11 +132,23 @@ export async function POST(request) {
       return res;
     }
 
+    // Output safety check before saving: NSFW -> refund, nothing stored. Plain text-to-image fails OPEN if the classifier
+    // is unavailable (prompt was already text-checked); a guide image (could be a real photo) fails CLOSED.
+    const gate = await checkOutputImage(result.url, guideParent ? 'closed' : 'open');
+    if (gate) {
+      await glog(gate.status === 422 ? 'blocked:output' : 'blocked:unavailable');
+      await refund();
+      const res = jsonError(gate.error, gate.status, currentCredits());
+      if (!admin) setCreditsCookie(res, state);
+      return res;
+    }
+
     const stored = await persistImage({
       sourceUrl: result.url, prompt: prompt.trim(), style: selectedStyle, ratio: selectedRatio,
       creatorId: creator.id, remixOf: guideParent || (isUuid(remixOf) ? remixOf : null), tier: storedTier,
       extra: { ...(format !== 'free' ? { format } : {}), ...(dailyTheme ? { daily_day: dailyTheme.day, daily_theme: dailyTheme.text } : {}) },
     });
+    await glog('passed', stored?.id || 'unsaved');
 
     const res = NextResponse.json({
       success: true,

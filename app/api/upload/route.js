@@ -5,6 +5,7 @@ import { getClientIp } from '../../../lib/credits';
 import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
 import { persistBytes } from '../../../lib/generation';
+import { isBanned, BANNED_MSG } from '../../../lib/trustSafety';
 import { normalizeImage, ImageProcError, ratioFor } from '../../../lib/imageproc';
 
 export const runtime = 'nodejs';
@@ -28,6 +29,7 @@ export async function POST(request) {
   if (!isAdmin(request) && (!await rateLimit(`up:${creator.isNew ? ip : creator.id}`, 20, 60 * 60_000) || !await rateLimit(`up:ip:${ip}`, 40, 60 * 60_000))) {
     return err('Upload limit reached (20/hour). Try again later.', 429);
   }
+  if (!isAdmin(request) && await isBanned(creator.id)) return err(BANNED_MSG, 403);
 
   // Idempotency: the client sends one upload id per picked photo; a retry/double-send returns the same row.
   const uploadId = request.headers.get('x-upload-id');
