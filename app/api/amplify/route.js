@@ -7,9 +7,9 @@ import { rateLimit } from '../../../lib/ratelimit';
 import { translateIfHebrew, MAX_PROMPT_LENGTH } from '../../../lib/generation';
 import { runReplicate, TOOLS } from '../../../lib/replicate';
 import { ruleEnhance } from '../../../lib/enhance';
-import { checkPromptText } from '../../../lib/moderation';
+import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
 
-const blocked = (reason) => `${String(reason).replace(/ can’t be published to the feed\./, ' is not allowed.')} / התוכן הזה אסור ליצירה.`;
+
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';

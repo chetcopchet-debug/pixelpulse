@@ -14,7 +14,7 @@ import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
 import { getTheme } from '../../../lib/daily';
 import { issueCutoutPass } from '../../../lib/cutoutPass';
 import { toEnglishPrompt } from '../../../lib/translate';
-import { checkPromptText } from '../../../lib/moderation';
+import { checkPromptText, blockedMessage } from '../../../lib/moderation';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -22,9 +22,6 @@ export const fetchCache = 'force-no-store';
 
 
 // Any moderation hit blocks generation (private creation included), not just publishing.
-function blockedMessage(reason) {
-  return `${String(reason).replace(/ can’t be published to the feed\./, ' is not allowed.')} / התוכן הזה אסור ליצירה.`;
-}
 
 function jsonError(message, status, credits) {
   return NextResponse.json({ error: message, ...(credits !== undefined ? { credits } : {}) }, { status });

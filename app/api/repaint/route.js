@@ -1,10 +1,10 @@
 import { runImageTool } from '../../../lib/imagetool';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
 import { toEnglishPrompt } from '../../../lib/translate';
-import { checkPromptText } from '../../../lib/moderation';
+import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
 
 // prepare() runs before runImageTool charges or records spend, so a block here costs nothing.
-const blocked = (reason) => `${String(reason).replace(/ can’t be published to the feed\./, ' is not allowed.')} / התוכן הזה אסור ליצירה.`;
+
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';

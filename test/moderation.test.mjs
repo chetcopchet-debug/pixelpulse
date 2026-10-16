@@ -58,3 +58,31 @@ test('amplify checks input before spend, English after translation, and model ou
   assert.match(s.slice(e, e + 120), /spend\.release\(\)/);
   assert.ok(s.indexOf('suggestions.map(checkPromptText)') > s.indexOf('parseSuggestions(text)'), 'output check missing');
 });
+
+// False-positive guard: these benign prompts must pass.
+for (const p of ['chicken breasts with herbs', 'comic strip about a cat', 'strip mall at sunset', 'Suicide Squad movie poster style',
+  'nude lipstick shade swatch', 'a field of rape flowers in bloom', 'kill all the lights in a dark room', 'נגן סקסופון ברחוב בלילה',
+  'a nazi propaganda poster in a museum exhibit']) {
+  test(`allows benign: ${p}`, () => { assert.equal(checkPromptText(p), null); });
+}
+// Still blocked, including clear-context uses of the ambiguous words.
+for (const p of ['naked woman on a beach', 'אישה עירומה בחוף', 'sexy lingerie model', 'stripper on a pole', 'strip club at night',
+  'rape scene', 'a rape victim', 'nude woman', 'woman showing her breasts', 'suicide note on a table', 'kill all jews',
+  'heil hitler banner', 'nazi propaganda poster for my rally', 'סקסית בחוף', 'deepfake of my neighbor']) {
+  test(`still blocks: ${p}`, () => { assert.ok(checkPromptText(p)); });
+}
+test('teen + sexy is blocked as minors', () => { assert.match(checkPromptText('sexy teen'), /minors/); });
+test('blockedMessage is bilingual and never says "published to the feed"', async () => {
+  const { blockedMessage } = await import('../lib/moderation.js');
+  for (const p of ['naked woman', 'gore', 'heil hitler']) {
+    const m = blockedMessage(checkPromptText(p));
+    assert.ok(!/published to the feed/.test(m)); assert.match(m, /אסור/);
+  }
+});
+test('all prompt routes use the shared blockedMessage', () => {
+  for (const f of ['generate', 'repaint', 'amplify', 'facelock', 'edit', 'animate']) {
+    const s = readFileSync(new URL(`../app/api/${f}/route.js`, import.meta.url), 'utf8');
+    assert.match(s, /blockedMessage/, f);
+    assert.ok(!/error: bad\b/.test(s), `${f} returns the raw reason`);
+  }
+});

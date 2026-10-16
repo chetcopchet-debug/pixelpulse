@@ -9,7 +9,7 @@ import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
 import { persistBytes, MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
 import { toEnglishPrompt } from '../../../lib/translate';
-import { checkPromptText } from '../../../lib/moderation';
+import { checkPromptText, blockedMessage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
 
@@ -43,7 +43,7 @@ export async function POST(request) {
   if (raw) {
     const en = await toEnglishPrompt(raw);
     const bad = checkPromptText(en);
-    if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+    if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
     motion = `${en}. Keep the scene and subject consistent.`;
   }
   if (!admin && !await rateLimit(`animate:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Animate limit reached. Try again later.' }, { status: 429 });
@@ -75,7 +75,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const ratio = VALID_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : '16:9';
   const en = await toEnglishPrompt(raw);
   const bad = checkPromptText(en);
-  if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+  if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
   const charge = await chargePaidCredits({ admin, creator, cost: def.cost });
   if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${def.cost}⚡).`, needCredits: { cost: def.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
