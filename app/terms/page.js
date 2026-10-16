@@ -16,6 +16,16 @@ export default function Terms() {
       </ul>
       <h2>Acceptable use</h2>
       <p>Follow the <a href="/content-policy">Content Policy</a>. Don't abuse, scrape, overload or try to bypass limits or security. We may remove content or block access that breaks these rules.</p>
+      <h2 id="safety">Safety, consent and takedowns</h2>
+      <p style={{ padding: '10px 14px', border: '1px dashed #f59e0b', borderRadius: 12, color: '#fbbf24', fontSize: 13 }}>Draft — this section is pending legal review and may change.</p>
+      <ul>
+        <li><b>Consent for real people.</b> Don't upload, edit, Face Lock, animate or otherwise create images or videos of a real, identifiable person unless you have their permission. Never use the service to make intimate, sexual, humiliating or deceptive content of a real person.</li>
+        <li><b>Prohibited content.</b> Don't create, upload or share sexual or nude content, content that sexualizes or depicts minors in any way that is sexual or revealing, graphic violence or gore, or content that harasses, threatens or promotes harm. Any content sexualizing minors is reported to the relevant authorities.</li>
+        <li><b>You are responsible.</b> You are solely responsible for your prompts, uploads and results and for how you use them, and you confirm you have every right and consent needed. You agree to indemnify PixelPulse against claims arising from content you create or upload in breach of these terms.</li>
+        <li><b>Removal and bans.</b> We may, at our discretion and without notice, hide, remove or delete any content and suspend or ban any account or device, including through automated systems. Repeated violations lead to an automatic ban.</li>
+        <li><b>Reporting.</b> Anyone can report content with the ⚑ Report button on any public image or share page, no account needed. Reports about minors or about real people shown without consent are hidden right away while we review, and we aim to act on every valid removal request within 48 hours. You can also reach us via <a href="/contact">Contact</a>.</li>
+        <li><b>Records.</b> To prevent abuse and to cooperate with lawful requests, we keep a log of generation activity (account or device id, a hashed IP address, prompts, input and output references, safety-check results and time). See the <a href="/privacy">Privacy Policy</a>.</li>
+      </ul>
       <h2>No warranty</h2>
       <p>AI output can be inaccurate or unexpected. The service is provided "as is", without warranties, and to the extent permitted by law we're not liable for indirect or consequential losses.</p>
       <h2>Changes</h2>

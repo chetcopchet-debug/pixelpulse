@@ -14,6 +14,7 @@ export default async function AdminLogin(props) {
           style={{ padding: '13px 16px', borderRadius: 999, border: '1px solid #2a2a40', background: '#101018', color: '#fff', fontSize: 15 }} />
         <button type="submit" style={{ padding: 13, borderRadius: 999, border: 'none', background: 'linear-gradient(90deg,#9333ea,#ec4899)', color: '#fff', fontWeight: 800, fontSize: 15 }}>Enter</button>
         {e && <small style={{ color: '#f87171' }}>{e}</small>}
+        <a href="/admin/reports" style={{ color: '#7c7c94', fontSize: 13, textAlign: 'center' }}>Reports queue →</a>
       </form>
       <form method="post" action="/api/admin" style={{ position: 'fixed', bottom: 16 }}>
         <input type="hidden" name="logout" value="1" />
