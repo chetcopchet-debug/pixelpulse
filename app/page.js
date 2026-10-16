@@ -1,4 +1,5 @@
 "use client";
+import ReportSheet from "./ReportSheet";
 import { useState, useEffect, useRef } from "react";
 import RepaintEditor, { REPAINT_CSS } from "./RepaintEditor";
 import CompareSlider, { COMPARE_CSS } from "./CompareSlider";
@@ -310,15 +311,8 @@ export default function Home() {
     showToast("✦ Vibe loaded — tweak it and Pulse");
     setTimeout(() => { const el = document.getElementById("pp-prompt"); el?.focus(); el?.setSelectionRange?.(el.value.length, el.value.length); }, 60);
   };
-  const handleReport = async (item) => {
-    const reason = window.prompt("Why are you reporting this image? (e.g. explicit, real person, hateful, copyright)", "");
-    if (reason === null) return;
-    try {
-      const r = await fetch("/api/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, reason }) });
-      const d = await r.json().catch(() => ({}));
-      showToast(r.ok ? "⚑ Thanks — we'll review it" : (d.error || "Couldn't send report"));
-    } catch { showToast("Couldn't send report"); }
-  };
+  const [reportItem, setReportItem] = useState(null);
+  const handleReport = (item) => { if (item?.id) setReportItem(item); };
   const [modList, setModList] = useState(null);
   const loadModList = async () => {
     const r = await fetch("/api/admin/hide", { cache: "no-store" }); const d = await r.json().catch(() => ({}));
@@ -723,7 +717,7 @@ export default function Home() {
     };
     const report = { key: "report", icon: "⚑", label: "Report", hint: "Breaks the rules?", tone: "danger", onClick: () => handleReport(item) };
     const hide = isAdmin ? { key: "hide", icon: "⦸", label: "Hide (admin)", tone: "danger", onClick: () => adminHide(item, true) } : null;
-    if (isVideo(item.url)) return { primary: [A.download, ctx === "feed" ? null : A.copy], more: [] };
+    if (isVideo(item.url)) return { primary: [A.download, ctx === "feed" ? null : A.copy], more: ctx === "feed" ? [report, hide] : [] };
     if (ctx === "feed") return { primary: [A.like, A.vibe], more: [A.edit, A.variation, A.copy, A.share, A.card, A.guide, A.repaint, A.animate, A.download, A.sharpen, A.cutout, report, hide, ...extra] };
     if (isUpload) return { primary: [A.edit, A.facelock, A.download], more: [A.repaint, A.animate, A.guide, A.sharpen, A.cutout, ...extra] };
     return {
@@ -913,7 +907,7 @@ export default function Home() {
         </main>
       )}
 
-      <footer className="pp-foot"><a href="/pricing">Pricing</a><a href="/formats">Formats</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a></footer>
+      <footer className="pp-foot"><a href="/pricing">Pricing</a><a href="/formats">Formats</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a><a href="/content-policy">Content Policy</a><a href="/terms#safety">Safety &amp; Reporting</a></footer>
 
       {/* Pulse Bar composer */}
       <div className="pp-dock">
@@ -1088,11 +1082,12 @@ export default function Home() {
                 </div>
               ) : <p className="pp-modnote">{modList.error}</p>)}
             </nav>
-            <div className="pp-legal"><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a><a href="/content-policy">Content Policy</a></div>
+            <div className="pp-legal"><a href="/pricing">Pricing</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a><a href="/content-policy">Content Policy</a><a href="/terms#safety">Safety &amp; Reporting</a></div>
           </aside>
         </div>
       )}
 
+      {reportItem && <ReportSheet id={reportItem.id} onClose={() => setReportItem(null)} onDone={(m) => showToast(m)} />}
       {toast && <div className="pp-toast" key={toast}>{toast}</div>}
     </div>
   );

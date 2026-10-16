@@ -12,6 +12,7 @@ import { toEnglishPrompt } from '../../../lib/translate';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
+import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -31,6 +32,7 @@ export async function POST(request) {
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
   const body = await request.json().catch(() => ({}));
+  if (!admin && await isBanned(creator.id)) return NextResponse.json({ error: BANNED_MSG }, { status: 403 });
   if (typeof body?.model === 'string') return startTextVideo(request, body, { admin, creator, ip });
   if (!isUuid(body?.id)) return NextResponse.json({ error: 'Invalid image id.' }, { status: 400 });
   const raw = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, MAX_PROMPT_LENGTH) : '';
@@ -51,6 +53,7 @@ export async function POST(request) {
   // Video outputs can't be classified with the image model (no frame extraction on the server), so the INPUT image is
   // checked before charging. Fails CLOSED (often a photo of a person). Nothing is charged yet, so there is nothing to refund.
   const inGate = await checkOutputImage(row.public_url, 'closed');
+  if (inGate) await logGeneration({ userId: creator.id, ip, mode: 'animate', prompt: raw, inputRef: row.id, moderation: inGate.status === 422 ? 'blocked:input' : 'blocked:unavailable' });
   if (inGate) return NextResponse.json({ error: inGate.status === 503 ? inGate.error.replace(/ Your credits were refunded\.| הקרדיטים הוחזרו\./g, '') : inGate.error }, { status: inGate.status });
   const charge = await chargePaidCredits({ admin, creator, cost: AN.cost });
   if (!charge.ok) return NextResponse.json({ error: `Animate uses purchased credits (${AN.cost}⚡).`, needCredits: { cost: AN.cost, label: AN.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
@@ -62,6 +65,7 @@ export async function POST(request) {
     await spend.release(); await charge.refund();
     return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
   }
+  await logGeneration({ userId: creator.id, ip, mode: 'animate', prompt: raw, inputRef: row.id, outputRef: `pred:${p.id}`, moderation: 'passed:input-only' });
   const job = makeJob({ p: p.id, u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL });
   const res = NextResponse.json({ job, status: 'processing', paid: admin ? undefined : await paidFor(creator), ...(admin ? { admin: true } : {}) });
   setCreatorCookie(res, creator);
@@ -91,6 +95,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
     await spend.release(); await charge.refund();
     return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
   }
+  await logGeneration({ userId: creator.id, ip, mode: `t2v:${body.model}`, prompt: raw, outputRef: `pred:${p.id}`, moderation: 'passed:text-only' });
   const job = makeJob({ p: p.id, u: creator.id, s: null, c: charge.source === 'paid' ? def.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio });
   const res = NextResponse.json({ job, status: 'processing', ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
   setCreatorCookie(res, creator);

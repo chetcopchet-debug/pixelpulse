@@ -9,6 +9,7 @@ import { rateLimit } from '../../../lib/ratelimit';
 
 import { isAdmin } from '../../../lib/admin';
 import { moderateForPublish } from '../../../lib/moderation';
+import { isBanned, BANNED_MSG } from '../../../lib/trustSafety';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,7 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   if (!isUuid(body?.id)) return NextResponse.json({ error: 'Invalid image id.' }, { status: 400 });
   const makePublic = body.public !== false;
+  if (makePublic && !isAdmin(request) && await isBanned(creator.id)) return NextResponse.json({ error: BANNED_MSG }, { status: 403 });
   let entryDay = null;
   if (makePublic) {
     const { data: dRow, error: dErr } = await supabase.from('images').select('daily_day').eq('id', body.id).eq('creator_id', creator.id).maybeSingle();
