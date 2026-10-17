@@ -2,6 +2,7 @@ import { runImageTool } from '../../../lib/imagetool';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
 import { toEnglishPrompt, TRANSLATE_BUSY_MSG } from '../../../lib/translate';
 import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
+import { withErrorLog } from '../../../lib/monitor';
 
 // prepare() runs before runImageTool charges or records spend, so a block here costs nothing.
 
@@ -29,6 +30,8 @@ async function prepare(body) {
   return { args };
 }
 
-export async function POST(request) {
+async function POSTHandler(request) {
   return runImageTool(request, { tool: 'repaint', cost: 8, usd: 0.05, label: 'Repaint', outputPolicy: 'closed' /* repaints any of your images incl. uploaded photos of people: fail closed */, limit: { n: 15, ms: 60 * 60_000 }, prepare });
 }
+
+export const POST = withErrorLog('/api/repaint', POSTHandler);

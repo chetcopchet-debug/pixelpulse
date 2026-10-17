@@ -6,11 +6,12 @@ import { paidFor, uidRemaining } from '../../../lib/credits';
 import { readAccount } from '../../../lib/account';
 import { getCreatorId } from '../../../lib/identity';
 import { paymentsEnabled, planEnabled, PLANS, hasPurchased } from '../../../lib/paid';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-export async function GET(request) {
+async function GETHandler(request) {
   if (isAdmin(request)) { const a = readAccount(request); return NextResponse.json({ credits: null, admin: true, account: a ? { email: a.email } : null }); }
   const state = readCreditsCookie(request.cookies.get(COOKIE_NAME)?.value);
   await loadIpBonus(getClientIp(request));
@@ -23,3 +24,5 @@ export async function GET(request) {
   setCreditsCookie(res, state);
   return res;
 }
+
+export const GET = withErrorLog('/api/credits', GETHandler);

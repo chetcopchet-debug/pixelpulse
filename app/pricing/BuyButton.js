@@ -1,10 +1,18 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { track } from "../telemetry";
+// Fires one pricing_view per /pricing visit (rendered once, on the page).
+export function PricingView() {
+  useEffect(() => { track("pricing_view", { from: "page" }); }, []);
+  return null;
+}
+
 export default function BuyButton({ plan, label }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const buy = async () => {
     setBusy(true); setErr("");
+    track("checkout_click", { plan, from: "page" });
     try {
       const r = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan }) });
       const d = await r.json().catch(() => ({}));

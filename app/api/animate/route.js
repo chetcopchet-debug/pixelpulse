@@ -15,6 +15,7 @@ import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
 import { videoQuote, VIDEO_PRICING } from '../../../lib/videoPricing';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 import sharp from 'sharp';
+import { withErrorLog } from '../../../lib/monitor';
 
 // Pulse Effects: center-crop the photo to 9:16 (720x1280) so wan outputs a vertical, share-ready clip.
 async function toVertical(url) {
@@ -35,7 +36,7 @@ const api = (path, init = {}) => fetch(`https://api.replicate.com/v1/${path}`, {
   headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
 
 // POST { id, prompt? } -> { job } (start). Charged up front from PAID credits; refunded if the video fails.
-export async function POST(request) {
+async function POSTHandler(request) {
   const admin = isAdmin(request);
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
@@ -124,7 +125,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
 }
 
 // GET ?job=<token> -> { status: processing | done | failed, item? }. The webhook / sweep may already have finished it.
-export async function GET(request) {
+async function GETHandler(request) {
   const job = readJob(new URL(request.url).searchParams.get('job'));
   const creator = getCreatorId(request);
   if (!job || creator.isNew || creator.id !== job.u) return NextResponse.json({ error: 'Unknown video job.' }, { status: 404 });
@@ -133,3 +134,6 @@ export async function GET(request) {
   if (res.status === 'failed') return NextResponse.json({ ...res, paid: await paidFor(creator) });
   return NextResponse.json(res);
 }
+
+export const POST = withErrorLog('/api/animate', POSTHandler);
+export const GET = withErrorLog('/api/animate', GETHandler);

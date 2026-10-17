@@ -1,6 +1,6 @@
 import { LegalPage } from '../_legal/Legal';
 import { PLANS } from '../../lib/paid';
-import BuyButton from './BuyButton';
+import BuyButton, { PricingView } from './BuyButton';
 import { IMAGE_MODELS, VIDEO_MODELS } from '../../lib/catalog';
 export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: '10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
@@ -17,6 +17,7 @@ const FAQ = [
 export default function Pricing() {
   return (
     <LegalPage title="Pricing" noRemoval>
+      <PricingView />
       <p>Start free every day. Buy more only if you need it.</p>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', marginTop: 16 }}>
         <div style={card}><b>Free</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>$0</div><p style={{ margin: 0 }}>10 credits every day, refilled at midnight UTC. No signup.</p></div>

@@ -2,6 +2,7 @@ import { runImageTool } from '../../../lib/imagetool';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
 import { toEnglishPrompt, TRANSLATE_BUSY_MSG } from '../../../lib/translate';
 import { checkPromptText, checkPersonEditText, blockedMessage } from '../../../lib/moderation';
+import { withErrorLog } from '../../../lib/monitor';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -24,6 +25,8 @@ async function prepare(body) {
   return { args };
 }
 
-export async function POST(request) {
+async function POSTHandler(request) {
   return runImageTool(request, { tool: 'edit', cost: EDIT_COST, usd: 0.04, label: 'Edit', limit: { n: 20, ms: 60 * 60_000 }, prepare, storeTier: 'edit', outputPolicy: 'closed' /* real-person photo: fail closed */ });
 }
+
+export const POST = withErrorLog('/api/edit', POSTHandler);

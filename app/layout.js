@@ -1,3 +1,6 @@
+import VercelAnalytics from './VercelAnalytics';
+import ErrorListener from './ErrorListener';
+
 const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://pixelpulse-omega.vercel.app';
 const DESC = 'PixelPulse is a free, mobile-first AI image studio. Create, remix, repaint and sharpen images, and share them with the Pulse Feed.';
 
@@ -16,7 +19,11 @@ export const viewport = { themeColor: '#07070a', width: 'device-width', initialS
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, padding: 0, background: '#07070a' }}>{children}</body>
+      <body style={{ margin: 0, padding: 0, background: '#07070a' }}>
+        {children}
+        <ErrorListener />
+        <VercelAnalytics />
+      </body>
     </html>
   );
 }

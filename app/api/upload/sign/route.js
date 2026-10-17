@@ -5,13 +5,14 @@ import { getClientIp } from '../../../../lib/credits';
 import { isAdmin } from '../../../../lib/admin';
 import { rateLimit } from '../../../../lib/ratelimit';
 import { validateUploadRequest } from '../../../../lib/uploads';
+import { withErrorLog } from '../../../../lib/monitor';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 // Returns a one-time signed URL so the phone can send the ORIGINAL photo (up to 8MB) straight to storage,
 // bypassing Vercel's 4.5MB request limit. /api/upload {tmpPath} then converts it with sharp.
-export async function POST(request) {
+async function POSTHandler(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ error: 'Cloud storage is not available.' }, { status: 503 });
   const creator = getCreatorId(request);
@@ -29,3 +30,5 @@ export async function POST(request) {
   setCreatorCookie(res, creator);
   return res;
 }
+
+export const POST = withErrorLog('/api/upload/sign', POSTHandler);

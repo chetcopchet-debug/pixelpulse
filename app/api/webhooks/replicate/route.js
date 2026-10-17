@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '../../../../lib/supabase';
 import { verifyReplicateSignature, advanceJob, fetchPrediction, rowToJob } from '../../../../lib/videoJobs';
+import { withErrorLog } from '../../../../lib/monitor';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -9,7 +10,7 @@ export const fetchCache = 'force-no-store';
 // Replicate calls this when a video prediction completes, so the video is saved (or the credits refunded) even if the
 // user closed the tab. With REPLICATE_WEBHOOK_SECRET set the signature is required; either way the prediction is
 // re-read from the Replicate API, so a forged body can only trigger processing of a real job we created.
-export async function POST(request) {
+async function POSTHandler(request) {
   const body = await request.text();
   const secret = process.env.REPLICATE_WEBHOOK_SECRET;
   if (secret) {
@@ -29,3 +30,5 @@ export async function POST(request) {
   // 500 on "still processing" after a completed event makes Replicate retry the delivery later.
   return NextResponse.json({ ok: true, status: res.status }, { status: res.status === 'processing' && p && ['succeeded', 'failed', 'canceled'].includes(p.status) ? 500 : 200 });
 }
+
+export const POST = withErrorLog('/api/webhooks/replicate', POSTHandler);

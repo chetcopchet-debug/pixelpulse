@@ -5,12 +5,13 @@ import { getCreatorId, isUuid } from '../../../lib/identity';
 import { getClientIp } from '../../../lib/credits';
 import { rateLimit } from '../../../lib/ratelimit';
 import { deletionLocked, selectImages } from '../../../lib/trustSafety';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 // POST /api/delete { ids: [uuid, ...] } — deletes the visitor's own rows + storage objects.
-export async function POST(request) {
+async function POSTHandler(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ error: 'Cloud storage is not available.' }, { status: 503 });
   const creator = getCreatorId(request);
@@ -36,3 +37,5 @@ export async function POST(request) {
   if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch((e) => console.error('Storage remove:', e));
   return NextResponse.json({ success: true, deleted: own, ...(locked.length ? { locked } : {}) });
 }
+
+export const POST = withErrorLog('/api/delete', POSTHandler);
