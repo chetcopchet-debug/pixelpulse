@@ -59,17 +59,19 @@ test('applyTakedown: urgent report hides; nsfw removes; 3 strikes bans', async (
   const mk = (id) => ({ id, creator_id: 'c1', public_url: `https://x/${id}.webp`, storage_path: `i/${id}.webp`, hidden: false, is_public: true });
   const db = { images: [mk('a'), mk('b'), mk('c'), mk('d')] };
   const sb = fakeDb(db);
-  const r1 = await applyTakedown(sb, { imageId: 'a', code: 'minor', distinctReporters: 1, classify: async () => 'normal' });
-  assert.deepEqual(r1, { hidden: true, removed: false, banned: false });
+  const qd = []; const quarantine = async (_sb, row) => { qd.push(row.id); return true; };
+  const r1 = await applyTakedown(sb, { imageId: 'a', code: 'minor', distinctReporters: 1, classify: async () => 'normal', quarantine });
+  assert.deepEqual(r1, { hidden: true, removed: false, banned: false, quarantined: true });
   assert.ok(db.images[0].first_reported_at && db.images[0].auto_checked_at && !db.images[0].removed_at);
-  const r2 = await applyTakedown(sb, { imageId: 'b', code: 'sexual', distinctReporters: 1, classify: async () => 'unavailable' });
+  const r2 = await applyTakedown(sb, { imageId: 'b', code: 'sexual', distinctReporters: 1, classify: async () => 'unavailable', quarantine });
   assert.equal(r2.hidden, false); assert.equal(db.images[1].auto_checked_at, undefined);
-  for (const id of ['b', 'c']) assert.equal((await applyTakedown(sb, { imageId: id, code: 'sexual', distinctReporters: 1, classify: async () => 'nsfw' })).banned, false);
-  const r4 = await applyTakedown(sb, { imageId: 'd', code: 'other', distinctReporters: 1, classify: async () => 'nsfw' });
-  assert.equal(r4.removed, true); assert.equal(r4.banned, true);
+  for (const id of ['b', 'c']) assert.equal((await applyTakedown(sb, { imageId: id, code: 'sexual', distinctReporters: 1, classify: async () => 'nsfw', quarantine })).banned, false);
+  const r4 = await applyTakedown(sb, { imageId: 'd', code: 'other', distinctReporters: 1, classify: async () => 'nsfw', quarantine });
+  assert.equal(r4.removed, true); assert.equal(r4.quarantined, true);
+  assert.deepEqual(qd, ['a', 'b', 'c', 'd'], 'minor hide and every removal quarantine the file'); assert.equal(r4.banned, true);
   assert.equal(db.banned_creators.length, 1);
   assert.ok(db.images.every((i) => i.hidden));
   let calls = 0; // classifier runs only once per item
-  await applyTakedown(sb, { imageId: 'a', code: 'other', distinctReporters: 2, classify: async () => { calls++; return 'nsfw'; } });
+  await applyTakedown(sb, { imageId: 'a', code: 'other', distinctReporters: 2, classify: async () => { calls++; return 'nsfw'; }, quarantine });
   assert.equal(calls, 0);
 });

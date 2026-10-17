@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabase, BUCKET } from '../../../lib/supabase';
+import { getSupabase, BUCKET, TMP_BUCKET } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid, creatorTag } from '../../../lib/identity';
 import { getClientIp } from '../../../lib/credits';
 import { isAdmin } from '../../../lib/admin';
@@ -49,7 +49,8 @@ export async function POST(request) {
       if (typeof body?.tmpPath === 'string') {
         if (creator.isNew || !TMP_RE.test(body.tmpPath) || !body.tmpPath.startsWith(`tmp/${creatorTag(creator.id, 'tmp')}/`)) return err('Invalid upload reference.', 400);
         tmpPath = body.tmpPath;
-        const { data, error } = await supabase.storage.from(BUCKET).download(tmpPath);
+        let { data, error } = await supabase.storage.from(TMP_BUCKET).download(tmpPath);
+        if (error || !data) ({ data, error } = await supabase.storage.from(BUCKET).download(tmpPath));
         if (error || !data) return err('The uploaded file was not found. Please try again.', 400);
         buf = Buffer.from(await data.arrayBuffer());
       } else {
@@ -78,6 +79,9 @@ export async function POST(request) {
     console.error('Upload error:', e);
     return err('Upload failed on the server. Please try again.', 500);
   } finally {
-    if (tmpPath) supabase.storage.from(BUCKET).remove([tmpPath]).catch(() => {});
+    if (tmpPath) {
+      supabase.storage.from(TMP_BUCKET).remove([tmpPath]).catch(() => {});
+      supabase.storage.from(BUCKET).remove([tmpPath]).catch(() => {});
+    }
   }
 }

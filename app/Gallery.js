@@ -95,7 +95,7 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
       } catch {}
     })();
     return () => { off = true; };
-    // eslint-disable-next-line
+     
   }, [refreshKey]);
 
   const load = useCallback(async (reset) => {
@@ -114,7 +114,7 @@ export default function Gallery({ toItem, refreshKey, actions, inspiration = [],
     finally { if (my === reqId.current) setLoading(false); }
   }, [filter, cursor, toItem]);
 
-  useEffect(() => { setItems([]); setCursor(null); setDone(false); load(true); /* eslint-disable-next-line */ }, [filter, refreshKey, reloadTick]);
+  useEffect(() => { setItems([]); setCursor(null); setDone(false); load(true);   }, [filter, refreshKey, reloadTick]);
 
   useEffect(() => {
     const el = sentinel.current; if (!el) return;

@@ -18,6 +18,20 @@ import Hero, { HERO_CSS } from "./Hero";
 import { VIDEO_PRICING, videoQuote } from "../lib/videoPricing";
 import { EFFECTS, EFFECT_COST, effectById } from "../lib/effects";
 
+// Pending video jobs (signed tokens, valid ~1h) survive reloads in localStorage.
+const VJ_KEY = "pp_video_jobs";
+const VJ_TTL = 60 * 60_000;
+function readVideoJobs() {
+  try { const a = JSON.parse(localStorage.getItem(VJ_KEY) || "[]"); return Array.isArray(a) ? a.filter((j) => j && typeof j.job === "string" && Date.now() - j.t < VJ_TTL) : []; } catch { return []; }
+}
+function rememberVideoJob(job) {
+  try { const a = readVideoJobs().filter((j) => j.job !== job); a.push({ job, t: Date.now() }); localStorage.setItem(VJ_KEY, JSON.stringify(a.slice(-5))); } catch {}
+}
+function forgetVideoJob(job) {
+  try { localStorage.setItem(VJ_KEY, JSON.stringify(readVideoJobs().filter((j) => j.job !== job))); } catch {}
+}
+function pendingVideoJobs() { return readVideoJobs().map((j) => j.job); }
+
 export default function Home() {
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState("Cinematic");
@@ -352,12 +366,18 @@ export default function Home() {
   // Animate: async video job (paid credits only). The server charges, we poll until the MP4 is stored.
   const [animating, setAnimating] = useState({}); // id -> true
   // Poll a video job until the MP4 is stored, then show it on the stage.
+  // Pending jobs are kept in localStorage so a reload / closed tab resumes polling. The server also saves the video
+  // (or refunds) by itself via the Replicate webhook, so nothing is lost even if the page never comes back.
   const pollVideoJob = async (job) => {
+    rememberVideoJob(job);
     const started = Date.now();
     while (Date.now() - started < 15 * 60_000) {
       await new Promise((r) => setTimeout(r, 4000));
-      const s = await fetch(`/api/animate?job=${encodeURIComponent(job)}`, { cache: "no-store" }).then((r) => r.json()).catch(() => ({ status: "processing" }));
+      const r0 = await fetch(`/api/animate?job=${encodeURIComponent(job)}`, { cache: "no-store" }).catch(() => null);
+      if (r0 && r0.status === 404) { forgetVideoJob(job); throw new Error("Still rendering — your video will appear in My Pulses when it's ready (credits are refunded automatically if it fails)."); }
+      const s = r0 ? await r0.json().catch(() => ({ status: "processing" })) : { status: "processing" };
       if (s.status === "processing") continue;
+      forgetVideoJob(job);
       if (typeof s.paid === "number") setPaid(s.paid);
       if (s.status === "done" && s.item) {
         const ni = toItem(s.item);
@@ -368,8 +388,25 @@ export default function Home() {
       }
       throw new Error(s.error || "The video failed.");
     }
-    throw new Error("The video is taking long — it will appear in My Pulses when ready.");
+    throw new Error("Still rendering — your video will appear in My Pulses when it's ready (credits are refunded automatically if it fails).");
   };
+  // Mobile: the composer dock is fixed to the bottom and taller in Video mode; pad the page by its real height so it
+  // never covers the hero headline or results.
+  const dockRef = useRef(null);
+  useEffect(() => {
+    const el = dockRef.current; if (!el || typeof ResizeObserver === "undefined") return;
+    const set = () => document.documentElement.style.setProperty("--dock-h", `${Math.ceil(el.getBoundingClientRect().height)}px`);
+    set(); const ro = new ResizeObserver(set); ro.observe(el);
+    return () => ro.disconnect();
+  }, [activeTab]);
+  // Resume any video job that was still running when the page was closed or reloaded.
+  useEffect(() => {
+    const jobs = pendingVideoJobs();
+    if (!jobs.length) return;
+    showToast("▶ Resuming your video…");
+    jobs.forEach((job) => { pollVideoJob(job).catch((e) => setError(e.message)); });
+     
+  }, []);
   // Text-to-video from the Model picker (paid credits only).
   const runTextVideo = async (prompt, modelId, ratio) => {
     const m0 = VIDEO_MODELS.find((x) => x.id === modelId);
@@ -615,6 +652,7 @@ export default function Home() {
       else if (typeof data.credits === "number") setCredits(data.credits);
       if (typeof data.paid === "number") setPaid(data.paid);
       if (res.status === 402) { openPricing(data.needCredits?.label || "This", data.needCredits?.cost || tierCost); return; }
+      if (data.chargedFrom === "paid") showToast(`Used ${tierCost}⚡ from your paid balance — today's free credits are used up`);
 
       if (!res.ok || data.error) {
         throw new Error(data.error || "Failed to generate image.");
@@ -723,13 +761,13 @@ export default function Home() {
     if (m === "video") { setTier(t || lastTier.current.video || "wan"); setEditTarget(null); setFaceTarget(null); setGuide(null); setFormat("free"); }
     if (m === "effects") { setEditTarget(null); setFaceTarget(null); setGuide(null); if (currentItem?.id && !isVideo(currentItem.url)) setFxPhoto({ id: currentItem.id, url: currentItem.url }); }
   };
-  useEffect(() => { if (prefsLoaded && isVideoModel(tier) && mode === "image") setModeRaw("video"); /* eslint-disable-next-line */ }, [prefsLoaded]);
-  useEffect(() => { if (mode === "effects" && currentItem?.id && !isVideo(currentItem.url)) setFxPhoto({ id: currentItem.id, url: currentItem.url }); /* eslint-disable-next-line */ }, [currentItem, mode]);
+  useEffect(() => { if (prefsLoaded && isVideoModel(tier) && mode === "image") setModeRaw("video");   }, [prefsLoaded]);
+  useEffect(() => { if (mode === "effects" && currentItem?.id && !isVideo(currentItem.url)) setFxPhoto({ id: currentItem.id, url: currentItem.url });   }, [currentItem, mode]);
   useEffect(() => {
     if (!loading) { setEta(null); return; }
     setEta((e) => e || { t0: Date.now(), secs: curTier.id === "fast" ? 5 : 15 });
     const t = setInterval(() => setTick((n) => n + 1), 500); return () => clearInterval(t);
-    /* eslint-disable-next-line */
+     
   }, [loading]);
   const etaLeft = eta ? Math.max(0, Math.round(eta.secs - (Date.now() - eta.t0) / 1000)) : 0;
   const etaPct = eta ? Math.min(96, Math.round(100 * (1 - Math.exp(-((Date.now() - eta.t0) / 1000) / (eta.secs * 0.6))))) : 0;
@@ -808,7 +846,7 @@ export default function Home() {
     try { await navigator.clipboard.writeText(invite.link); showToast("🎁 Invite link copied"); } catch { window.prompt("Copy your invite link:", invite.link); }
   };
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { if (menuOpen || pricing) loadInvite(); /* eslint-disable-next-line */ }, [menuOpen, !!pricing]);
+  useEffect(() => { if (menuOpen || pricing) loadInvite();   }, [menuOpen, !!pricing]);
   useEffect(() => { if (!menuOpen) return; const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, [menuOpen]);
   const resetIn = (() => { const d = new Date(now); const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1); const m = Math.max(0, Math.round((next - now) / 60000)); return `${Math.floor(m / 60)}h ${m % 60}m`; })();
   const STARTERS = [
@@ -854,7 +892,7 @@ export default function Home() {
       {activeTab === "create" ? (
         <main className="pp-main">
           {mode !== "effects" && !image && !loading && (
-            <Hero onTry={(sl) => { setMode(sl.mode === "video" ? "video" : "image"); setPrompt(sl.prompt); setRemixOf(null); showToast("✦ Prompt loaded — hit " + (sl.mode === "video" ? "Generate video" : "Pulse")); setTimeout(() => document.getElementById("pp-prompt")?.focus(), 60); }} />
+            <Hero compact={mode === "video"} onTry={(sl) => { setMode(sl.mode === "video" ? "video" : "image"); setPrompt(sl.prompt); setRemixOf(null); showToast("✦ Prompt loaded — hit " + (sl.mode === "video" ? "Generate video" : "Pulse")); setTimeout(() => document.getElementById("pp-prompt")?.focus(), 60); }} />
           )}
           {((mode !== "effects" && (image || loading)) || loading || (image && isVideo(image))) && <section className={`pp-stage${loading ? " pp-generating" : ""}${stageFmt ? ` pp-fmt-${stageFmt}` : ""}${!image && !loading ? " pp-is-empty" : ""}`} style={{ aspectRatio: image && stageFmt !== "avatar" ? "auto" : (stageFmt === "avatar" ? "1 / 1" : aspectRatio.replace(":", " / ")) }}>
             {stageFmt === "wallpaper" && <div className="pp-lock" aria-hidden="true"><small>Thursday</small><b>09:41</b></div>}
@@ -1008,7 +1046,7 @@ export default function Home() {
       <footer className="pp-foot"><a href="/pricing">Pricing</a><a href="/formats">Formats</a><a href="/contact">Contact</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/refund-policy">Refunds</a><a href="/content-policy">Content Policy</a><a href="/terms#safety">Safety &amp; Reporting</a></footer>
 
       {/* Pulse Bar composer */}
-      <div className="pp-dock">
+      <div className="pp-dock" ref={dockRef}>
         <div className="pp-modes" role="tablist" aria-label="Mode">
           {[["image", "◐", "Image"], ["video", "▶", "Video"], ["effects", "✦", "Effects"]].map(([m, ic, l]) => (
             <button key={m} role="tab" aria-selected={mode === m} className={mode === m ? "on" : ""} onClick={() => { setMode(m); setActiveTab("create"); }}><i>{ic}</i>{l}</button>
@@ -1100,12 +1138,12 @@ export default function Home() {
             )}
             {mode === "video" ? (
             <button className="pp-vgo" onClick={() => generateImage()} disabled={loading}>
-              {loading ? <i className="pp-spin" /> : <><b>🎬</b><span>Generate video<small>{vq ? `${vq.d}s · ${vq.r} · ${vq.ratio}` : ""}</small></span><em>{isAdmin ? "∞" : `${pulseCost}⚡`}</em></>}
+              {loading ? <i className="pp-spin" /> : <><b>🎬</b><span>Generate video<small>{!isAdmin && paid < pulseCost ? "Video uses purchased credits · tap to get some" : vq ? `${vq.d}s · ${vq.r} · ${vq.ratio}` : ""}</small></span><em>{isAdmin ? "∞" : paid < pulseCost ? `🔒 ${pulseCost}⚡` : `${pulseCost}⚡`}</em></>}
             </button>
             ) :
             <button className="pp-go" onClick={onPulse} disabled={loading || (mode === "effects" && (!curFx || !fxPhoto))}>
               <span className="pp-go-label">{loading ? <i className="pp-spin" /> : "Pulse"}</span>
-              <span className="pp-cost">{isAdmin ? "∞" : `${pulseCost}⚡`}</span>
+              <span className="pp-cost">{isAdmin ? "∞" : mode === "effects" && paid < pulseCost ? `🔒 ${pulseCost}⚡` : `${pulseCost}⚡`}</span>
             </button>}
           </div>
         </div>
@@ -1280,7 +1318,7 @@ const CSS = `
 :root{--bg:#07070a;--panel:#101018;--line:#1f1f2e;--v:#9333ea;--v2:#a855f7;--p:#ec4899;--txt:#e9e7f5;--mut:#7c7c94}
 body{margin:0;background:var(--bg)}
 .pp-count{position:absolute;right:44px;bottom:4px;font-size:10px;color:var(--mut);pointer-events:none}
-.pp-root{min-height:100vh;background:radial-gradient(1200px 500px at 50% -200px,rgba(147,51,234,.18),transparent),var(--bg);color:var(--txt);font-family:system-ui,-apple-system,sans-serif;padding:16px 14px 190px;box-sizing:border-box}
+.pp-root{min-height:100vh;background:radial-gradient(1200px 500px at 50% -200px,rgba(147,51,234,.18),transparent),var(--bg);color:var(--txt);font-family:system-ui,-apple-system,sans-serif;padding:16px 14px calc(var(--dock-h, 174px) + 16px);box-sizing:border-box}
 .pp-root *{box-sizing:border-box}
 .pp-root button{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .pp-root button:disabled{opacity:.5;cursor:default}

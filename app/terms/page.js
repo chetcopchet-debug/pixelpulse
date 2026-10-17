@@ -4,6 +4,9 @@ export default function Terms() {
   return (
     <LegalPage title="Terms of Use">
       <p>By using PixelPulse you agree to these terms. If you don't agree, please don't use the service.</p>
+      <h2>Who can use PixelPulse</h2>
+      <p style={{ padding: '10px 14px', border: '1px dashed #f59e0b', borderRadius: 12, color: '#fbbf24', fontSize: 13 }}>Draft — pending legal review.</p>
+      <p>You must be at least <b>18 years old</b> to use PixelPulse. By using the service you confirm that you are 18 or older.</p>
       <h2>The service</h2>
       <p>PixelPulse lets you create and edit images with AI models run by third-party providers. Free daily credits are offered as-is and may change or end at any time. Features may be added, changed or removed.</p>
       <h2>Purchases</h2>
@@ -26,6 +29,9 @@ export default function Terms() {
         <li><b>Reporting.</b> Anyone can report content with the ⚑ Report button on any public image or share page, no account needed. Reports about minors or about real people shown without consent are hidden right away while we review, and we aim to act on every valid removal request within 48 hours. You can also reach us via <a href="/contact">Contact</a>.</li>
         <li><b>Records.</b> To prevent abuse and to cooperate with lawful requests, we keep a log of generation activity (account or device id, a hashed IP address, prompts, input and output references, safety-check results and time). See the <a href="/privacy">Privacy Policy</a>.</li>
       </ul>
+      <h2 id="dmca">Copyright (DMCA) notices</h2>
+      <p style={{ padding: '10px 14px', border: '1px dashed #f59e0b', borderRadius: 12, color: '#fbbf24', fontSize: 13 }}>Draft — pending legal review.</p>
+      <p>If you believe content on PixelPulse infringes your copyright, send a notice to our designated agent at <b>[DMCA agent email — to be added]</b> with: your contact details, the work you claim is infringed, the link to the content, a statement of good-faith belief that the use is not authorized, a statement that the notice is accurate and, under penalty of perjury, that you are the owner or authorized to act for the owner, and your physical or electronic signature. We may remove the content and, for repeat infringers, close the account.</p>
       <h2>No warranty</h2>
       <p>AI output can be inaccurate or unexpected. The service is provided "as is", without warranties, and to the extent permitted by law we're not liable for indirect or consequential losses.</p>
       <h2>Changes</h2>

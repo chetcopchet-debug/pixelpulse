@@ -13,7 +13,7 @@ function useColumns(bps) {
     const pick = () => setN(qs.reduce((acc, [q, c]) => (q.matches ? c : acc), bps[0][1]));
     pick(); qs.forEach(([q]) => q.addEventListener("change", pick));
     return () => qs.forEach(([q]) => q.removeEventListener("change", pick));
-    // eslint-disable-next-line
+     
   }, []);
   return n;
 }

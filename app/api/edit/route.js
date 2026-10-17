@@ -1,6 +1,6 @@
 import { runImageTool } from '../../../lib/imagetool';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
-import { toEnglishPrompt } from '../../../lib/translate';
+import { toEnglishPrompt, TRANSLATE_BUSY_MSG } from '../../../lib/translate';
 import { checkPromptText, checkPersonEditText, blockedMessage } from '../../../lib/moderation';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -11,9 +11,12 @@ async function prepare(body) {
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   if (!prompt) return { error: 'Describe the change, e.g. "make it night".' };
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
+  const badOriginal = checkPromptText(prompt);
+  if (badOriginal) return { error: blockedMessage(badOriginal) };
   const personBad = checkPersonEditText(prompt);
   if (personBad) return { error: blockedMessage(personBad) };
-  const english = await toEnglishPrompt(prompt);
+  const english = await toEnglishPrompt(prompt, { strict: true }); // real-person photo: fail closed
+  if (english === null) return { error: TRANSLATE_BUSY_MSG };
   const bad = checkPromptText(english) || checkPersonEditText(english);
   if (bad) return { error: blockedMessage(bad) };
   const args = [english];

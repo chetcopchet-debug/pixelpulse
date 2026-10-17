@@ -3,7 +3,8 @@ import { getSupabase } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid, creatorTag } from '../../../lib/identity';
 import { getClientIp } from '../../../lib/credits';
 import { rateLimit } from '../../../lib/ratelimit';
-import { normalizeReport, applyTakedown, REPORT_REASONS } from '../../../lib/trustSafety';
+import { bump } from '../../../lib/usage';
+import { normalizeReport, applyTakedown, REPORT_REASONS, URGENT_REASONS, URGENT_HIDES_PER_IP_DAY } from '../../../lib/trustSafety';
 
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
@@ -33,7 +34,10 @@ export async function POST(request) {
   if (count === null) return done({ stored: true, duplicate: true });
   await supabase.from('image_reports').update({ reason_code: code, details: details || null }).eq('image_id', body.id).eq('reporter', reporter);
   let takedown = {};
-  try { takedown = await applyTakedown(supabase, { imageId: body.id, code, distinctReporters: count }); }
+  // Cap single-report immediate hides per IP per day (anti-spam); counted only when this report would use one.
+  let urgentAllowed = true;
+  if (URGENT_REASONS.includes(code)) urgentAllowed = (await bump(`urgenthide:${ip}`, 1, URGENT_HIDES_PER_IP_DAY).catch(() => 0)) !== null;
+  try { takedown = await applyTakedown(supabase, { imageId: body.id, code, distinctReporters: count, urgentAllowed }); }
   catch (e) { console.error('takedown', e?.message || e); }
   return done({ stored: true, hidden: Boolean(takedown.hidden) });
 }
