@@ -5,13 +5,14 @@ import { getClientIp } from '../../../lib/credits';
 import { rateLimit } from '../../../lib/ratelimit';
 import { bump } from '../../../lib/usage';
 import { normalizeReport, applyTakedown, REPORT_REASONS, URGENT_REASONS, URGENT_HIDES_PER_IP_DAY } from '../../../lib/trustSafety';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 // POST { id, reason: nonconsensual|sexual|minor|violence|other, details? } — works logged out; rate-limited per IP.
-export async function POST(request) {
+async function POSTHandler(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ error: 'Not available.' }, { status: 503 });
   const creator = getCreatorId(request);
@@ -41,3 +42,5 @@ export async function POST(request) {
   catch (e) { console.error('takedown', e?.message || e); }
   return done({ stored: true, hidden: Boolean(takedown.hidden) });
 }
+
+export const POST = withErrorLog('/api/report', POSTHandler);

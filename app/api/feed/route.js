@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabase, IMAGE_COLUMNS } from '../../../lib/supabase';
 import { getCreatorId } from '../../../lib/identity';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -8,7 +9,7 @@ export const fetchCache = 'force-no-store';
 const PAGE_SIZE = 20;
 
 // GET /api/feed?before=<ISO created_at cursor>&limit=20
-export async function GET(request) {
+async function GETHandler(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ enabled: false, items: [], nextCursor: null });
 
@@ -43,3 +44,5 @@ export async function GET(request) {
   const nextCursor = data.length === limit ? data[data.length - 1].created_at : null;
   return NextResponse.json({ enabled: true, items, nextCursor });
 }
+
+export const GET = withErrorLog('/api/feed', GETHandler);

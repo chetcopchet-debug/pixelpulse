@@ -17,6 +17,7 @@ import { toEnglishPrompt, TRANSLATE_BUSY_MSG } from '../../../lib/translate';
 import { checkPromptText, blockedMessage, classifyImage, outputGate } from '../../../lib/moderation';
 import { makeDeadline, once } from '../../../lib/deadline';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -29,7 +30,7 @@ function jsonError(message, status, credits) {
   return NextResponse.json({ error: message, ...(credits !== undefined ? { credits } : {}) }, { status });
 }
 
-export async function POST(request) {
+async function POSTHandler(request) {
   const dl = makeDeadline(); // overall time budget, see lib/deadline.js
   const ip = getClientIp(request);
   const state = readCreditsCookie(request.cookies.get(COOKIE_NAME)?.value);
@@ -187,3 +188,5 @@ export async function POST(request) {
     if (!finished) await refund(); // guaranteed: every non-success exit is refunded (idempotent)
   }
 }
+
+export const POST = withErrorLog('/api/generate', POSTHandler);

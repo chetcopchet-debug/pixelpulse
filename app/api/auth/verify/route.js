@@ -5,10 +5,11 @@ import { paidBalance } from '../../../../lib/paid';
 import { rateLimit } from '../../../../lib/ratelimit';
 import { getClientIp } from '../../../../lib/credits';
 import { rewardReferral } from '../../../../lib/referral';
+import { withErrorLog } from '../../../../lib/monitor';
 export const dynamic = 'force-dynamic';
 
 // Body: { email, code } (6-digit OTP) or { access_token } (from the magic-link callback page).
-export async function POST(request) {
+async function POSTHandler(request) {
   const body = await request.json().catch(() => ({}));
   if (!await rateLimit(`auth:verify:${getClientIp(request)}`, 15, 15 * 60_000)) return NextResponse.json({ error: 'Too many attempts. Wait a few minutes.' }, { status: 429 });
   const sb = getSupabase(); if (!sb) return NextResponse.json({ error: 'Sign-in is unavailable.' }, { status: 503 });
@@ -48,3 +49,5 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Signed in, but we could not load your account. Try again.' }, { status: 500 });
   }
 }
+
+export const POST = withErrorLog('/api/auth/verify', POSTHandler);

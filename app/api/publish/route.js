@@ -10,12 +10,13 @@ import { rateLimit } from '../../../lib/ratelimit';
 import { isAdmin } from '../../../lib/admin';
 import { moderateForPublish } from '../../../lib/moderation';
 import { isBanned, BANNED_MSG } from '../../../lib/trustSafety';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-export async function POST(request) {
+async function POSTHandler(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ error: 'Community feed is not available yet.' }, { status: 503 });
 
@@ -80,3 +81,5 @@ export async function POST(request) {
   }
   return res;
 }
+
+export const POST = withErrorLog('/api/publish', POSTHandler);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabase } from '../../../lib/supabase';
 import { readAccount } from '../../../lib/account';
 import { isUuid } from '../../../lib/identity';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -11,7 +12,7 @@ export const fetchCache = 'force-no-store';
 const missing = (e) => /favorites|relation|schema cache|42P01|PGRST205/i.test(`${e?.message} ${e?.code}`);
 const MAX = 500;
 
-export async function GET(request) {
+async function GETHandler(request) {
   const acct = readAccount(request); const sb = getSupabase();
   if (!acct || !sb) return NextResponse.json({ cloud: false });
   const { data, error } = await sb.from('favorites').select('image_id').eq('uid', acct.uid).order('created_at', { ascending: false }).limit(MAX);
@@ -20,7 +21,7 @@ export async function GET(request) {
 }
 
 // POST { add: [ids], remove: [ids] } -> { cloud, ids }
-export async function POST(request) {
+async function POSTHandler(request) {
   const acct = readAccount(request); const sb = getSupabase();
   if (!acct || !sb) return NextResponse.json({ cloud: false });
   const body = await request.json().catch(() => ({}));
@@ -39,5 +40,8 @@ export async function POST(request) {
     const { error } = await sb.from('favorites').delete().eq('uid', acct.uid).in('image_id', remove);
     if (error) { if (!missing(error)) console.error('favorites remove:', error); return NextResponse.json({ cloud: false }); }
   }
-  return GET(request);
+  return GETHandler(request);
 }
+
+export const GET = withErrorLog('/api/favorites', GETHandler);
+export const POST = withErrorLog('/api/favorites', POSTHandler);

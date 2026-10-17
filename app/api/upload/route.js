@@ -7,6 +7,7 @@ import { rateLimit } from '../../../lib/ratelimit';
 import { persistBytes } from '../../../lib/generation';
 import { isBanned, BANNED_MSG } from '../../../lib/trustSafety';
 import { normalizeImage, ImageProcError, ratioFor } from '../../../lib/imageproc';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -21,7 +22,7 @@ const err = (error, status) => NextResponse.json({ error }, { status });
 //  - JSON { data: "data:image/...;base64,..." }  (client-downscaled; preferred)
 //  - JSON { tmpPath }  (original bytes already PUT to a signed URL from /api/upload/sign)
 //  - raw image body (Content-Type image/* or application/octet-stream), up to Vercel's ~4.5MB body limit
-export async function POST(request) {
+async function POSTHandler(request) {
   const supabase = getSupabase();
   if (!supabase) return err('Cloud storage is not available.', 503);
   const creator = getCreatorId(request);
@@ -85,3 +86,5 @@ export async function POST(request) {
     }
   }
 }
+
+export const POST = withErrorLog('/api/upload', POSTHandler);

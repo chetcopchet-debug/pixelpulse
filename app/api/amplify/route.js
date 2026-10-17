@@ -8,6 +8,7 @@ import { translateIfHebrew, MAX_PROMPT_LENGTH } from '../../../lib/generation';
 import { runReplicate, TOOLS } from '../../../lib/replicate';
 import { ruleEnhance } from '../../../lib/enhance';
 import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
+import { withErrorLog } from '../../../lib/monitor';
 
 
 
@@ -28,7 +29,7 @@ function parseSuggestions(text) {
   return [...new Set(lines)].slice(0, 3).map((l) => l.slice(0, MAX_PROMPT_LENGTH));
 }
 
-export async function POST(request) {
+async function POSTHandler(request) {
   const body = await request.json().catch(() => ({}));
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, MAX_PROMPT_LENGTH) : '';
   const intensity = ['subtle', 'bold', 'wild'].includes(body?.intensity) ? body.intensity : 'bold';
@@ -68,3 +69,5 @@ export async function POST(request) {
   }
   return NextResponse.json({ suggestions: ruleEnhance(english, intensity), source: 'rules', intensity });
 }
+
+export const POST = withErrorLog('/api/amplify', POSTHandler);

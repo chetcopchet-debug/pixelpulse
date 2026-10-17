@@ -4,9 +4,10 @@ import { EMAIL_RE } from '../../../../lib/account';
 import { rateLimit } from '../../../../lib/ratelimit';
 import { getClientIp } from '../../../../lib/credits';
 import { SITE_URL } from '../../../../lib/site';
+import { withErrorLog } from '../../../../lib/monitor';
 export const dynamic = 'force-dynamic';
 
-export async function POST(request) {
+async function POSTHandler(request) {
   const { email } = await request.json().catch(() => ({}));
   const e = String(email || '').trim().toLowerCase();
   if (!EMAIL_RE.test(e)) return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 });
@@ -23,3 +24,5 @@ export async function POST(request) {
   }
   return NextResponse.json({ ok: true });
 }
+
+export const POST = withErrorLog('/api/auth/start', POSTHandler);

@@ -17,6 +17,7 @@ import EffectsGallery, { FX_CSS } from "./EffectsGallery";
 import Hero, { HERO_CSS } from "./Hero";
 import { VIDEO_PRICING, videoQuote } from "../lib/videoPricing";
 import { EFFECTS, EFFECT_COST, effectById } from "../lib/effects";
+import { track, trackOnce } from "./telemetry";
 
 // Pending video jobs (signed tokens, valid ~1h) survive reloads in localStorage.
 const VJ_KEY = "pp_video_jobs";
@@ -79,7 +80,7 @@ export default function Home() {
     if (!r.ok) { showToast(d.error || "Couldn't restore"); return; }
     showToast(`Restored · ${d.paid || 0}⚡ paid balance`); setTimeout(() => window.location.reload(), 900);
   };
-  const openPricing = (label, cost, paidOnly) => setPricing({ need: label ? { label, cost, paidOnly: Boolean(paidOnly) } : null });
+  const openPricing = (label, cost, paidOnly) => { track("pricing_view", { from: "modal", need: label || undefined }); setPricing({ need: label ? { label, cost, paidOnly: Boolean(paidOnly) } : null }); };
   const syncCredits = (d) => { if (d?.admin) setIsAdmin(true); else if (typeof d?.credits === "number") setCredits(d.credits); if (typeof d?.paid === "number") setPaid(d.paid); };
   const [history, setHistory] = useState([]);
   const [communityFeed, setCommunityFeed] = useState([]);
@@ -216,6 +217,8 @@ export default function Home() {
       })
       .catch(() => {});
     const params = new URLSearchParams(window.location.search);
+    track("landing_view", { ref: (() => { try { const h = new URL(document.referrer).hostname; return h && h !== window.location.hostname ? h : undefined; } catch { return undefined; } })(), utm_source: params.get("utm_source") || undefined, utm_medium: params.get("utm_medium") || undefined, utm_campaign: params.get("utm_campaign") || undefined, device: window.matchMedia("(max-width: 820px)").matches ? "mobile" : "desktop" });
+    if (params.get("signedin") === "1") track("signup_complete");
     if (["me", "community", "create"].includes(params.get("tab"))) setActiveTab(params.get("tab"));
     if (params.get("invited") === "1") { params.delete("invited"); window.history.replaceState(null, "", window.location.pathname + (params.toString() ? `?${params}` : "")); setTimeout(() => { setToast("🎁 You were invited — sign in to get +10⚡"); setTimeout(() => setToast(""), 4000); }, 400); }
     if (params.get("bonus")) { params.delete("bonus"); setTimeout(() => { setToast("🎁 +10⚡ invite bonus added"); setTimeout(() => setToast(""), 4000); }, 3600); }
@@ -414,6 +417,7 @@ export default function Home() {
     const q = videoQuote(modelId, vDur ?? pd.d, vRes ?? pd.r, ratio) || videoQuote(modelId, pd.d, pd.r, ratio);
     const m = { ...m0, cost: q?.cost ?? m0.cost };
     if (!isAdmin && paid < m.cost) { openPricing(m.label, m.cost, true); return; }
+    track("generate_click", { mode: "video", model: modelId });
     setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText(`${m.label} is filming…`); setEta({ t0: Date.now(), secs: Math.round((m.eta || 120) * ((q?.d || 5) > 6 ? 1.6 : 1)) });
     try {
       const res = await fetch("/api/animate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: modelId, prompt, aspectRatio: q?.ratio || ratio, duration: q?.d, resolution: q?.r }) });
@@ -422,7 +426,8 @@ export default function Home() {
       if (res.status === 402) { openPricing(m.label, m.cost, true); return; }
       if (!res.ok || !d.job) throw new Error(d.error || "Could not start the video.");
       await pollVideoJob(d.job);
-    } catch (e) { setError(e.message); }
+      track("generation_success", { mode: "video", model: modelId });
+    } catch (e) { setError(e.message); track("generation_fail", { mode: "video", model: modelId }); }
     finally { setLoading(false); setEta(null); setLoadingText("Initializing AI studio..."); }
   };
   // Pulse Effects: one photo + one effect -> 9:16 clip (paid credits, refunded by the server if it fails).
@@ -431,6 +436,7 @@ export default function Home() {
     if (!fxPhoto?.id) { setError("Add a photo first — tap “Add a photo”."); return; }
     if (!fx) { setError("Pick an effect below."); return; }
     if (!isAdmin && paid < EFFECT_COST) { openPricing(fx.name, EFFECT_COST, true); return; }
+    track("generate_click", { mode: "effects", effect: fx.id });
     setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText(`${fx.icon} ${fx.name} in progress…`); setEta({ t0: Date.now(), secs: 75 });
     window.scrollTo({ top: 0, behavior: "smooth" });
     try {
@@ -440,7 +446,8 @@ export default function Home() {
       if (res.status === 402) { openPricing(fx.name, EFFECT_COST, true); return; }
       if (!res.ok || !d.job) throw new Error(d.error || "Could not start the effect.");
       await pollVideoJob(d.job);
-    } catch (e) { setError(e.message); }
+      track("generation_success", { mode: "effects", effect: fx.id });
+    } catch (e) { setError(e.message); track("generation_fail", { mode: "effects", effect: fx.id }); }
     finally { setLoading(false); setEta(null); setLoadingText("Initializing AI studio..."); }
   };
   const handleAnimate = async (item) => {
@@ -448,6 +455,7 @@ export default function Home() {
     if (animating[item.id]) return;
     if (!isAdmin && paid < ANIMATE_COST) { openPricing("Animate", ANIMATE_COST, true); return; }
     setAnimating((a) => ({ ...a, [item.id]: true })); setError("");
+    track("generate_click", { mode: "animate" });
     showToast("▶ Animating — about a minute. Keep creating meanwhile");
     const stop = () => setAnimating((a) => { const n = { ...a }; delete n[item.id]; return n; });
     try {
@@ -457,7 +465,8 @@ export default function Home() {
       if (res.status === 402) { stop(); openPricing("Animate", ANIMATE_COST, true); return; }
       if (!res.ok || !d.job) throw new Error(d.error || "Could not start the video.");
       await pollVideoJob(d.job);
-    } catch (e) { setError(e.message); }
+      track("generation_success", { mode: "animate" });
+    } catch (e) { setError(e.message); track("generation_fail", { mode: "animate" }); }
     finally { stop(); }
   };
   // Face Lock: keep the face from one of your photos in a new scene (paid credits only).
@@ -473,6 +482,7 @@ export default function Home() {
     const instr = promptState.trim();
     if (!instr) { setError('Describe the new scene, e.g. "as an astronaut on Mars".'); return; }
     if (!isAdmin && paid < FACE_COST) { openPricing("Face Lock", FACE_COST, true); return; }
+    track("generate_click", { mode: "facelock" });
     setLoading(true); setError(""); setNotice(""); setImage(null); setLoadingText("Locking the face...");
     try {
       const res = await fetch("/api/facelock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: faceTarget.id, prompt: instr, aspectRatio: ratioState }) });
@@ -484,7 +494,8 @@ export default function Home() {
       setHistory((prev) => [ni, ...prev.filter((h) => h.id !== ni.id)].slice(0, 36));
       setImage(ni.url); setCurrentItem(ni); setGalleryKey((k) => k + 1);
       showToast("◉ Same face, new scene — describe another, or ✕ to finish");
-    } catch (e) { setError(e.message); }
+      track("generation_success", { mode: "facelock" });
+    } catch (e) { setError(e.message); track("generation_fail", { mode: "facelock" }); }
     finally { setLoading(false); setLoadingText("Initializing AI studio..."); }
   };
   const [compare, setCompare] = useState(null); // { before, after, label, beforeItem } after a tool/edit
@@ -517,6 +528,7 @@ export default function Home() {
     const instr = promptState.trim();
     if (!instr) { setError('Describe the change, e.g. "make it night".'); return; }
     if (!isAdmin && credits + paid < EDIT_COST) { openPricing("Edit", EDIT_COST); return; }
+    track("generate_click", { mode: "edit" });
     setLoading(true); setError(""); setNotice(""); setLoadingText("Applying your edit...");
     try {
       const res = await fetch("/api/edit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editTarget.id, prompt: instr }) });
@@ -532,7 +544,8 @@ export default function Home() {
       setImage(ni.url); setCurrentItem(ni); setGalleryKey((k) => k + 1);
       setEditTarget({ id: ni.id, url: ni.url, format: ni.format || null }); setPrompt("");
       showToast("✎ Edited — describe another change, or ✕ to finish");
-    } catch (e) { setError(e.message); }
+      track("generation_success", { mode: "edit" });
+    } catch (e) { setError(e.message); track("generation_fail", { mode: "edit" }); }
     finally { setLoading(false); setLoadingText("Initializing AI studio..."); }
   };
   const [guide, setGuide] = useState(null); // { id, url }
@@ -628,6 +641,9 @@ export default function Home() {
       return;
     }
 
+    const tModel = useGuide ? "guided" : tier;
+    track("generate_click", { mode: "image", model: tModel });
+    let tStatus = 0;
     setLoading(true);
     setError("");
     setImage(null);
@@ -647,6 +663,7 @@ export default function Home() {
         body: JSON.stringify({ prompt, style, aspectRatio, remixOf, tier, format: fmt, ...(isDaily ? { daily: true } : {}), ...(useGuide ? { guideId: useGuide.id, guideFollow: guideFollow / 100 } : {}) }),
       });
 
+      tStatus = res.status;
       const data = await res.json();
       if (data.admin) setIsAdmin(true);
       else if (typeof data.credits === "number") setCredits(data.credits);
@@ -659,6 +676,7 @@ export default function Home() {
       }
 
       setImage(data.imageUrl);
+      track("generation_success", { mode: "image", model: tModel });
 
       const newItem = {
         id: data.id || null,
@@ -691,6 +709,7 @@ export default function Home() {
       }
     } catch (err) {
       setError(err.message);
+      track("generation_fail", { mode: "image", model: tModel, status: tStatus });
     } finally {
       textIntervals.forEach(clearTimeout);
       setLoading(false);
@@ -1129,7 +1148,7 @@ export default function Home() {
             </div>
             ) : (
             <div className="pp-field">
-              <textarea id="pp-prompt" maxLength={1500} rows={1} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+              <textarea id="pp-prompt" maxLength={1500} rows={1} value={prompt} onChange={(e) => { setPrompt(e.target.value); if (e.target.value.trim()) trackOnce("prompt_typed", { mode: faceTarget ? "facelock" : editTarget ? "edit" : mode }); }}
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && window.innerWidth > 820) { e.preventDefault(); onPulse(); } }}
                 placeholder={faceTarget ? "New scene for this face — e.g. as an astronaut on Mars" : editTarget ? "Describe the change — e.g. make it night" : mode === "video" ? "Describe a scene in motion — any language…" : "Describe an image — any language…"} />
               {prompt.length > 1200 && <span className="pp-count" aria-live="polite">{prompt.length}/1500</span>}

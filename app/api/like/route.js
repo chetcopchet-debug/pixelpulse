@@ -5,11 +5,12 @@ import { getClientIp } from '../../../lib/credits';
 import { rateLimit } from '../../../lib/ratelimit';
 
 import { isAdmin } from '../../../lib/admin';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-export async function POST(request) {
+async function POSTHandler(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ error: 'Community feed is not available yet.' }, { status: 503 });
 
@@ -39,3 +40,5 @@ export async function POST(request) {
   setCreatorCookie(res, creator);
   return res;
 }
+
+export const POST = withErrorLog('/api/like', POSTHandler);

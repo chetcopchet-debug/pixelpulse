@@ -4,9 +4,10 @@ import { PLANS, planEnabled, signUidFor } from '../../../lib/paid';
 import { rateLimit } from '../../../lib/ratelimit';
 import { getClientIp } from '../../../lib/credits';
 import { SITE_URL } from '../../../lib/site';
+import { withErrorLog } from '../../../lib/monitor';
 export const dynamic = 'force-dynamic';
 
-export async function POST(request) {
+async function POSTHandler(request) {
   const body = await request.json().catch(() => ({}));
   const plan = PLANS[body?.plan];
   if (!plan) return NextResponse.json({ error: 'Unknown plan.' }, { status: 400 });
@@ -43,3 +44,5 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Checkout is unavailable right now.' }, { status: 502 });
   }
 }
+
+export const POST = withErrorLog('/api/checkout', POSTHandler);

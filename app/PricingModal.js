@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { track } from "./telemetry";
 
 const FALLBACK = [
   { id: "pack", name: "Creator Pack", credits: 500, price: "$9.90", period: "one-time", enabled: false },
@@ -14,6 +15,7 @@ export default function PricingModal({ invite, onInvite, need, credits, paid, re
   useEffect(() => { const k = (e) => e.key === "Escape" && onClose(); window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
   const buy = async (id) => {
     setBusy(id); setErr("");
+    track("checkout_click", { plan: id, from: "modal" });
     try {
       const r = await fetch("/api/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan: id }) });
       const d = await r.json().catch(() => ({}));

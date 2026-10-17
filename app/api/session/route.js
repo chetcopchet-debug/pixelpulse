@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabase } from '../../../lib/supabase';
 import { readUidCookie, setCreatorCookie } from '../../../lib/identity';
 import crypto from 'crypto';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -12,7 +13,7 @@ export const fetchCache = 'force-no-store';
 // in feed URLs until /api/admin/rekey ran, so upgrades are only accepted until LEGACY_UNTIL.
 const LEGACY_UNTIL = Date.parse('2026-11-15T00:00:00Z');
 
-export async function POST(request) {
+async function POSTHandler(request) {
   const c = readUidCookie(request);
   if (!c) return NextResponse.json({ ok: true, state: 'none' });
   if (c.signed) return NextResponse.json({ ok: true, state: 'signed' });
@@ -30,3 +31,5 @@ export async function POST(request) {
   setCreatorCookie(res, fresh);
   return res;
 }
+
+export const POST = withErrorLog('/api/session', POSTHandler);

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabase } from '../../../lib/supabase';
 import { getCreatorId, isUuid } from '../../../lib/identity';
+import { withErrorLog } from '../../../lib/monitor';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -13,7 +14,7 @@ function kindOf(r) {
 }
 
 // GET /api/history?limit=24&cursor=<created_at ISO>&filter=all|created|uploads|edits|published&ids=a,b (favorites)
-export async function GET(request) {
+async function GETHandler(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ enabled: false, items: [] });
   const creator = getCreatorId(request);
@@ -46,3 +47,5 @@ export async function GET(request) {
   const nextCursor = data.length === limit ? data[data.length - 1].created_at : null;
   return NextResponse.json({ enabled: true, items, nextCursor });
 }
+
+export const GET = withErrorLog('/api/history', GETHandler);
