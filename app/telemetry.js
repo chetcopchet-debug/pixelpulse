@@ -18,7 +18,8 @@ export function track(name, props = {}) {
   if (typeof window === "undefined") return;
   const clean = {};
   for (const [k, v] of Object.entries(props || {})) if (v !== undefined && v !== null && v !== "") clean[k] = v;
-  try { vercelTrack(name, clean); } catch {}
+  // Vercel Pro allows 2 properties per custom event: keep the most useful two (mode first). Full set goes to /api/track.
+  try { vercelTrack(name, Object.fromEntries(Object.entries(clean).sort(([a], [b]) => (b === "mode") - (a === "mode")).slice(0, 2))); } catch {}
   beacon("/api/track", { name, props: clean });
 }
 
