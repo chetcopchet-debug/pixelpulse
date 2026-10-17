@@ -103,7 +103,7 @@ export async function uploadRaw(file, uploadId) {
   const idh = uploadId ? { "x-upload-id": uploadId } : {};
   if (file.size > 8 * 1024 * 1024) throw new UploadError("This photo is too large to convert (max 8MB). Try a screenshot of it, or a smaller photo.");
   try {
-    const s = await fetch("/api/upload/sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ size: file.size }) });
+    const s = await fetch("/api/upload/sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ size: file.size, type: file.type || "application/octet-stream" }) });
     const sd = await s.json().catch(() => ({}));
     if (s.ok && sd.signedUrl) {
       const put = await fetch(sd.signedUrl, { method: "PUT", headers: { "Content-Type": file.type || "application/octet-stream", "x-upsert": "true" }, body: file });

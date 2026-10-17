@@ -43,7 +43,7 @@ test('mixed Hebrew minor + English sexual is treated as minors', () => { assert.
 const src = (f) => readFileSync(new URL(`../app/api/${f}/route.js`, import.meta.url), 'utf8');
 test('repaint checks original and English prompt inside prepare (before runImageTool charges)', () => {
   const s = src('repaint');
-  const o = s.indexOf('checkPromptText(prompt)'), t = s.indexOf('toEnglishPrompt(prompt)'), e = s.indexOf('checkPromptText(english)');
+  const o = s.indexOf('checkPromptText(prompt)'), t = s.indexOf('toEnglishPrompt(prompt'), e = s.indexOf('checkPromptText(english)');
   assert.ok(o > 0 && o < t && t < e, 'order: check original -> translate -> check English');
   assert.ok(e < s.indexOf('return { args }'), 'English check must run before args are returned to the charging tool');
   const tool = readFileSync(new URL('../lib/imagetool.js', import.meta.url), 'utf8');
@@ -76,7 +76,7 @@ test('blockedMessage is bilingual and never says "published to the feed"', async
   const { blockedMessage } = await import('../lib/moderation.js');
   for (const p of ['naked woman', 'gore', 'heil hitler']) {
     const m = blockedMessage(checkPromptText(p));
-    assert.ok(!/published to the feed/.test(m)); assert.match(m, /אסור/);
+    assert.ok(!/published to the feed/.test(m)); assert.match(m, /not allowed/); assert.ok(!/[\u0590-\u05FF]/.test(m));
   }
 });
 test('all prompt routes use the shared blockedMessage', () => {
@@ -107,7 +107,7 @@ test('checkPersonEditText blocks undressing requests, allows normal edits', asyn
 test('outputGate: nsfw blocks, normal passes, unavailable depends on policy', async () => {
   const { outputGate } = await import('../lib/moderation.js');
   assert.equal(outputGate('normal', 'closed'), null);
-  const n = outputGate('nsfw', 'open'); assert.equal(n.status, 422); assert.match(n.error, /אסור/);
+  const n = outputGate('nsfw', 'open'); assert.equal(n.status, 422); assert.match(n.error, /not allowed/); assert.ok(!/[\u0590-\u05FF]/.test(n.error));
   assert.equal(outputGate('unavailable', 'open'), null);
   assert.equal(outputGate('unavailable', 'closed').status, 503);
 });

@@ -1,19 +1,17 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import { getClientIp, chargePaidCredits, paidFor } from '../../../lib/credits';
-import { grantPaid } from '../../../lib/paid';
-import { reserveSpend, bump, PAUSED_MSG } from '../../../lib/usage';
+import { reserveSpend } from '../../../lib/usage';
 import { getSupabase } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
-import { persistBytes, MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
-import { toEnglishPrompt } from '../../../lib/translate';
+import { MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
+import { toEnglishPrompt, TRANSLATE_BUSY_MSG } from '../../../lib/translate';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
+import { advanceJob, fetchPrediction, recordJob, webhookFields } from '../../../lib/videoJobs';
 import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
-import { effectById } from '../../../lib/effects';
 import { videoQuote, VIDEO_PRICING } from '../../../lib/videoPricing';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 import sharp from 'sharp';
@@ -35,9 +33,6 @@ const DEFAULT_MOTION = 'subtle natural cinematic motion, gentle slow camera push
 const JOB_TTL = 60 * 60_000;
 const api = (path, init = {}) => fetch(`https://api.replicate.com/v1/${path}`, { cache: 'no-store', ...init,
   headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
-const fileFor = (pred) => crypto.createHash('sha256').update(`anim.${pred}`).digest('hex').slice(0, 32);
-const ITEM_COLS = 'id, public_url, prompt, style, aspect_ratio, remix_of, is_public, likes, model';
-const toItem = (r) => ({ ...r, model: r.model || 'animate', is_public: Boolean(r.is_public), likes: r.likes || 0 });
 
 // POST { id, prompt? } -> { job } (start). Charged up front from PAID credits; refunded if the video fails.
 export async function POST(request) {
@@ -59,8 +54,9 @@ export async function POST(request) {
   let motion = DEFAULT_MOTION;
   if (effect) motion = EFFECT_PROMPTS[effect];
   else if (raw) {
-    const en = await toEnglishPrompt(raw);
-    const bad = checkPromptText(en);
+    const en = await toEnglishPrompt(raw, { strict: true }); // the photo may show a real person: fail closed
+    if (en === null) return NextResponse.json({ error: TRANSLATE_BUSY_MSG }, { status: 503 });
+    const bad = checkPromptText(raw) || checkPromptText(en);
     if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
     motion = `${en}. Keep the scene and subject consistent.`;
   }
@@ -70,11 +66,11 @@ export async function POST(request) {
   // checked before charging. Fails CLOSED (often a photo of a person). Nothing is charged yet, so there is nothing to refund.
   const inGate = await checkOutputImage(row.public_url, 'closed');
   if (inGate) await logGeneration({ userId: creator.id, ip, mode: 'animate', prompt: raw, inputRef: row.id, moderation: inGate.status === 422 ? 'blocked:input' : 'blocked:unavailable' });
-  if (inGate) return NextResponse.json({ error: inGate.status === 503 ? inGate.error.replace(/ Your credits were refunded\.| הקרדיטים הוחזרו\./g, '') : inGate.error }, { status: inGate.status });
+  if (inGate) return NextResponse.json({ error: inGate.status === 503 ? inGate.error.replace(/ Your credits were refunded\./g, '') : inGate.error }, { status: inGate.status });
   const charge = await chargePaidCredits({ admin, creator, cost: AN.cost });
   if (!charge.ok) return NextResponse.json({ error: `Animate uses purchased credits (${AN.cost}⚡).`, needCredits: { cost: AN.cost, label: AN.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(AN.usd, { admin: true }); // paid work is never blocked by the free budget cap
-  const r = await api(`models/${AN.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: AN.input(effect ? await toVertical(row.public_url) : row.public_url, motion) }) }).catch(() => null);
+  const r = await api(`models/${AN.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: AN.input(effect ? await toVertical(row.public_url) : row.public_url, motion), ...webhookFields() }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
     console.error('animate start', r?.status, p?.detail || p?.error || '');
@@ -82,7 +78,9 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
   }
   await logGeneration({ userId: creator.id, ip, mode: effect ? `effect:${effect}` : 'animate', prompt: raw, inputRef: row.id, outputRef: `pred:${p.id}`, moderation: 'passed:input-only' });
-  const job = makeJob({ p: p.id, u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL, ...(effect ? { e: effect } : {}) });
+  const fields = { p: p.id, u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL, ...(effect ? { e: effect } : {}) };
+  await recordJob(sb, fields); // server-side record: saved/refunded by the webhook even if the tab is closed
+  const job = makeJob(fields);
   const res = NextResponse.json({ job, status: 'processing', paid: admin ? undefined : await paidFor(creator), ...(admin ? { admin: true } : {}) });
   setCreatorCookie(res, creator);
   return res;
@@ -103,13 +101,13 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const ratio = q.ratio;
   const tier = { ...def, cost: q.cost, usd: q.usd };
   const en = await toEnglishPrompt(raw);
-  const bad = checkPromptText(en);
+  const bad = checkPromptText(raw) || checkPromptText(en);
   if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
   const charge = await chargePaidCredits({ admin, creator, cost: tier.cost });
   if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost}⚡).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(tier.usd, { admin: true });
-  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio, q.d, q.r) }) }).catch(() => null);
+  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio, q.d, q.r), ...webhookFields() }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
     console.error('t2v start', body.model, r?.status, p?.detail || p?.error || '');
@@ -117,54 +115,21 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
     return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
   }
   await logGeneration({ userId: creator.id, ip, mode: `t2v:${body.model}`, prompt: raw, outputRef: `pred:${p.id}`, moderation: 'passed:text-only' });
-  const job = makeJob({ p: p.id, u: creator.id, s: null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio });
+  const fields = { p: p.id, u: creator.id, s: null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio };
+  await recordJob(getSupabase(), fields);
+  const job = makeJob(fields);
   const res = NextResponse.json({ job, status: 'processing', ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
   setCreatorCookie(res, creator);
   return res;
 }
 
-// GET ?job=<token> -> { status: processing | done | failed, item? }
+// GET ?job=<token> -> { status: processing | done | failed, item? }. The webhook / sweep may already have finished it.
 export async function GET(request) {
   const job = readJob(new URL(request.url).searchParams.get('job'));
   const creator = getCreatorId(request);
   if (!job || creator.isNew || creator.id !== job.u) return NextResponse.json({ error: 'Unknown video job.' }, { status: 404 });
   const sb = getSupabase(); if (!sb) return NextResponse.json({ error: 'Service temporarily unavailable.' }, { status: 503 });
-  const name = fileFor(job.p), path = `i/${name}.mp4`;
-  const done = async () => {
-    const { data } = await sb.from('images').select(ITEM_COLS).eq('storage_path', path).maybeSingle();
-    return data ? NextResponse.json({ status: 'done', item: toItem(data) }) : null;
-  };
-  const already = await done(); if (already) return already;
-
-  const r = await api(`predictions/${encodeURIComponent(job.p)}`).catch(() => null);
-  const p = r && r.ok ? await r.json().catch(() => ({})) : null;
-  if (!p) return NextResponse.json({ status: 'processing' });
-  if (p.status === 'failed' || p.status === 'canceled') {
-    if (job.c > 0 && await bump(`animref:${job.p}`, 1, 1) !== null) await grantPaid(job.u, job.c).catch((e) => console.error('animate refund', e));
-    console.error('animate failed', p.error);
-    return NextResponse.json({ status: 'failed', error: `The video failed${job.c ? ', your credits were refunded' : ''}.`, paid: await paidFor(creator) });
-  }
-  if (p.status !== 'succeeded') return NextResponse.json({ status: 'processing' });
-  const url = Array.isArray(p.output) ? p.output[0] : typeof p.output === 'string' ? p.output : null;
-  if (!url) { // succeeded without an output: treat as a failure and refund (once)
-    if (job.c > 0 && await bump(`animref:${job.p}`, 1, 1) !== null) await grantPaid(job.u, job.c).catch((e) => console.error('animate refund', e));
-    return NextResponse.json({ status: 'failed', error: `The video failed${job.c ? ', your credits were refunded' : ''}.`, paid: await paidFor(creator) });
-  }
-  if (await bump(`animsave:${job.p}`, 1, 1) === null) return NextResponse.json({ status: 'processing' }); // another poll is saving it
-  try {
-    const v = await fetch(url, { cache: 'no-store' });
-    if (!v.ok) throw new Error(`download ${v.status}`);
-    const bytes = Buffer.from(await v.arrayBuffer());
-    const { data: src0 } = job.s ? await sb.from('images').select('prompt, style, aspect_ratio').eq('id', job.s).maybeSingle() : { data: null };
-    const fx = job.e ? effectById(job.e) : null;
-    const src = fx ? { prompt: `✦ Pulse Effect: ${fx.name}`, style: 'None', aspect_ratio: '9:16' } : (src0 || (job.pr ? { prompt: job.pr, style: 'None', aspect_ratio: job.r || '16:9' } : null));
-    const stored = await persistBytes({ bytes, contentType: 'video/mp4', prompt: src?.prompt || 'Animated image', style: src?.style || 'None',
-      ratio: src?.aspect_ratio || '1:1', creatorId: job.u, remixOf: job.s || null, tier: job.e ? `effect:${job.e}` : job.t ? `video:${job.t}` : 'animate', fixedName: name });
-    if (!stored?.id) throw new Error(stored?.error || 'save failed');
-    return (await done()) || NextResponse.json({ status: 'done', item: toItem({ id: stored.id, public_url: stored.url, prompt: src?.prompt, style: src?.style, aspect_ratio: src?.aspect_ratio, remix_of: job.s }) });
-  } catch (e) {
-    console.error('animate save', e?.message || e);
-    await bump(`animsave:${job.p}`, -1, 1e9).catch(() => {});
-    return NextResponse.json({ status: 'processing' });
-  }
+  const res = await advanceJob(sb, job, await fetchPrediction(job.p));
+  if (res.status === 'failed') return NextResponse.json({ ...res, paid: await paidFor(creator) });
+  return NextResponse.json(res);
 }

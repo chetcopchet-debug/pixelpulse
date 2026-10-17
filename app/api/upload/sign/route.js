@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getSupabase, BUCKET } from '../../../../lib/supabase';
+import { getSupabase, BUCKET, TMP_BUCKET } from '../../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, creatorTag, randomName } from '../../../../lib/identity';
 import { getClientIp } from '../../../../lib/credits';
 import { isAdmin } from '../../../../lib/admin';
 import { rateLimit } from '../../../../lib/ratelimit';
+import { validateUploadRequest } from '../../../../lib/uploads';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -17,10 +18,12 @@ export async function POST(request) {
   const ip = getClientIp(request);
   if (!isAdmin(request) && !await rateLimit(`upsign:${ip}`, 30, 60 * 60_000)) return NextResponse.json({ error: 'Upload limit reached.' }, { status: 429 });
   const body = await request.json().catch(() => ({}));
-  const size = Number(body?.size) || 0;
-  if (size > 8 * 1024 * 1024) return NextResponse.json({ error: 'Photo is too large (max 8MB).' }, { status: 413 });
+  const v = validateUploadRequest(body);
+  if (v) return NextResponse.json({ error: v.error }, { status: v.status });
   const path = `tmp/${creatorTag(creator.id, 'tmp')}/${randomName()}`;
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
+  // Private, size/type-limited bucket (migration 010); the public bucket is only a fallback before the migration runs.
+  let { data, error } = await supabase.storage.from(TMP_BUCKET).createSignedUploadUrl(path);
+  if (error) ({ data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path));
   if (error || !data?.signedUrl) { console.error('Sign error:', error); return NextResponse.json({ error: 'Could not prepare the upload.' }, { status: 500 }); }
   const res = NextResponse.json({ signedUrl: data.signedUrl, tmpPath: path });
   setCreatorCookie(res, creator);

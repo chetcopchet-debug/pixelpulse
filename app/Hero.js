@@ -10,7 +10,7 @@ const SLIDES = [
   { kind: "img", src: "/hero/sneaker.webp", prompt: "Holographic sneaker bursting through a wooden table", mode: "image", tag: "Image" },
 ];
 
-export default function Hero({ onTry }) {
+export default function Hero({ onTry, compact = false }) {
   const [i, setI] = useState(0);
   const [typed, setTyped] = useState("");
   const [calm, setCalm] = useState(false);
@@ -25,7 +25,7 @@ export default function Hero({ onTry }) {
   useEffect(() => { const v = vref.current; if (!v || calm) return; if (i === 0) { v.currentTime = 0; v.play().catch(() => {}); } }, [i, calm]);
   const s = SLIDES[i];
   return (
-    <section className="hx" aria-label="PixelPulse showcase">
+    <section className={`hx${compact ? " hx-compact" : ""}`} aria-label="PixelPulse showcase">
       <div className="hx-media" aria-hidden="true">
         {SLIDES.map((sl, n) => sl.kind === "video" ? (
           <video key={n} ref={vref} className={`hx-layer${n === i ? " on" : ""}`} muted loop playsInline autoPlay={!calm} preload="metadata" poster={sl.poster}>
@@ -79,6 +79,7 @@ export const HERO_CSS = `
 @keyframes hxBeat{70%{box-shadow:0 0 0 9px rgba(236,72,153,0)}100%{box-shadow:0 0 0 0 rgba(236,72,153,0)}}
 @keyframes hxGrad{to{background-position:300% 0}}
 @keyframes hxBlink{50%{opacity:0}}
+@media (max-width:820px){.hx.hx-compact{height:max(300px,calc(100svh - var(--dock-h, 174px) - 150px));min-height:0}}
 @media (min-width:821px){.hx{margin:0 auto 18px;max-width:1100px;border-radius:30px}}
 @media (prefers-reduced-motion:reduce){.hx *,.hx{animation:none!important;transition:none!important}}
 `;

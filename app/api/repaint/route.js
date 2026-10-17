@@ -1,6 +1,6 @@
 import { runImageTool } from '../../../lib/imagetool';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
-import { toEnglishPrompt } from '../../../lib/translate';
+import { toEnglishPrompt, TRANSLATE_BUSY_MSG } from '../../../lib/translate';
 import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
 
 // prepare() runs before runImageTool charges or records spend, so a block here costs nothing.
@@ -21,7 +21,8 @@ async function prepare(body) {
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
   const badOriginal = checkPromptText(prompt);
   if (badOriginal) return { error: blocked(badOriginal) };
-  const english = await toEnglishPrompt(prompt);
+  const english = await toEnglishPrompt(prompt, { strict: true }); // real-person photo: fail closed
+  if (english === null) return { error: TRANSLATE_BUSY_MSG };
   const badEnglish = checkPromptText(english);
   if (badEnglish) return { error: blocked(badEnglish) };
   const args = [mask, english];
