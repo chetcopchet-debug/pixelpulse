@@ -13,7 +13,7 @@ export function ModelSheet({ s, onClose }) {
   const list = sort === "price" ? [...all].sort((a, b) => a.cost - b.cost) : all;
   const current = video ? s.vidModel : s.imgModel;
   return (
-    <Sheet title={video ? "Video models" : "Image models"} sub={video ? "Prices are for the shortest clip. Longer or sharper clips cost more." : "The price is for one image."} onClose={onClose}>
+    <Sheet title={video ? "Video models" : "Image models"} sub={video ? "Prices are for the standard setting. Length and quality change the price." : "The price is for one image."} onClose={onClose}>
       <div className="r" style={{ gap: 6, padding: "0 8px 8px" }}>
         <button className={`chip${sort === "best" ? " on" : ""}`} onClick={() => setSort("best")}>Recommended</button>
         <button className={`chip${sort === "price" ? " on" : ""}`} onClick={() => setSort("price")}>Lowest price</button>

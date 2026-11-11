@@ -1,20 +1,9 @@
 // What the interface shows for each model and tool. Prices come from the same tables the server charges from.
-import { IMAGE_MODELS, VIDEO_MODELS } from "../../lib/catalog.js";
-import { VIDEO_PRICING, videoQuote } from "../../lib/videoPricing.js";
+import { IMAGE_MODELS, VIDEO_MODELS, RETIRED } from "../../lib/catalog.js";
+import { VIDEO_PRICING, videoQuote, videoFrom } from "../../lib/videoPricing.js";
 
-// The catalog uses short internal labels for a few models; people know them by their real names.
-const REAL_NAME = {
-  fast: "FLUX Schnell",
-  quality: "FLUX 1.1 Pro",
-  "flux-ultra": "FLUX 1.1 Pro Ultra",
-  text: "Ideogram V3 Turbo",
-  "text-pro": "Ideogram V3 Balanced",
-};
-
-const MAKER = { fast: "Black Forest Labs", quality: "Black Forest Labs", text: "Ideogram", "text-pro": "Ideogram" };
-
-export const imageModels = IMAGE_MODELS.map((m) => ({ id: m.id, name: REAL_NAME[m.id] || m.label, by: MAKER[m.id] || m.by, desc: m.desc, cost: m.cost }));
-export const videoModels = VIDEO_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost, eta: m.eta || 120 }));
+export const imageModels = IMAGE_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost }));
+export const videoModels = VIDEO_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost, from: videoFrom(m.id).cost, eta: m.eta || 120 }));
 export const imageModel = (id) => imageModels.find((m) => m.id === id) || imageModels.find((m) => m.id === "fast");
 export const videoModel = (id) => videoModels.find((m) => m.id === id) || videoModels[0];
 
@@ -53,6 +42,7 @@ export function madeWith(model) {
   if (id === "animate") return "Animate";
   if (id === "facelock") return "Keep the face";
   if (id.startsWith("effect:")) return "Effect";
+  if (RETIRED[id]) return RETIRED[id];
   if (id.startsWith("video:")) return (videoModels.find((m) => m.id === id.slice(6)) || { name: "Video" }).name;
   return (imageModels.find((m) => m.id === id) || { name: "Image" }).name;
 }

@@ -8,12 +8,33 @@ test('every allowed combo has >=50% margin basis (credits >= usd/0.0057)', () =>
     assert.ok(q.cost * CREDIT_USD >= q.usd - 1e-9, `${m} ${d} ${r}`);
   }
 });
-test('defaults keep the #54 prices', () => {
+test('the default option of each model is the price the server holds for it', () => {
   for (const [m, t] of Object.entries(VIDEO_TIERS)) { const d = VIDEO_PRICING[m].def; assert.equal(videoQuote(m, d.d, d.r).cost, t.cost, m); }
 });
+test('prices agreed with the owner (5 s unless noted)', () => {
+  const c = (m, d, r) => videoQuote(m, d, r).cost;
+  assert.equal(c('seedance-25', 5, '720p'), 205);
+  assert.equal(c('seedance-25', 5, '480p'), 95);
+  assert.equal(c('kling-4', 5, '720p'), 140);
+  assert.equal(c('veo', 4, '720p'), 110);
+  assert.equal(c('kling-4-flash', 5, '720p'), 85);
+  assert.equal(c('grok-video', 5, '720p'), 45);
+  assert.equal(c('veo-lite', 4, '720p'), 36);
+  assert.equal(c('h3-lite', 5, '768p'), 36);
+  assert.equal(c('wan', 5, '480p'), 10);
+});
+test('a price that was not verified on Replicate carries 15% on top', () => {
+  const q = videoQuote('omni', 5, '720p');
+  assert.equal(q.usd, 0.403); // 0.07 * 5 * 1.15, to a tenth of a cent
+  assert.equal(q.cost, 75);
+  assert.equal(VIDEO_PRICING.omni.approx, true);
+  assert.equal(Object.values(VIDEO_PRICING).filter((p) => p.approx).length, 1);
+});
 test('server rejects combos the model does not support', () => {
-  assert.equal(videoQuote('hailuo', 10, '1080p'), null);
+  assert.equal(videoQuote('veo-lite', 4, '1080p'), null); // Veo Lite makes 1080p only at 8 s
+  assert.equal(videoQuote('veo-lite', 8, '1080p').cost, 115);
   assert.equal(videoQuote('veo', 5, '720p'), null);
   assert.equal(videoQuote('wan', 5, '1080p'), null);
   assert.equal(videoQuote('nope', 5, '720p'), null);
+  assert.equal(videoQuote('constructor', 5, '720p'), null);
 });

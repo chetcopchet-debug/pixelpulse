@@ -6,6 +6,7 @@ import { bump } from '../../lib/usage';
 import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
 import { billingWarnings, replicateAccount } from '../../lib/replicate';
+import { liveCheck } from '../../lib/modelCheck';
 import Page from '../studio/Page';
 export const metadata = { title: 'Admin · PixelPulse', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,11 @@ export default async function AdminLogin(props) {
   // Replicate: the API does not report the balance, so the page shows what Replicate's own refusals said today.
   const money = admin ? await billingWarnings().catch(() => ({ low: 0, empty: 0 })) : { low: 0, empty: 0 };
   const account = admin ? await replicateAccount() : null;
+  // Models: the price each one is charged at, whether that price was confirmed on Replicate, and whether Replicate
+  // still has the model and accepts the inputs we send (asked live, cached for an hour).
+  const models = admin ? await liveCheck().catch(() => []) : [];
+  const unverified = models.filter((m) => m.approx);
+  const broken = models.filter((m) => m.ok === false);
   const when = (t) => new Date(t).toLocaleString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   return (
     <Page bare>
@@ -77,6 +83,27 @@ export default async function AdminLogin(props) {
               <span className="grow"><span className="b">Balance</span><span className="sm t2" style={{ display: 'block' }}>Replicate does not give the balance through its API, so the amount cannot be shown here. This line turns into a warning as soon as Replicate itself reports a low or empty balance. <a className="link" href="https://replicate.com/account/billing" target="_blank" rel="noreferrer">Open Replicate billing</a></span></span>
               <span className={`b sm ${money.empty > 0 ? 'bad' : money.low > 0 ? 'bad' : 'ok'}`} style={{ whiteSpace: 'nowrap' }}>{money.empty > 0 ? 'Empty' : money.low > 0 ? 'Under $5' : 'No warnings today'}</span>
             </div>
+          </div>
+
+          <h2 className="sec">Models and prices</h2>
+          {broken.length > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>{broken.length} {broken.length === 1 ? 'model needs' : 'models need'} attention.</b> Replicate no longer accepts what the site sends, so generations with {broken.length === 1 ? 'it' : 'them'} will fail and be refunded.</p>}
+          {unverified.length > 0 && <p className="notice" style={{ marginBottom: 10 }}><b>{unverified.length} prices are not verified.</b> They are the maker's list price, not a price read on Replicate, so they are charged with 15% on top. To verify one, open its Replicate page, find the price, and tell Claude.</p>}
+          <div className="ptable">
+            <div className="head"><span className="grow">Model, and what one run costs us</span><span>Credits</span></div>
+            {models.map((m) => (
+              <div key={m.kind + m.id}>
+                <span className="grow">
+                  <span className="b">{m.name}</span>
+                  <span className="sm t2" style={{ display: 'block' }}>
+                    <a className="link" href={`https://replicate.com/${m.slug}`} target="_blank" rel="noreferrer">{m.slug}</a>
+                  </span>
+                  <span className="sm t2" style={{ display: 'block' }}>${m.usd < 1 ? m.usd.toFixed(3) : m.usd.toFixed(2)} for {m.unit}. Source: {m.src}</span>
+                  <span className={`sm ${m.approx ? 'bad' : 'ok'}`} style={{ display: 'block' }}>{m.approx ? `Price not verified: list price $${m.listUsd} plus 15%` : 'Price verified'}</span>
+                  <span className={`sm ${m.ok === true ? 'ok' : m.ok === false ? 'bad' : 't3'}`} style={{ display: 'block' }}>{m.ok === true ? 'Replicate accepts our inputs' : m.ok === false ? `Problem: ${m.problems.join('; ')}` : `Not checked: ${m.problems.join('; ')}`}</span>
+                </span>
+                <span className="price"><i className="coin" />{m.cost}</span>
+              </div>
+            ))}
           </div>
 
           <h2 className="sec">Latest videos</h2>

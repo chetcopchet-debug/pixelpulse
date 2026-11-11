@@ -29,7 +29,7 @@ export function useStudio() {
   const [mode, setMode] = useState("image");
   const [prompt, setPrompt] = useState("");
   const [imgModel, setImgModel] = useState("fast");
-  const [vidModel, setVidModelRaw] = useState("seedance");
+  const [vidModel, setVidModelRaw] = useState("veo-lite");
   const [ratio, setRatio] = useState("1:1");
   const [vDur, setVDur] = useState(null);
   const [vRes, setVRes] = useState(null);
