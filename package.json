@@ -5,7 +5,7 @@
   "scripts": {
     "test": "node --test test/",
     "dev": "next dev",
-    "build": "next build",
+    "build": "node --no-warnings scripts/model-schemas.mjs; next build",
     "start": "next start",
     "lint": "next lint"
   },

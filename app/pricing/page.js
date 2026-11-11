@@ -58,8 +58,8 @@ export default function Pricing() {
 
       <h2 className="sec">Video models</h2>
       <div className="ptable">
-        <div className="head"><span className="grow">One video, shortest length. Bought credits only</span><span>From</span></div>
-        {videoModels.map((m) => { const p = VIDEO_PRICING[m.id]; return <div key={m.id}><span className="grow"><span className="b">{m.name}</span><span className="sm t2" style={{ display: 'block' }}>{m.by}. {p.durations.join(' or ')} seconds, up to {p.resolutions[p.resolutions.length - 1]}</span></span><Coin n={m.cost} /></div>; })}
+        <div className="head"><span className="grow">One video, cheapest setting. Bought credits only</span><span>From</span></div>
+        {videoModels.map((m) => { const p = VIDEO_PRICING[m.id]; return <div key={m.id}><span className="grow"><span className="b">{m.name}</span><span className="sm t2" style={{ display: 'block' }}>{m.by}. {p.durations.join(' or ')} seconds, up to {p.resolutions[p.resolutions.length - 1]}</span></span><Coin n={m.from} /></div>; })}
       </div>
       <p className="sm t3" style={{ marginTop: 8 }}>Longer or sharper videos cost more. The exact price is on the button before you generate.</p>
 
