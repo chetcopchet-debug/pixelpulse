@@ -15,7 +15,5 @@ export default async function sitemap() {
   ];
   entries.push({ url: `${BASE}/formats`, changeFrequency: 'weekly', priority: 0.6 });
   for (const f of FORMAT_LIST) if (f.id !== 'free') entries.push({ url: `${BASE}/formats/${f.id}`, changeFrequency: 'weekly', priority: 0.7 });
-  // Shared image pages (/p/<id>) are reachable by their link but are not listed here: what people share is
-  // their own content, not something the site puts forward to search engines.
   return entries;
 }

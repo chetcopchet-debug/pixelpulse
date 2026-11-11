@@ -12,7 +12,7 @@ function kindOf(r) {
   return 'created';
 }
 
-// GET /api/history?limit=24&cursor=<created_at ISO>&filter=all|created|uploads|edits|published&ids=a,b (favorites)
+// GET /api/history?limit=24&cursor=<created_at ISO>&filter=all|created|uploads|edits&ids=a,b (favorites)
 export async function GET(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ enabled: false, items: [] });
@@ -29,7 +29,6 @@ export async function GET(request) {
     let q = supabase.from('images').select(cols).eq('creator_id', creator.id)
       .order('created_at', { ascending: false }).limit(limit);
     if (cursor && !Number.isNaN(Date.parse(cursor))) q = q.lt('created_at', cursor);
-    if (filter === 'published') q = q.eq('is_public', true);
     if (filter === 'favorites') q = q.in('id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
     if (withModel && filter === 'uploads') q = q.eq('model', 'upload').is('remix_of', null);
     if (withModel && filter === 'edits') q = q.or('model.eq.guided,and(remix_of.not.is.null,storage_path.like.*.png)');

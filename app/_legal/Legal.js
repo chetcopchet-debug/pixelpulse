@@ -9,7 +9,7 @@ export function LegalPage({ title, children, noRemoval, noDate }) {
       <div className="prose" style={{ marginTop: 20 }}>
         {children}
         {!noRemoval && <><h2>Contact and removal requests</h2>
-        <p>Email <a href={`mailto:${CONTACT_EMAIL}?subject=Removal%20request`}>{CONTACT_EMAIL}</a> with the image link (pixelpulse…/p/&lt;id&gt;) and the reason. We aim to act on valid removal requests within 48 hours.</p></>}
+        <p>Email <a href={`mailto:${CONTACT_EMAIL}?subject=Removal%20request`}>{CONTACT_EMAIL}</a> with a link to the image or video, or a screenshot of it, and the reason. We aim to act on valid removal requests within 48 hours.</p></>}
       </div>
     </Page>
   );
