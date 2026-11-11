@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
 import Icon from "./icons";
 import { Price, Picture, Poster, Brand, Balance, useNow } from "./bits";
-import { imageModel, videoModel, videoPlan, TOOLS } from "./models";
+import { imageModel, videoModel, videoPlan, TOOLS, comparePlan } from "./models";
 
 const IDEAS = {
   image: [
@@ -70,6 +70,42 @@ function Run({ run, s, now }) {
   );
 }
 
+// One prompt run on several models: the results sit next to each other, each under its model's name and price.
+function CompareRun({ run, s, now }) {
+  const ar = /^\d+:\d+$/.test(run.ratio || "") ? run.ratio.replace(":", " / ") : "1 / 1";
+  return (
+    <article className="fadein">
+      {run.prompt ? <p className="run-p clamp3">{run.prompt}</p> : null}
+      <div className="run-m"><span className="clamp1">{run.label}{run.ratio ? `, ${run.ratio}` : ""}</span><Price n={run.cost} /></div>
+      <div className={`cmp${run.ratio === "16:9" ? " wide" : ""}`}>
+        {run.parts.map((p) => {
+          const pct = Math.min(96, Math.max(4, ((now - p.t0) / 1000 / p.eta) * 100));
+          return (
+            <div key={p.id}>
+              {p.status === "done" ? (
+                <button className="tile" style={{ aspectRatio: ar }} onClick={() => s.setViewer({ item: p.item })} aria-label={`Open the ${p.name} image`}>
+                  <img className="fadein" src={p.item.url} alt={`${p.name}: ${run.prompt || ""}`} loading="lazy" decoding="async" />
+                </button>
+              ) : p.status === "failed" ? (
+                <div className="tile cmp-f" style={{ aspectRatio: ar }}>
+                  <p className="sm">{p.error}</p>
+                  <button className="btn btn-s" style={{ height: 40 }} onClick={() => s.retryPart(run, p.id)}><Icon name="refresh" size={16} />Try again</button>
+                </div>
+              ) : (
+                <div className="tile" style={{ aspectRatio: ar }} role="status" aria-live="polite" aria-label={`${p.name}: generating`}>
+                  <div className="wait"><p className="b sm">Generating</p><div className="bar"><i style={{ width: `${pct}%` }} /></div></div>
+                </div>
+              )}
+              <div className="cmp-l"><span className="clamp1">{p.name}</span><Price n={p.cost} /></div>
+              {p.unsaved ? <p className="note"><Icon name="alert" size={16} />Not saved to your Library. Download it to keep it.</p> : null}
+            </div>
+          );
+        })}
+      </div>
+    </article>
+  );
+}
+
 export default function Create({ s }) {
   const video = s.mode === "video";
   const dockRef = useRef(null), fileRef = useRef(null), textRef = useRef(null);
@@ -90,8 +126,9 @@ export default function Create({ s }) {
 
   const im = imageModel(s.imgModel), vm = videoModel(s.vidModel);
   const plan = video ? videoPlan(vm.id, s.vDur, s.vRes, s.ratio) : null;
-  const cost = s.ref ? (video ? TOOLS.animate.cost : TOOLS.reference.cost) : video ? plan?.cost : im.cost;
-  const action = s.ref ? (video ? "Animate image" : "Generate from image") : video ? "Generate video" : "Generate";
+  const cmp = !video && !s.ref ? comparePlan(s.compare) : null; // two or more models chosen: compare them
+  const cost = s.ref ? (video ? TOOLS.animate.cost : TOOLS.reference.cost) : video ? plan?.cost : cmp ? cmp.cost : im.cost;
+  const action = s.ref ? (video ? "Animate image" : "Generate from image") : video ? "Generate video" : cmp ? `Compare ${cmp.models.length} models` : "Generate";
   const placeholder = s.ref ? (video ? "Describe the motion (optional)" : "Describe the new image") : video ? "Describe the video you want" : "Describe the image you want";
   const lockedRatio = !video && s.format !== "free" ? FORMATS[s.format]?.ratio : null; // a format fixes the shape
   const canGo = Boolean(s.prompt.trim()) || (video && s.ref);
@@ -116,7 +153,7 @@ export default function Create({ s }) {
               <button key={t} className="idea" onClick={() => { s.setPrompt(t); textRef.current?.focus(); }}><span className="grow">{t}</span><Icon name="right" style={{ color: "var(--text-3)" }} /></button>
             ))}
           </div>
-        ) : s.runs.map((run) => <Run key={run.key} run={run} s={s} now={now} />)}
+        ) : s.runs.map((run) => (run.kind === "compare" ? <CompareRun key={run.key} run={run} s={s} now={now} /> : <Run key={run.key} run={run} s={s} now={now} />))}
         <div style={{ height: dockH }} aria-hidden="true" />
       </div>
 
@@ -149,8 +186,8 @@ export default function Create({ s }) {
               <span className="sm t2 b" style={{ whiteSpace: "nowrap", padding: "0 4px" }}>{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span>
             ) : (
               <>
-                <button className="chip-tap" onClick={() => s.setSheet({ type: "models" })} aria-label={`Model: ${video ? vm.name : im.name}. Change`}>
-                  <span className="chip">{video ? vm.name : im.name}<Icon name="down" size={16} /></span>
+                <button className="chip-tap" onClick={() => s.setSheet({ type: "models" })} aria-label={cmp ? `Comparing ${cmp.models.length} models. Change` : `Model: ${video ? vm.name : im.name}. Change`}>
+                  <span className="chip">{cmp ? `${cmp.models.length} models` : video ? vm.name : im.name}<Icon name="down" size={16} /></span>
                 </button>
                 {video ? (
                   <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label="Length, quality and shape. Change">

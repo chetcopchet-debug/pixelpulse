@@ -4,6 +4,23 @@ import { VIDEO_PRICING, videoQuote, videoFrom } from "../../lib/videoPricing.js"
 
 export const imageModels = IMAGE_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost }));
 export const videoModels = VIDEO_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost, from: videoFrom(m.id).cost, eta: m.eta || 120 }));
+// Comparing: one prompt, one image from each chosen model. Each image is charged at its model's own price.
+export const MAX_COMPARE = 4;
+export function comparePlan(ids) {
+  const seen = new Set(); const models = [];
+  for (const id of Array.isArray(ids) ? ids : []) {
+    const m = imageModels.find((x) => x.id === id);
+    if (m && !seen.has(m.id) && models.length < MAX_COMPARE) { seen.add(m.id); models.push(m); }
+  }
+  return models.length >= 2 ? { models, cost: models.reduce((n, m) => n + m.cost, 0) } : null;
+}
+// Whether a wallet covers a list of charges made one after another. The server pays each one from a single pocket
+// (free credits if they cover it, otherwise bought credits), never a mix.
+export function covers(wallet, costs) {
+  let free = wallet.free || 0, paid = wallet.paid || 0;
+  for (const c of costs) { if (free >= c) free -= c; else if (paid >= c) paid -= c; else return false; }
+  return true;
+}
 export const imageModel = (id) => imageModels.find((m) => m.id === id) || imageModels.find((m) => m.id === "fast");
 export const videoModel = (id) => videoModels.find((m) => m.id === id) || videoModels[0];
 

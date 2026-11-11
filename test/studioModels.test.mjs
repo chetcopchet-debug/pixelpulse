@@ -50,3 +50,21 @@ test('saved items are named and typed for display', () => {
   assert.equal(v.video, true);
   assert.equal(toItem({ public_url: 'https://a/b.webp' }).video, false);
 });
+
+test('comparing: two to four different models, priced as the sum', async () => {
+  const { comparePlan, covers, MAX_COMPARE } = await import('../app/studio/models.js');
+  assert.equal(comparePlan(['fast']), null);
+  assert.equal(comparePlan(['fast', 'fast']), null); // the same model twice is one model
+  assert.equal(comparePlan(['fast', 'nope']), null);
+  assert.equal(comparePlan(undefined), null);
+  const p = comparePlan(['fast', 'grok', 'gpt-image']);
+  assert.deepEqual(p.models.map((m) => m.id), ['fast', 'grok', 'gpt-image']);
+  assert.equal(p.cost, 1 + 4 + 16);
+  assert.equal(comparePlan(imageModels.map((m) => m.id)).models.length, MAX_COMPARE);
+  // The server pays each image from one pocket: free credits if they cover it, otherwise bought ones.
+  assert.equal(covers({ free: 10, paid: 0 }, [1, 4]), true);
+  assert.equal(covers({ free: 10, paid: 0 }, [7, 7]), false);
+  assert.equal(covers({ free: 10, paid: 7 }, [7, 7]), true);
+  assert.equal(covers({ free: 3, paid: 20 }, [16, 4]), true);
+  assert.equal(covers({ free: 0, paid: 19 }, [16, 4]), false);
+});
