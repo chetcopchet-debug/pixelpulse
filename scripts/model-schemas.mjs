@@ -9,7 +9,7 @@ const MODELS = [
   'google/gemini-omni-1.2-flash', 'xai/grok-imagine-video', 'google/veo-3.1-lite', 'minimax/h3-lite', 'wan-video/wan-2.2-t2v-fast',
 ];
 const token = process.env.REPLICATE_API_TOKEN;
-const short = (v) => { const s = JSON.stringify(v); return s && s.length > 160 ? s.slice(0, 157) + '...' : s; };
+const short = (v) => { const s = JSON.stringify(v); return s && s.length > 260 ? s.slice(0, 257) + '...' : s; };
 async function one(id) {
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 8000);
   try {
@@ -18,15 +18,15 @@ async function one(id) {
     const m = await r.json();
     const sch = m.latest_version?.openapi_schema?.components?.schemas || {};
     const inp = sch.Input || {};
-    const lines = [`[schema] ${id} :: runs=${m.run_count} required=${short(inp.required || [])}`];
+    const parts = [];
     for (const [k, p] of Object.entries(inp.properties || {}).sort((a, b) => (a[1]['x-order'] ?? 99) - (b[1]['x-order'] ?? 99))) {
       const ref = p.allOf?.[0]?.$ref || p.$ref; const e = ref ? sch[ref.split('/').pop()] : null;
       const type = p.type || e?.type || (p.anyOf ? 'anyOf' : '?');
       const en = p.enum || e?.enum;
-      const range = [p.minimum !== undefined ? `min=${p.minimum}` : '', p.maximum !== undefined ? `max=${p.maximum}` : ''].filter(Boolean).join(' ');
-      lines.push(`[schema]   ${k}: ${type}${p.items?.type ? `<${p.items.type}>` : ''}${en ? ` enum=${short(en)}` : ''}${range ? ` ${range}` : ''}${p.default !== undefined ? ` default=${short(p.default)}` : ''}`);
+      const range = [p.minimum !== undefined ? `>=${p.minimum}` : '', p.maximum !== undefined ? `<=${p.maximum}` : ''].filter(Boolean).join('');
+      parts.push(`${k}:${type}${p.items?.type ? `<${p.items.type}>` : ''}${en ? short(en) : ''}${range}${p.default !== undefined && p.default !== null ? `=${short(p.default)}` : ''}`);
     }
-    return lines.join('\n');
+    return `[schema] ${id} required=${short(inp.required || [])} :: ${parts.join(' ; ')}`;
   } catch (e) { return `[schema] ${id} :: ${e?.name || 'error'} ${e?.message || ''}`; }
   finally { clearTimeout(t); }
 }
