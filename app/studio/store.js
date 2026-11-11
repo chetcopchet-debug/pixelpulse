@@ -121,9 +121,17 @@ export function useStudio() {
 
   // ---- library ----
   // A new item goes to the top of the Library, and into the project being worked in.
-  const addItem = useCallback((item) => {
+  // `keep`: the server already decided the item's project (a video is filed where it was started), so it is
+  // not moved into the project that happens to be open now.
+  const addItem = useCallback((item, { keep = false } = {}) => {
     if (!item?.id) return;
     const pid = projectRef.current;
+    if (keep) {
+      if (item.project) setProjects((ps) => ps.map((p) => (p.id === item.project ? { ...p, count: p.count + 1 } : p)));
+      if (pid && item.project !== pid) return; // another project is open: it isn't part of this list
+      setItems((prev) => [item, ...prev.filter((h) => h.id !== item.id)]);
+      return;
+    }
     const it = pid && !item.project ? { ...item, project: pid } : item;
     if (it !== item) {
       post("/api/projects/items", { project: pid, ids: [item.id] }).catch(() => {});
@@ -293,7 +301,7 @@ export function useStudio() {
       const s = await get(`/api/animate?job=${encodeURIComponent(job)}`).then(json).catch(() => ({ status: "processing" }));
       if (s.status === "processing") continue;
       sync(s);
-      if (s.status === "done" && s.item) { const item = toItem(s.item); addItem(item); patchRun(key, { status: "done", item }); say("Your video is ready"); return; }
+      if (s.status === "done" && s.item) { const item = toItem(s.item); addItem(item, { keep: true }); patchRun(key, { status: "done", item }); say("Your video is ready"); return; }
       throw new Error(plain(s.error) || "The video didn't finish. Your credits were returned.");
     }
     patchRun(key, { status: "late" });
@@ -312,7 +320,8 @@ export function useStudio() {
     markSeen();
     (async () => {
       try {
-        const res = await post("/api/animate", o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r });
+        const pid = projectRef.current; // the video is filed in the project that is open when it starts
+        const res = await post("/api/animate", { ...(o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r }), ...(pid ? { project: pid } : {}) });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
         if (!res.ok || !d.job) throw new Error(plain(d.error) || "The video couldn't start. Your credits were returned.");
@@ -506,7 +515,7 @@ export function useStudio() {
         const j = jobs.find((x) => x.id === r.jobId);
         if (j && j.status === "processing") continue;
         if (j && j.status === "failed") patchRun(r.key, { status: "failed", error: plain(j.error) || "The video didn't finish. Your credits were returned." });
-        else if (j?.item) { const item = toItem(j.item); addItem(item); patchRun(r.key, { status: "done", item }); }
+        else if (j?.item) { const item = toItem(j.item); addItem(item, { keep: true }); patchRun(r.key, { status: "done", item }); }
         else { dropRun(r.key); reload = true; }
       }
       if (reload) { await loadLibrary(); say("Your video is ready in Library"); }

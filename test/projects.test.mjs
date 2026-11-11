@@ -36,3 +36,18 @@ test('both routes act only on the caller\'s own rows', () => {
   assert.match(b, /from\('projects'\)\.select\('id'\)\.eq\('id', project\)\.eq\('creator_id', creator\.id\)/);
   for (const src of [a, b]) assert.match(src, /accountGate\(request\)/);
 });
+
+test('a video job remembers the project it was started in', async () => {
+  const { jobFromRow } = await import('../lib/videoJobCore.js');
+  const row = { prediction_id: 'abc123', uid: 'u1', kind: 'video:veo-lite', cost: 36, prompt: 'x', aspect_ratio: '16:9' };
+  assert.equal(jobFromRow(row).j, undefined);
+  assert.equal(jobFromRow({ ...row, project_id: '22222222-2222-4222-8222-000000000001' }).j, '22222222-2222-4222-8222-000000000001');
+  const sql = readFileSync(new URL('../supabase/migrations/012_video_job_project.sql', import.meta.url), 'utf8').replace(/--.*$/gm, '');
+  assert.doesNotMatch(sql, /\b(drop|delete\s+from|update\s+\w|truncate|alter\s+column|rename)\b/i);
+  assert.match(sql, /add column if not exists project_id uuid null/);
+  // The start route only accepts a project the caller owns, and saving never fails because of the project.
+  const route = readFileSync(new URL('../app/api/animate/route.js', import.meta.url), 'utf8');
+  assert.equal(route.split('ownedProject(creator.id, body?.project)').length - 1, 2);
+  const owner = readFileSync(new URL('../lib/projectOwner.js', import.meta.url), 'utf8');
+  assert.match(owner, /eq\('id', id\)\.eq\('creator_id', creatorId\)/);
+});

@@ -14,6 +14,7 @@ import { makeJob, readJob } from '../../../lib/animateJob';
 import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
 import { finalizeJob, recordJob, pendingJobs, jobFromRow, webhookFields, repairRecent } from '../../../lib/videoJobs';
 import { videoQuote, VIDEO_PRICING } from '../../../lib/videoPricing';
+import { ownedProject } from '../../../lib/projectOwner';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 import { replicateStart, THROTTLED_MSG } from '../../../lib/replicate';
 import sharp from 'sharp';
@@ -79,7 +80,8 @@ export async function POST(request) {
   const charge = await chargePaidCredits({ admin, creator, cost: AN.cost });
   if (!charge.ok) return NextResponse.json({ error: `Animate uses purchased credits (${AN.cost} credits).`, needCredits: { cost: AN.cost, label: AN.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(AN.usd, { admin: true }); // paid work is never blocked by the free budget cap
-  const fields = { u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL, ...(effect ? { e: effect } : {}) };
+  const pj = await ownedProject(creator.id, body?.project); // the project being worked in, if it is really theirs
+  const fields = { u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL, ...(effect ? { e: effect } : {}), ...(pj ? { j: pj } : {}) };
   const r = await api(`models/${AN.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: AN.input(effect ? await toVertical(row.public_url) : row.public_url, motion), ...hookFor(request, fields) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
@@ -116,7 +118,8 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const charge = await chargePaidCredits({ admin, creator, cost: tier.cost });
   if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost} credits).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(tier.usd, { admin: true });
-  const fields = { u: creator.id, s: null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio };
+  const pj = await ownedProject(creator.id, body?.project); // the project being worked in, if it is really theirs
+  const fields = { u: creator.id, s: null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio, ...(pj ? { j: pj } : {}) };
   const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio, q.d, q.r), ...hookFor(request, fields) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
