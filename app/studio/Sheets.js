@@ -17,6 +17,7 @@ export function ModelSheet({ s, onClose }) {
   const [multi, setMulti] = useState(canCompare && Boolean(comparePlan(s.compare)));
   const [picked, setPicked] = useState(() => (comparePlan(s.compare) ? s.compare : [s.imgModel]));
   const plan = comparePlan(picked);
+  const autoOn = canCompare && s.auto && !comparePlan(s.compare);
   const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= MAX_COMPARE ? (s.say(`Up to ${MAX_COMPARE} models at a time.`), p) : [...p, id]));
   const sub = video ? "Prices are for the standard setting. Length and quality change the price."
     : multi ? `Tick 2 to ${MAX_COMPARE} models. Your prompt runs on each one, and you pay each model's price.` : "The price is for one image.";
@@ -32,11 +33,20 @@ export function ModelSheet({ s, onClose }) {
         <button className={`chip${sort === "best" ? " on" : ""}`} onClick={() => setSort("best")}>Recommended</button>
         <button className={`chip${sort === "price" ? " on" : ""}`} onClick={() => setSort("price")}>Lowest price</button>
       </div>
+      {canCompare && !multi ? (
+        <button className={`mrow${autoOn ? " on" : ""}`} aria-pressed={autoOn} onClick={() => { s.setAuto(true); onClose(); }}>
+          <span className="grow">
+            <span className="b" style={{ display: "block", fontSize: 16 }}>Auto</span>
+            <span className="sm t2" style={{ display: "block" }}>Picks the model that fits each prompt. You see the model and its price before you generate.</span>
+          </span>
+          {autoOn ? <span className="tick"><Icon name="check" size={14} /></span> : null}
+        </button>
+      ) : null}
       {list.map((m) => {
-        const on = multi ? picked.includes(m.id) : m.id === current && !(canCompare && comparePlan(s.compare));
+        const on = multi ? picked.includes(m.id) : m.id === current && !autoOn && !(canCompare && comparePlan(s.compare));
         return (
           <button key={m.id} className={`mrow${on ? " on" : ""}`} aria-pressed={on}
-            onClick={() => { if (multi) { toggle(m.id); return; } (video ? s.setVidModel : s.setImgModel)(m.id); if (!video) s.setCompare([]); onClose(); }}>
+            onClick={() => { if (multi) { toggle(m.id); return; } (video ? s.setVidModel : s.setImgModel)(m.id); onClose(); }}>
             {multi ? <span className={`box${on ? " on" : ""}`} aria-hidden="true">{on ? <Icon name="check" size={14} /> : null}</span> : null}
             <span className="grow">
               <span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span>
@@ -49,7 +59,7 @@ export function ModelSheet({ s, onClose }) {
       })}
       {multi ? (
         <div className="sheet-foot">
-          <button className="btn btn-p btn-wide btn-split" disabled={!plan} onClick={() => { s.setCompare(plan.models.map((m) => m.id)); onClose(); }}>
+          <button className="btn btn-p btn-wide btn-split" disabled={!plan} onClick={() => { s.setAuto(false); s.setCompare(plan.models.map((m) => m.id)); onClose(); }}>
             <span>{plan ? `Compare ${plan.models.length} models` : "Tick at least 2 models"}</span>{plan ? <Price n={plan.cost} /> : null}
           </button>
         </div>
