@@ -27,7 +27,13 @@ export default function Account({ s }) {
         )}
 
         {w.admin ? (
-          <p className="t2" style={{ marginBottom: 16 }}>Nothing is charged while admin mode is on. To test real charging, log out at /admin.</p>
+          <>
+            <p className="t2" style={{ marginBottom: 12 }}>Nothing is charged while admin mode is on, so your credits are not shown. Turn it off to use the site like everyone else.</p>
+            <div className="r" style={{ gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+              <form method="post" action="/api/admin" className="grow"><input type="hidden" name="logout" value="1" /><button className="btn btn-p btn-wide" type="submit">Turn off admin mode</button></form>
+              <a className="btn btn-s" href="/admin">Admin page</a>
+            </div>
+          </>
         ) : (
           <div className="card split">
             <div>
