@@ -4,7 +4,6 @@ import { EMAIL_RE, linkAccount } from '../../../../lib/account';
 import { paidBalance } from '../../../../lib/paid';
 import { rateLimit } from '../../../../lib/ratelimit';
 import { getClientIp } from '../../../../lib/credits';
-import { rewardReferral } from '../../../../lib/referral';
 export const dynamic = 'force-dynamic';
 
 // Body: { email, code } (6-digit OTP) or { access_token } (from the magic-link callback page).
@@ -38,8 +37,7 @@ export async function POST(request) {
   const res = NextResponse.json({ ok: true });
   try {
     const r = await linkAccount(request, res, user);
-    const bonus = await rewardReferral(request, res, r);
-    const out = NextResponse.json({ ok: true, email: r.email, created: r.created, merged: r.merged, paid: await paidBalance(r.uid), ...(bonus ? { referral: bonus } : {}) });
+    const out = NextResponse.json({ ok: true, email: r.email, created: r.created, merged: r.merged, paid: await paidBalance(r.uid) });
     res.cookies.getAll().forEach((c) => out.cookies.set(c));
     out.cookies.set('pp_pkce', '', { path: '/', maxAge: 0 });
     return out;

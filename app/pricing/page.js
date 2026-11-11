@@ -3,7 +3,7 @@ import { PLANS } from '../../lib/paid';
 import BuyButton from './BuyButton';
 import { imageModels, videoModels, TOOLS } from '../studio/models';
 import { VIDEO_PRICING } from '../../lib/videoPricing';
-export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: 'Try free with 3 credits, then 10 free credits every day when you sign in. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
+export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: 'Sign up and get 10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
 const Coin = ({ n }) => <span className="price"><i className="coin" />{n}</span>;
 const TOOL_ROWS = [
@@ -15,7 +15,7 @@ const TOOL_ROWS = [
   [TOOLS.animate.label, 'A 5 second video from an image. Bought credits only', TOOLS.animate.cost],
 ];
 const FAQ = [
-  ['Which credits are used first?', 'Free credits are always used first: 3 to try without an account, then 10 every day once you sign in. Bought credits are only used after the free ones run out.'],
+  ['Which credits are used first?', 'Free credits are always used first: 10 every day once you have an account. Bought credits are only used after the free ones run out.'],
   ['Do bought credits expire?', 'Creator Pack credits never expire. Pulse Pro adds 1,200 credits each billing month; unused credits stay in your balance.'],
   ['How do I cancel Pulse Pro?', 'Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.'],
   ['Can I get a refund?', 'Yes. Unused bought credits can be refunded within 14 days.', ['/refund-policy', 'Refund Policy']],
@@ -33,7 +33,7 @@ export default function Pricing() {
         <div className="pcard">
           <p className="b">Free</p>
           <p className="amount">$0</p>
-          <p className="t2">3 credits to try, no sign-up. Sign in and get 10 credits every day, refilled at midnight UTC.</p>
+          <p className="t2">Sign up and get 10 free credits every day, refilled at midnight UTC. Creating needs an account.</p>
         </div>
         <div className="pcard">
           <p className="b">{PLANS.pack.name}</p>

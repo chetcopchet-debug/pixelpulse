@@ -166,7 +166,7 @@ export function SignInSheet({ s, reason, onClose }) {
           <input className="field" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" aria-label="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
           <button className="btn btn-p btn-wide" style={{ height: 52 }} disabled={busy || !email.includes("@")}>{busy ? <i className="spin" /> : "Continue with email"}</button>
           {err ? <p className="sm bad" role="alert">{err}</p> : null}
-          <p className="sm t3">We email you a link; tapping it signs you in. What you made on this device moves into your account, and you get {FREE_DAILY} free credits every day.</p>
+          <p className="sm t3">We email you a link; tapping it signs you in. You get {FREE_DAILY} free credits every day.</p>
         </form>
       ) : (
         <form className="c" style={{ gap: 10, padding: "4px 8px" }} onSubmit={verify}>

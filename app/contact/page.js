@@ -10,7 +10,7 @@ export default function Contact() {
       <ul>
         <li><b>Billing or refunds:</b> your order number or checkout email. See the <a href="/refund-policy">Refund Policy</a>.</li>
         <li><b>Lost credits:</b> your order email.</li>
-        <li><b>Removal requests:</b> the image link (pixelpulse…/p/&lt;id&gt;) and the reason. We act on valid requests within 48 hours.</li>
+        <li><b>Removal requests:</b> a link to the image or video, or a screenshot of it, and the reason. We act on valid requests within 48 hours.</li>
         <li><b>Bugs:</b> what you did and what happened; a screenshot helps.</li>
       </ul>
     </LegalPage>

@@ -155,9 +155,7 @@ html:has(.pp) body { background: transparent !important; }
 .pp .hero { padding: 20px 20px 0; }
 .pp .hero h1 { font-size: 40px; line-height: 42px; }
 .pp .hero p { margin-top: 14px; font-size: 16px; line-height: 24px; color: var(--text-2); max-width: 520px; }
-.pp .starter { margin: 24px 12px 0; }
-.pp .samples { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 14px; padding: 10px 10px 12px; border-radius: 0 0 16px 16px; box-shadow: inset 0 0 0 1px var(--line); }
-.pp .samples .tile { aspect-ratio: 1; border-radius: 8px; }
+.pp .cta { width: 100%; max-width: 360px; height: 56px; margin-top: 24px; font-size: 17px; border-radius: 16px; }
 .pp .section { margin-top: 48px; }
 .pp .mlist { margin-top: 12px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
 .pp .mlist > * { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 16px; }

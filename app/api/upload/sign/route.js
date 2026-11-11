@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { accountGate } from '../../../../lib/needAccount';
 import { getSupabase, BUCKET } from '../../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, creatorTag, randomName } from '../../../../lib/identity';
 import { getClientIp } from '../../../../lib/credits';
@@ -11,6 +12,8 @@ export const fetchCache = 'force-no-store';
 // Returns a one-time signed URL so the phone can send the ORIGINAL photo (up to 8MB) straight to storage,
 // bypassing Vercel's 4.5MB request limit. /api/upload {tmpPath} then converts it with sharp.
 export async function POST(request) {
+  // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
+  const stop = accountGate(request); if (stop) return stop;
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ error: 'Cloud storage is not available.' }, { status: 503 });
   const creator = getCreatorId(request);

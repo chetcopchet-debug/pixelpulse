@@ -59,9 +59,12 @@ export function Brand({ wordmark }) {
   return <span className="r" style={{ gap: 10 }}><i className="logo" aria-hidden="true" />{wordmark ? <span className="d" style={{ fontSize: 20, lineHeight: "24px" }}>PixelPulse</span> : <span className="sr">PixelPulse</span>}</span>;
 }
 
-// Credit balance in the top bar. Opens the account screen.
+// Top-bar corner: the credit balance (opens the account screen), or the way in for a visitor without an account.
 export function Balance({ s }) {
   const w = s.wallet;
+  if (w.loaded && !w.account && !w.admin) {
+    return <button className="pill-tap" onClick={() => s.askSignIn()}><span className="pill" style={{ padding: "0 14px" }}>Sign up</span></button>;
+  }
   return (
     <button className="pill-tap" onClick={() => s.setTab("account")} aria-label={w.admin ? "Admin mode" : `${w.free + w.paid} credits. Open account`}>
       <span className="pill"><i className="coin" />{w.admin ? "Admin" : w.loaded ? (w.free + w.paid).toLocaleString("en-US") : "…"}</span>

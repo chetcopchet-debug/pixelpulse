@@ -5,7 +5,7 @@ import Page from '../studio/Page';
 
 export const metadata = {
   title: { absolute: 'Free AI Image Makers — 30 Formats | PixelPulse' },
-  description: 'Free AI makers for logos, YouTube thumbnails, headshots, stickers, wallpapers, tattoos, product photos and more. Free to try, 10 free credits a day when you sign in.',
+  description: 'Free AI makers for logos, YouTube thumbnails, headshots, stickers, wallpapers, tattoos, product photos and more. Sign up and get 10 free credits every day.',
   alternates: { canonical: '/formats' },
 };
 

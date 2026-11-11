@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { accountGate } from '../../../lib/needAccount';
 import { getClientIp, chargePaidCredits, paidFor } from '../../../lib/credits';
 import { reserveSpend } from '../../../lib/usage';
 import { getSupabase } from '../../../lib/supabase';
@@ -43,6 +44,8 @@ const hookFor = (request, fields) => webhookFields(new URL(request.url).origin, 
 
 // POST { id, prompt? } -> { job } (start). Charged up front from PAID credits; refunded if the video fails.
 export async function POST(request) {
+  // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
+  const stop = accountGate(request); if (stop) return stop;
   const admin = isAdmin(request);
   const creator = getCreatorId(request);
   const ip = getClientIp(request);
@@ -74,7 +77,7 @@ export async function POST(request) {
   if (inGate) await logGeneration({ userId: creator.id, ip, mode: 'animate', prompt: raw, inputRef: row.id, moderation: inGate.status === 422 ? 'blocked:input' : 'blocked:unavailable' });
   if (inGate) return NextResponse.json({ error: inGate.status === 503 ? inGate.error.replace(/ Your credits were refunded\.| הקרדיטים הוחזרו\./g, '') : inGate.error }, { status: inGate.status });
   const charge = await chargePaidCredits({ admin, creator, cost: AN.cost });
-  if (!charge.ok) return NextResponse.json({ error: `Animate uses purchased credits (${AN.cost}⚡).`, needCredits: { cost: AN.cost, label: AN.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
+  if (!charge.ok) return NextResponse.json({ error: `Animate uses purchased credits (${AN.cost} credits).`, needCredits: { cost: AN.cost, label: AN.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(AN.usd, { admin: true }); // paid work is never blocked by the free budget cap
   const fields = { u: creator.id, s: row.id, c: charge.source === 'paid' ? AN.cost : 0, x: Date.now() + JOB_TTL, ...(effect ? { e: effect } : {}) };
   const r = await api(`models/${AN.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: AN.input(effect ? await toVertical(row.public_url) : row.public_url, motion), ...hookFor(request, fields) }) }).catch(() => null);
@@ -111,7 +114,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
   const charge = await chargePaidCredits({ admin, creator, cost: tier.cost });
-  if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost}⚡).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
+  if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost} credits).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(tier.usd, { admin: true });
   const fields = { u: creator.id, s: null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio };
   const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio, q.d, q.r), ...hookFor(request, fields) }) }).catch(() => null);

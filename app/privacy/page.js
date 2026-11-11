@@ -3,12 +3,13 @@ export const metadata = { title: 'Privacy · PixelPulse', description: 'PixelPul
 export default function Privacy() {
   return (
     <LegalPage title="Privacy Policy">
-      <p>PixelPulse works without an account. Here is what we store and why.</p>
+      <p>You can look around PixelPulse without an account; creating needs one. Here is what we store and why.</p>
       <h2>What we collect</h2>
       <ul>
         <li><b>Anonymous identity cookie</b> (signed, random): links your images to your browser so you can see your history. It is never shown publicly.</li>
+        <li><b>Your email address</b>, when you sign up: used to sign you in and to keep your credits and library with your account.</li>
         <li><b>Credits & settings cookies</b>: your daily credit balance; preferences and favorites are kept in your browser (localStorage).</li>
-        <li><b>Your prompts, images and uploads</b>, stored with our storage provider (Supabase). Private images have unguessable links; published images are public.</li>
+        <li><b>Your prompts, images and uploads</b>, stored with our storage provider (Supabase). They are shown only in your own library, and their file links are long and unguessable.</li>
         <li><b>Technical data</b> such as IP address, used briefly for rate limiting and abuse prevention, and standard hosting logs (Vercel).</li>
       </ul>
       <h2>Who processes it</h2>
