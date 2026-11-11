@@ -20,7 +20,7 @@ async function getImage(id) {
   if (data) {
     const { data: h, error: he } = await supabase.from('images').select('hidden').eq('id', id).maybeSingle();
     if (!he && h?.hidden) return null;
-    const { data: x, error: xe } = await supabase.from('images').select('format, daily_day, daily_theme').eq('id', id).maybeSingle();
+    const { data: x, error: xe } = await supabase.from('images').select('format').eq('id', id).maybeSingle();
     if (!xe && x) Object.assign(data, x);
   }
   return data;

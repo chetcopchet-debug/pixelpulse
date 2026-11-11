@@ -17,7 +17,6 @@ export default function Terms() {
       <h2>Acceptable use</h2>
       <p>Follow the <a href="/content-policy">Content Policy</a>. Don't abuse, scrape, overload or try to bypass limits or security. We may remove content or block access that breaks these rules.</p>
       <h2 id="safety">Safety, consent and takedowns</h2>
-      <p className="notice">Draft — this section is pending legal review and may change.</p>
       <ul>
         <li><b>Consent for real people.</b> Don't upload, edit, Face Lock, animate or otherwise create images or videos of a real, identifiable person unless you have their permission. Never use the service to make intimate, sexual, humiliating or deceptive content of a real person.</li>
         <li><b>Prohibited content.</b> Don't create, upload or share sexual or nude content, content that sexualizes or depicts minors in any way that is sexual or revealing, graphic violence or gore, or content that harasses, threatens or promotes harm. Any content sexualizing minors is reported to the relevant authorities.</li>

@@ -11,7 +11,6 @@ import { MODEL_TIERS, DEFAULT_TIER, guidedTier, TEXT_TIERS } from '../../../lib/
 import { getSupabase } from '../../../lib/supabase';
 import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
 import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
-import { getTheme } from '../../../lib/daily';
 import { issueCutoutPass } from '../../../lib/cutoutPass';
 import { toEnglishPrompt } from '../../../lib/translate';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
@@ -44,7 +43,7 @@ export async function POST(request) {
   } catch {
     return jsonError('Invalid request. / בקשה לא תקינה.', 400);
   }
-  const { prompt, style, aspectRatio, remixOf, tier, guideId, guideFollow, daily } = body || {};
+  const { prompt, style, aspectRatio, remixOf, tier, guideId, guideFollow } = body || {};
   const format = isFormat(body?.format) ? body.format : 'free';
 
   if (typeof prompt !== 'string' || prompt.trim() === '') {
@@ -125,7 +124,6 @@ export async function POST(request) {
     }
 
     const finalPrompt = buildFinalPrompt(applyFormat(englishPrompt, format), selectedStyle);
-    const dailyTheme = daily === true ? await getTheme() : null;
     const result = await runPrediction(finalPrompt, selectedRatio, tierDef);
 
     if (result.error) {
@@ -155,7 +153,7 @@ export async function POST(request) {
     const stored = await persistImage({
       sourceUrl: result.url, prompt: prompt.trim(), style: selectedStyle, ratio: selectedRatio,
       creatorId: creator.id, remixOf: guideParent || (isUuid(remixOf) ? remixOf : null), tier: storedTier,
-      extra: { ...(format !== 'free' ? { format } : {}), ...(dailyTheme ? { daily_day: dailyTheme.day, daily_theme: dailyTheme.text } : {}) },
+      extra: format !== 'free' ? { format } : {},
     });
     await glog('passed', stored?.id || 'unsaved');
 
@@ -166,7 +164,7 @@ export async function POST(request) {
       stored: Boolean(stored?.id),
       ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
       ...(stored?.id && FORMATS[format]?.autoCutout ? { cutoutPass: issueCutoutPass(stored.id, creator.id) } : {}),
-      tier: storedTier, format, ...(dailyTheme ? { daily: dailyTheme.day } : {}),
+      tier: storedTier, format,
       credits: currentCredits(), ...(admin ? {} : { paid: await paidFor(creator) }),
       ...(admin ? { admin: true } : {}),
     });
