@@ -23,12 +23,30 @@ export default function Library({ s }) {
     return out;
   }, [s.items, s.favs, filter]);
   const more = async () => { setLoadingMore(true); await s.loadMore(); setLoadingMore(false); };
-  const emptyText = { all: "Nothing here yet. What you make is saved here automatically.", images: "No images yet.", videos: "No videos yet.", favorites: "No favorites yet. Tap the heart on a result to keep it here." }[filter];
+  const active = s.projectsOn ? s.projects.find((p) => p.id === s.project) : null;
+  const emptyText = { all: active ? "This project is empty. What you make now is saved into it." : "Nothing here yet. What you make is saved here automatically.", images: "No images yet.", videos: "No videos yet.", favorites: "No favorites yet. Tap the heart on a result to keep it here." }[filter];
 
   return (
     <div className="screen">
       <header className="top"><Brand /><Balance s={s} /></header>
       <h1 className="d h1 pad" style={{ margin: "4px 0 8px" }}>Library</h1>
+      {s.projectsOn ? (
+        <div className="filters" role="tablist" aria-label="Project">
+          <button role="tab" aria-selected={!active} className={`chip${active ? "" : " on"}`} onClick={() => s.setProject(null)}>Everything</button>
+          {s.projects.map((p) => (
+            <button key={p.id} role="tab" aria-selected={s.project === p.id} className={`chip${s.project === p.id ? " on" : ""}`} onClick={() => s.setProject(p.id)}>
+              <Icon name="folder" size={16} />{p.name}<span className="num" style={{ opacity: 0.6 }}>{p.count}</span>
+            </button>
+          ))}
+          <button className="chip" onClick={() => { if (!s.needAccount({ tab: "library" })) s.setSheet({ type: "project", mode: "new" }); }}><Icon name="plus" size={16} />New project</button>
+        </div>
+      ) : null}
+      {active ? (
+        <div className="r pad" style={{ justifyContent: "space-between", gap: 12, margin: "6px 0 2px" }}>
+          <p className="sm t2">New creations are saved into this project.</p>
+          <button className="link sm" style={{ minHeight: 44, flex: "none" }} onClick={() => s.setSheet({ type: "project", mode: "edit", id: active.id })}>Rename or delete</button>
+        </div>
+      ) : null}
       <div className="filters" role="tablist" aria-label="Show">
         {FILTERS.map(([id, label]) => <button key={id} role="tab" aria-selected={filter === id} className={`chip${filter === id ? " on" : ""}`} onClick={() => setFilter(id)}>{label}</button>)}
       </div>
