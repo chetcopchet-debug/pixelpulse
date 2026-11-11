@@ -5,21 +5,22 @@ import { getClientIp } from '../../../../lib/credits';
 import { rateLimit } from '../../../../lib/ratelimit';
 import { probeStored, makeWebReady } from '../../../../lib/videoJobs';
 import { converterVersion } from '../../../../lib/transcode';
+import { isAdmin } from '../../../../lib/admin';
 
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-// GET ?id=<video id> -> the technical format of a stored video (codec, profile, size, where the index sits)
-// and whether this deployment can convert videos. For support and debugging: it answers "why doesn't this
-// play on my phone" without downloading anything. It returns no content, no address and no owner, and the id
-// is a random value only the owner (and anyone they shared the video with) knows.
-//
-// GET ?id=<video id>&convert=1 -> also brings that video to the format every phone plays, now. This is the same
-// conversion that happens by itself when the owner opens the site or when their player fails; here it can be
-// asked for directly (support, or fixing videos saved before conversion existed). It never deletes a video,
-// charges or refunds; converting an already converted video does nothing.
+// Admin only (the admin cookie from /admin).
+// GET ?id=<video id>            -> the technical format of a stored video (codec, profile, size, where the index
+//                                  sits) and whether this deployment can convert videos. Answers "why doesn't
+//                                  this play on my phone" without downloading anything.
+// GET ?id=<video id>&convert=1  -> also brings that video to the format every phone plays, now. The same
+//                                  conversion happens by itself when the owner opens the site or when their
+//                                  player fails. It never deletes a video, charges or refunds.
 export async function GET(request) {
+  // Admin only: sign in at /admin first. Everyone else gets the same answer as for a page that does not exist.
+  if (!isAdmin(request)) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   if (!await rateLimit(`vinfo:${getClientIp(request)}`, 20, 60_000)) return NextResponse.json({ error: 'Too many requests.' }, { status: 429 });
   const converter = await converterVersion();
   const id = new URL(request.url).searchParams.get('id');

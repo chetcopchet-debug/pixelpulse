@@ -5,6 +5,7 @@ import { recentJobs } from '../../lib/videoJobs';
 import { bump } from '../../lib/usage';
 import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
+import { billingWarnings, replicateAccount } from '../../lib/replicate';
 import Page from '../studio/Page';
 export const metadata = { title: 'Admin · PixelPulse', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -29,6 +30,9 @@ export default async function AdminLogin(props) {
   const hooks = admin ? Number(await bump('hook:replicate', 0, 1e9).catch(() => 0)) || 0 : 0;
   const bypass = Boolean(process.env.VERCEL_AUTOMATION_BYPASS_SECRET);
   const converter = showSetup ? await converterVersion().catch(() => null) : null;
+  // Replicate: the API does not report the balance, so the page shows what Replicate's own refusals said today.
+  const money = admin ? await billingWarnings().catch(() => ({ low: 0, empty: 0 })) : { low: 0, empty: 0 };
+  const account = admin ? await replicateAccount() : null;
   const when = (t) => new Date(t).toLocaleString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   return (
     <Page bare>
@@ -61,6 +65,20 @@ export default async function AdminLogin(props) {
 
       {admin && (
         <>
+          <h2 className="sec">Replicate account</h2>
+          {money.empty > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>The Replicate balance is used up.</b> Replicate refused {money.empty} {money.empty === 1 ? 'run' : 'runs'} today for lack of credit. Nothing can be generated until credit is added.</p>}
+          {money.empty === 0 && money.low > 0 && <p className="notice" role="alert" style={{ marginBottom: 10 }}><b>The Replicate balance is under $5.</b> Replicate slowed down {money.low} {money.low === 1 ? 'start' : 'starts'} today: below $5 it allows 6 starts a minute, one at a time. The site waits and retries, but people will see delays and some failures until credit is added.</p>}
+          <div className="ptable">
+            <div>
+              <span className="grow"><span className="b">Account</span><span className="sm t2" style={{ display: 'block' }}>{account?.name ? `The API token belongs to ${account.name}${account.type ? ` (${account.type})` : ''}.` : account?.error ? `${account.error}. The token may be wrong or revoked.` : 'Replicate did not answer just now.'}</span></span>
+              <span className={`b sm ${account?.name ? 'ok' : 'bad'}`}>{account?.name ? 'Connected' : 'Problem'}</span>
+            </div>
+            <div>
+              <span className="grow"><span className="b">Balance</span><span className="sm t2" style={{ display: 'block' }}>Replicate does not give the balance through its API, so the amount cannot be shown here. This line turns into a warning as soon as Replicate itself reports a low or empty balance. <a className="link" href="https://replicate.com/account/billing" target="_blank" rel="noreferrer">Open Replicate billing</a></span></span>
+              <span className={`b sm ${money.empty > 0 ? 'bad' : money.low > 0 ? 'bad' : 'ok'}`} style={{ whiteSpace: 'nowrap' }}>{money.empty > 0 ? 'Empty' : money.low > 0 ? 'Under $5' : 'No warnings today'}</span>
+            </div>
+          </div>
+
           <h2 className="sec">Latest videos</h2>
           <p className="sm t2" style={{ marginBottom: 10 }}>Times are UTC. "Saved" means the stored file was read back and is a video. Calls from Replicate received today: <b>{hooks}</b>.{kind !== 'production' && !bypass ? ' On a preview behind Vercel\'s login wall those calls are blocked unless "Protection Bypass for Automation" is switched on in Vercel (Settings, Deployment Protection); videos are then saved when you come back to the site instead.' : ''}</p>
           <div className="ptable">
