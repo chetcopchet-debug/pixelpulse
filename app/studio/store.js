@@ -241,6 +241,22 @@ export function useStudio() {
     setViewer(null); say("Deleted");
   }, [say]);
 
+  // A player could not load a video: ask the server to read the stored file. A broken file is removed and refunded.
+  const checked = useRef(new Set());
+  const checkVideo = useCallback(async (item) => {
+    if (!item?.id || !item.video || checked.current.has(item.id)) return;
+    checked.current.add(item.id);
+    const res = await post("/api/video/check", { id: item.id }).catch(() => null);
+    const d = res ? await json(res) : {};
+    if (res?.ok && d.removed) {
+      sync(d);
+      setItems((prev) => prev.filter((h) => h.id !== item.id));
+      setRuns((rs) => rs.filter((r) => r.item?.id !== item.id));
+      setViewer((v) => (v?.item?.id === item.id ? null : v));
+      say(d.refunded ? `That video didn't save correctly. It was removed and ${d.refunded} credits were returned.` : "That video didn't save correctly, so it was removed.");
+    } else say("This video can't be played here. Try downloading it.");
+  }, [sync, say]);
+
   const uploadLock = useRef(false);
   const upload = useCallback(async (file) => {
     if (!file || uploadLock.current) return;
@@ -292,7 +308,7 @@ export function useStudio() {
       for (const r of runsRef.current.filter((x) => x.resumed && x.status === "running")) {
         const j = jobs.find((x) => x.id === r.jobId);
         if (j && j.status === "processing") continue;
-        if (j && j.status === "failed") patchRun(r.key, { status: "failed", error: "The video didn't finish. Your credits were returned." });
+        if (j && j.status === "failed") patchRun(r.key, { status: "failed", error: plain(j.error) || "The video didn't finish. Your credits were returned." });
         else if (j?.item) { const item = toItem(j.item); addItem(item); patchRun(r.key, { status: "done", item }); }
         else { dropRun(r.key); reload = true; }
       }
@@ -350,8 +366,13 @@ export function useStudio() {
         key: `j${j.id}`, jobId: j.id, resumed: true, kind: "video", prompt: j.prompt || "", label: madeWith(j.kind), ratio: "16:9",
         status: "running", t0: Date.parse(j.started) || Date.now(), eta: 150,
       }));
+      // A video that ended badly while the page was closed: say so (the credits are already back).
+      const ended = jobs.filter((j) => j.status === "failed").map((j) => ({
+        key: `j${j.id}`, kind: "video", prompt: j.prompt || "", label: madeWith(j.kind), ratio: "16:9", status: "failed",
+        error: plain(j.error) || "The video didn't finish. Your credits were returned.",
+      }));
       const past = got.slice(0, 6).reverse().map((item) => ({ key: `h${item.id}`, kind: item.video ? "video" : "image", prompt: item.prompt, label: madeWith(item.model), ratio: item.ratio, status: "done", item, past: true }));
-      setRuns((rs) => [...past, ...waiting, ...rs]);
+      setRuns((rs) => [...past, ...ended, ...waiting, ...rs]);
     })();
   }, []);
 
@@ -359,7 +380,7 @@ export function useStudio() {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs, feed,
     viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
-    generate, retry, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore,
+    generate, retry, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, checkVideo,
     askSignIn, askCredits, signedIn, signOut, buy, refreshWallet,
   };
 }

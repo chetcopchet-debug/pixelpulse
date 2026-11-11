@@ -49,7 +49,7 @@ export default function Viewer({ s }) {
 
         <div className="stage">
           {shown.video
-            ? <video key={shown.url} src={shown.url} controls autoPlay loop playsInline />
+            ? <video key={shown.url} src={shown.url} controls autoPlay loop playsInline onError={() => { if (!readonly) s.checkVideo(shown); }} />
             : <img key={shown.url} className="fadein" src={shown.url} alt={shown.prompt || ""} />}
           {before ? (
             <div className="seg" role="tablist" aria-label="Compare with the original">

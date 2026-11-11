@@ -34,3 +34,29 @@ test('prediction ids are validated before they reach a URL', () => {
   assert.ok(!PREDICTION_ID_RE.test('../models/x'));
   assert.ok(!PREDICTION_ID_RE.test(''));
 });
+
+import { hasVideoSignature, looksLikeVideo, describeBytes, MIN_VIDEO_BYTES } from '../lib/videoJobCore.js';
+
+const mp4 = (size) => { const b = Buffer.alloc(size); b.write('ftypisom', 4, 'latin1'); return b; };
+
+test('a real video file is recognised, anything else is not', () => {
+  assert.equal(looksLikeVideo(mp4(MIN_VIDEO_BYTES)), true);
+  assert.equal(looksLikeVideo(Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(MIN_VIDEO_BYTES)])), true); // WebM
+  assert.equal(looksLikeVideo(mp4(200)), false, 'far too small to be a clip');
+  assert.equal(looksLikeVideo(Buffer.from('<!doctype html><html><body>Not found</body></html>'.padEnd(MIN_VIDEO_BYTES, ' '))), false, 'an error page');
+  assert.equal(looksLikeVideo(Buffer.from(JSON.stringify({ error: 'expired' }).padEnd(MIN_VIDEO_BYTES, ' '))), false, 'an error message');
+  assert.equal(looksLikeVideo(Buffer.alloc(0)), false);
+  assert.equal(looksLikeVideo(null), false);
+  assert.equal(hasVideoSignature(mp4(64)), true, 'the first bytes alone are enough to tell the type');
+});
+
+test('the note about a bad file says what arrived, not its content', () => {
+  const note = describeBytes(Buffer.from('<html>secret</html>'), 'text/html');
+  assert.match(note, /type text\/html, 19 bytes, starts 3c68746d6c3e736563726574/);
+  assert.equal(describeBytes(null), 'type unknown, 0 bytes, starts empty');
+});
+
+test('the webhook address carries the Vercel bypass secret only when there is one', () => {
+  assert.equal(webhookFields('https://a.vercel.app', 'tok').webhook, 'https://a.vercel.app/api/webhooks/replicate?job=tok');
+  assert.equal(webhookFields('https://a.vercel.app', 'tok', 's3 cret').webhook, 'https://a.vercel.app/api/webhooks/replicate?job=tok&x-vercel-protection-bypass=s3%20cret');
+});
