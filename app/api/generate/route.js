@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import {
-  readCreditsCookie, setCreditsCookie, getClientIp, ipRemaining,
-  chargeIpAsync, refundIpAsync, COOKIE_NAME, chargeCredits, paidFor,
-} from '../../../lib/credits';
+import { setCreditsCookie, getClientIp, freeState, chargeCredits, paidFor, GUEST_TRIAL, DAILY_CREDITS } from '../../../lib/credits';
+import { readAccount } from '../../../lib/account';
 import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RATIOS } from '../../../lib/generation';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
@@ -30,9 +28,11 @@ function jsonError(message, status, credits) {
 
 export async function POST(request) {
   const ip = getClientIp(request);
-  const state = readCreditsCookie(request.cookies.get(COOKIE_NAME)?.value);
   const admin = isAdmin(request);
-  const currentCredits = () => (admin ? null : Math.min(state.remaining, ipRemaining(ip)));
+  const creator = getCreatorId(request);
+  const signedIn = Boolean(readAccount(request));
+  const state = await freeState({ creator, ip, signedIn });
+  const currentCredits = () => (admin ? null : state.remaining);
 
   let body;
   try {
@@ -42,7 +42,6 @@ export async function POST(request) {
   }
   const { prompt, style, aspectRatio, remixOf, tier, guideId, guideFollow, daily } = body || {};
   const format = isFormat(body?.format) ? body.format : 'free';
-  const creator = getCreatorId(request);
 
   if (typeof prompt !== 'string' || prompt.trim() === '') {
     return jsonError('Please provide a valid prompt. / נא להזין תיאור לתמונה.', 400);
@@ -90,8 +89,12 @@ export async function POST(request) {
   if (badOriginal) { await glog('blocked:text'); return jsonError(blockedMessage(badOriginal), 400); }
 
   // Charge before calling Replicate (admin bypasses credits and rate limits). Free first, then paid balance.
-  const notEnough = async () => NextResponse.json({ error: `Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`, needCredits: { cost, label: tierDef.label }, credits: currentCredits(), paid: await paidFor(creator) }, { status: 402 });
-  const charge = await chargeCredits({ admin, state, ip, creator, cost });
+  // A guest who used the trial is asked to sign in (10 free credits a day) before being shown prices.
+  const notEnough = async () => NextResponse.json({
+    error: state.guest ? `Your ${GUEST_TRIAL} free tries are used. Sign in to get ${DAILY_CREDITS} free credits every day.` : `Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`,
+    needCredits: { cost, label: tierDef.label }, ...(state.guest ? { needSignIn: true } : {}), credits: currentCredits(), paid: await paidFor(creator),
+  }, { status: 402 });
+  const charge = await chargeCredits({ admin, state, ip, creator, cost, signedIn });
   if (!charge.ok && charge.block === 'minute') {
     return jsonError('Too many requests. Please wait a minute. / יותר מדי בקשות, נא להמתין דקה.', 429, currentCredits());
   }

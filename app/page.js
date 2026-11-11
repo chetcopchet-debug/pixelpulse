@@ -40,7 +40,9 @@ export default function Home() {
   const [loadingText, setLoadingText] = useState("Initializing AI studio...");
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState("");
-  const [credits, setCredits] = useState(10);
+  const [credits, setCredits] = useState(0);
+  const [freeInfo, setFreeInfo] = useState({ limit: 10, guest: false }); // guests: one-time trial of 3; signed in: 10 a day
+  const askSignIn = () => setAuthOpen({ reason: "Your 3 free tries are used. Sign in to get 10 free credits every day." });
   const [paid, setPaid] = useState(0);
   const [plans, setPlans] = useState(null);
   const [account, setAccount] = useState(null); // { email } when signed in
@@ -198,6 +200,7 @@ export default function Home() {
       .then((d) => {
         if (d.admin) setIsAdmin(true);
         else if (typeof d.credits === "number") setCredits(d.credits);
+        if (typeof d.freeLimit === "number") setFreeInfo({ limit: d.freeLimit, guest: Boolean(d.guest) });
         if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans); if ("account" in d) setAccount(d.account); if ("purchased" in d) setPurchased(Boolean(d.purchased));
       })
       .catch(() => {});
@@ -486,6 +489,7 @@ export default function Home() {
       const d = await res.json().catch(() => ({}));
       syncCredits(d);
         if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans);
+      if (res.status === 402 && d.needSignIn) { askSignIn(); return; }
       if (res.status === 402) { openPricing("Edit", EDIT_COST); return; }
       if (!res.ok || !d.item) throw new Error(d.error || "Edit failed.");
       const ni = { ...toItem(d.item), ...(editTarget.format ? { format: editTarget.format } : {}) };
@@ -553,6 +557,7 @@ export default function Home() {
       const d = await res.json();
       syncCredits(d);
         if (typeof d.paid === "number") setPaid(d.paid); if (Array.isArray(d.plans)) setPlans(d.plans);
+      if (res.status === 402 && d.needSignIn) { askSignIn(); return; }
       if (res.status === 402) { openPricing(d.needCredits?.label || "This tool", d.needCredits?.cost || 1); return; }
       if (!res.ok || !d.item) throw new Error(d.error || "Failed.");
       const ni = { ...toItem(d.item), ...(opts.format ? { format: opts.format } : item.format ? { format: item.format } : {}) };
@@ -614,6 +619,7 @@ export default function Home() {
       if (data.admin) setIsAdmin(true);
       else if (typeof data.credits === "number") setCredits(data.credits);
       if (typeof data.paid === "number") setPaid(data.paid);
+      if (res.status === 402 && data.needSignIn) { askSignIn(); return; }
       if (res.status === 402) { openPricing(data.needCredits?.label || "This", data.needCredits?.cost || tierCost); return; }
 
       if (!res.ok || data.error) {
@@ -1165,7 +1171,7 @@ export default function Home() {
       )}
 
       {authOpen && <AuthSheet reason={authOpen.reason} onClose={() => setAuthOpen(null)} onSignedIn={(d) => { setAuthOpen(null); window.location.replace(d?.referral ? `/?signedin=1&bonus=${d.referral}` : "/?signedin=1"); }} />}
-      {pricing && <PricingModal invite={invite} onInvite={shareInvite} signedIn={!!account} onSignIn={() => { setPricing(null); setAuthOpen({ reason: "Sign in first so the credits you buy are safe on every device." }); }} need={pricing.need} credits={credits} paid={paid} resetIn={resetIn} plans={plans} onClose={() => setPricing(null)} />}
+      {pricing && <PricingModal guest={freeInfo.guest} invite={invite} onInvite={shareInvite} signedIn={!!account} onSignIn={() => { setPricing(null); setAuthOpen({ reason: "Sign in first so the credits you buy are safe on every device." }); }} need={pricing.need} credits={credits} paid={paid} resetIn={resetIn} plans={plans} onClose={() => setPricing(null)} />}
       {repaintItem && <RepaintEditor item={repaintItem} isAdmin={isAdmin} credits={credits + paid} onNeedCredits={() => { setRepaintItem(null); openPricing("Repaint", 8); }} onClose={() => setRepaintItem(null)} onDone={handleRepaintDone} />}
       {menuOpen && (
         <div className="pp-scrim pp-menuscrim" onClick={() => setMenuOpen(false)}>
@@ -1177,10 +1183,10 @@ export default function Home() {
             </div>
             <div className="pp-creditcard">
               {isAdmin ? <><b>∞</b><span>Admin · credits not counted</span></> : <>
-                <b>{credits}<small>/10</small></b>
-                <span>credits left today<br /><em>resets in {resetIn}</em>{paid > 0 && <><br /><em>+ {paid}⚡ paid balance</em></>}</span>
+                <b>{credits}<small>/{freeInfo.limit}</small></b>
+                <span>{freeInfo.guest ? <>free tries left<br /><em>sign in for 10 free credits every day</em></> : <>credits left today<br /><em>resets in {resetIn}</em></>}{paid > 0 && <><br /><em>+ {paid}⚡ paid balance</em></>}</span>
               </>}
-              <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / 10) * 100)}%` }} /></div>
+              <div className="pp-creditbar"><i style={{ width: isAdmin ? "100%" : `${Math.min(100, (credits / freeInfo.limit) * 100)}%` }} /></div>
               <button className="pp-chip pp-getcr" onClick={() => { setMenuOpen(false); openPricing(); }}>⚡ Get more credits</button>
               {!account && <button className="pp-chip pp-signin" onClick={() => { setMenuOpen(false); setAuthOpen({}); }}>✉ Sign in with email</button>}
               {!isAdmin && <div className="pp-restore">
