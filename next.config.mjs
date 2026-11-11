@@ -17,6 +17,16 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // Video conversion (lib/transcode.js) runs the ffmpeg program from the ffmpeg-static package. The package must
+  // stay a plain node module (not bundled) so it can find its own file, and the file must be shipped with the
+  // functions that save or repair videos; Next would otherwise leave a program it cannot see in the code behind.
+  serverExternalPackages: ['ffmpeg-static'],
+  outputFileTracingIncludes: {
+    '/api/animate': ['./node_modules/ffmpeg-static/ffmpeg'],
+    '/api/webhooks/replicate': ['./node_modules/ffmpeg-static/ffmpeg'],
+    '/api/video/*': ['./node_modules/ffmpeg-static/ffmpeg'],
+    '/admin': ['./node_modules/ffmpeg-static/ffmpeg'],
+  },
   async headers() {
     return [{
       source: '/:path*',

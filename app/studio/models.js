@@ -1,0 +1,69 @@
+// What the interface shows for each model and tool. Prices come from the same tables the server charges from.
+import { IMAGE_MODELS, VIDEO_MODELS } from "../../lib/catalog.js";
+import { VIDEO_PRICING, videoQuote } from "../../lib/videoPricing.js";
+
+// The catalog uses short internal labels for a few models; people know them by their real names.
+const REAL_NAME = {
+  fast: "FLUX Schnell",
+  quality: "FLUX 1.1 Pro",
+  "flux-ultra": "FLUX 1.1 Pro Ultra",
+  text: "Ideogram V3 Turbo",
+  "text-pro": "Ideogram V3 Balanced",
+};
+
+const MAKER = { fast: "Black Forest Labs", quality: "Black Forest Labs", text: "Ideogram", "text-pro": "Ideogram" };
+
+export const imageModels = IMAGE_MODELS.map((m) => ({ id: m.id, name: REAL_NAME[m.id] || m.label, by: MAKER[m.id] || m.by, desc: m.desc, cost: m.cost }));
+export const videoModels = VIDEO_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost, eta: m.eta || 120 }));
+export const imageModel = (id) => imageModels.find((m) => m.id === id) || imageModels.find((m) => m.id === "fast");
+export const videoModel = (id) => videoModels.find((m) => m.id === id) || videoModels[0];
+
+export const IMAGE_RATIOS = [
+  { id: "1:1", label: "Square" },
+  { id: "9:16", label: "Tall" },
+  { id: "16:9", label: "Wide" },
+];
+export const ratioLabel = (id) => (IMAGE_RATIOS.find((r) => r.id === id) || { label: id }).label;
+
+// Tools that work on an existing image. `paidOnly` tools can't be paid for with free credits.
+export const TOOLS = {
+  animate: { label: "Animate", cost: 15, paidOnly: true, detail: "Wan 2.2, 5 s, 480p" },
+  sharpen: { label: "Upscale", cost: 1, done: "Upscaled to twice the size" },
+  cutout: { label: "Remove background", cost: 1, done: "Background removed" },
+  edit: { label: "Edit with words", cost: 8, done: "Edit applied", ask: "What should change?", hint: "Make it night, add snow, change the jacket to red" },
+  facelock: { label: "Keep the face", cost: 7, paidOnly: true, done: "Same face, new scene", ask: "Describe the new scene", hint: "As an astronaut on Mars" },
+  reference: { label: "From a reference image", cost: 5, detail: "FLUX Dev" },
+};
+
+// Options and price for one video run. The ratio falls back to one the model supports.
+export function videoPlan(modelId, d, r, ratio) {
+  const p = VIDEO_PRICING[modelId];
+  if (!p) return null;
+  const q = videoQuote(modelId, d ?? p.def.d, r ?? p.def.r, ratio) || videoQuote(modelId, p.def.d, p.def.r, ratio);
+  return q ? { ...q, durations: p.durations, resolutions: p.resolutions, ratios: p.ratios } : null;
+}
+export const videoOptionCost = (modelId, d, r) => videoQuote(modelId, d, r, "16:9")?.cost ?? null;
+
+// Name shown for a saved item, from the `model` column of the images table.
+export function madeWith(model) {
+  const id = String(model || "fast");
+  if (id === "upload") return "Your upload";
+  if (id === "guided") return "From a reference image";
+  if (id === "edit") return "Edit with words";
+  if (id === "animate") return "Animate";
+  if (id === "facelock") return "Keep the face";
+  if (id.startsWith("effect:")) return "Effect";
+  if (id.startsWith("video:")) return (videoModels.find((m) => m.id === id.slice(6)) || { name: "Video" }).name;
+  return (imageModels.find((m) => m.id === id) || { name: "Image" }).name;
+}
+
+export const isVideoUrl = (u) => /\.mp4(\?|$)/i.test(u || "");
+export const toItem = (r) => ({
+  id: r.id || null,
+  url: r.public_url,
+  prompt: r.prompt || "",
+  ratio: r.aspect_ratio || "1:1",
+  model: r.model || null,
+  at: r.created_at || new Date().toISOString(),
+  video: isVideoUrl(r.public_url),
+});

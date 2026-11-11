@@ -1,35 +1,78 @@
-import { LegalPage } from '../_legal/Legal';
+import Page from '../studio/Page';
 import { PLANS } from '../../lib/paid';
 import BuyButton from './BuyButton';
-import { IMAGE_MODELS, VIDEO_MODELS } from '../../lib/catalog';
+import { imageModels, videoModels, TOOLS } from '../studio/models';
+import { VIDEO_PRICING } from '../../lib/videoPricing';
 export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: 'Try free with 3 credits, then 10 free credits every day when you sign in. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
-const COSTS = [...IMAGE_MODELS.map((m) => [`${m.icon} ${m.label} image · ${m.by}`, m.cost]), ['◎ Guide (from an image)', 5], ['✎ Edit with words', 8], ['◐ Repaint an area', 8], ['◇ HD download (2x)', 1], ['✂ Cutout (remove background)', 1], ['◉ Face Lock (same face, new scene) · purchased credits', 7], ['▶ Animate an image (5s video) · purchased credits', 15], ...VIDEO_MODELS.map((m) => [`▶ ${m.label} video (${m.secs}s) · ${m.by} · purchased credits`, m.cost]), ['✦ Amplify prompt', 0]];
-const card = { padding: 18, borderRadius: 20, background: '#12121c', border: '1px solid #2a2a40' };
-const FAQ = [
-  ['Which credits are used first?', 'Free credits are always used first: 3 to try without an account, then 10 every day once you sign in. Paid credits are only used after the free ones run out.'],
-  ['Do purchased credits expire?', 'Creator Pack credits never expire. Pulse Pro adds 1,200 credits each billing month; unused credits stay in your balance.'],
-  ['How do I cancel Pulse Pro?', 'Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.'],
-  ['Can I get a refund?', 'Yes — unused purchased credits can be refunded within 14 days. See the Refund Policy.'],
-  ['Who processes payments?', 'Lemon Squeezy, our Merchant of Record. They handle the payment, VAT/sales tax and your receipt. We never see your card details.'],
-  ['I changed phone or cleared my browser. Where are my credits?', 'Sign in with Google or email from the profile menu and your credits follow your account on any device. If you bought without signing in, use the restore code from the profile menu or contact us with your order email.'],
+const Coin = ({ n }) => <span className="price"><i className="coin" />{n}</span>;
+const TOOL_ROWS = [
+  [TOOLS.reference.label, 'A new image that follows the look of one you add', TOOLS.reference.cost],
+  [TOOLS.edit.label, 'Describe a change to an image you have', TOOLS.edit.cost],
+  [TOOLS.sharpen.label, 'The same image at twice the size', TOOLS.sharpen.cost],
+  [TOOLS.cutout.label, 'A transparent PNG', TOOLS.cutout.cost],
+  [TOOLS.facelock.label, 'The same face in a new scene. Bought credits only', TOOLS.facelock.cost],
+  [TOOLS.animate.label, 'A 5 second video from an image. Bought credits only', TOOLS.animate.cost],
 ];
+const FAQ = [
+  ['Which credits are used first?', 'Free credits are always used first: 3 to try without an account, then 10 every day once you sign in. Bought credits are only used after the free ones run out.'],
+  ['Do bought credits expire?', 'Creator Pack credits never expire. Pulse Pro adds 1,200 credits each billing month; unused credits stay in your balance.'],
+  ['How do I cancel Pulse Pro?', 'Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.'],
+  ['Can I get a refund?', 'Yes. Unused bought credits can be refunded within 14 days.', ['/refund-policy', 'Refund Policy']],
+  ['Who processes payments?', 'Lemon Squeezy, our Merchant of Record. They handle the payment, VAT or sales tax and your receipt. We never see your card details.'],
+  ['I changed phone or cleared my browser. Where are my credits?', 'Sign in with Google or email from the Account screen and your credits follow your account on any device. If you bought without signing in, contact us with your order email.', ['/contact', 'Contact']],
+];
+
 export default function Pricing() {
   return (
-    <LegalPage title="Pricing" noRemoval>
-      <p>Start free every day. Buy more only if you need it.</p>
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', marginTop: 16 }}>
-        <div style={card}><b>Free</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>$0</div><p style={{ margin: 0 }}>3 credits to try, no signup. Sign in and get 10 credits every day, refilled at midnight UTC.</p></div>
-        <div style={card}><b>{PLANS.pack.name}</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>{PLANS.pack.price} <small style={{ fontSize: 12, color: '#a1a1b5' }}>one-time</small></div><p style={{ margin: 0 }}>{PLANS.pack.credits} credits that never expire.</p><BuyButton plan="pack" label={`Buy ${PLANS.pack.name}`} /></div>
-        <div style={{ ...card, borderColor: 'rgba(236,72,153,.7)' }}><b>{PLANS.pro.name}</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>{PLANS.pro.price} <small style={{ fontSize: 12, color: '#a1a1b5' }}>/ month</small></div><p style={{ margin: 0 }}>{PLANS.pro.credits.toLocaleString('en-US')} credits every month. Cancel anytime.</p><BuyButton plan="pro" label={`Get ${PLANS.pro.name}`} /></div>
+    <Page wide>
+      <h1>Prices</h1>
+      <p className="lead">One wallet for every model. Start free, and buy credits only if you need more.</p>
+
+      <div className="cards" style={{ marginTop: 24 }}>
+        <div className="pcard">
+          <p className="b">Free</p>
+          <p className="amount">$0</p>
+          <p className="t2">3 credits to try, no sign-up. Sign in and get 10 credits every day, refilled at midnight UTC.</p>
+        </div>
+        <div className="pcard">
+          <p className="b">{PLANS.pack.name}</p>
+          <p className="amount">{PLANS.pack.price} <span className="sm t3" style={{ fontFamily: 'var(--font-text)', letterSpacing: 0 }}>one payment</span></p>
+          <p className="t2 r" style={{ gap: 6 }}><i className="coin" />{PLANS.pack.credits} credits that never expire.</p>
+          <BuyButton plan="pack" label={`Buy ${PLANS.pack.name}`} />
+        </div>
+        <div className="pcard">
+          <p className="b">{PLANS.pro.name}</p>
+          <p className="amount">{PLANS.pro.price} <span className="sm t3" style={{ fontFamily: 'var(--font-text)', letterSpacing: 0 }}>a month</span></p>
+          <p className="t2 r" style={{ gap: 6 }}><i className="coin" />{PLANS.pro.credits.toLocaleString('en-US')} credits every month. Cancel anytime.</p>
+          <BuyButton plan="pro" label={`Get ${PLANS.pro.name}`} />
+        </div>
       </div>
-      <p style={{ fontSize: 12.5, color: '#8a8aa3' }}>Prices in USD. Taxes may be added at checkout depending on your country. Sign in from the profile menu in the <a href="/">Studio</a> first so your credits are saved to your account.</p>
-      <h2>What things cost</h2>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}><tbody>
-        {COSTS.map(([k, v]) => <tr key={k} style={{ borderBottom: '1px solid #22223a' }}><td style={{ padding: '9px 2px', color: '#cfcde0' }}>{k}</td><td style={{ textAlign: 'right', fontWeight: 700 }}>{v ? `${v}⚡` : 'Free'}</td></tr>)}
-      </tbody></table>
-      <h2>FAQ</h2>
-      {FAQ.map(([q, a]) => <div key={q}><p style={{ marginBottom: 2 }}><b>{q}</b></p><p style={{ marginTop: 0 }}>{a.includes('Refund Policy') ? <>{a.replace(' See the Refund Policy.', ' See the ')}<a href="/refund-policy">Refund Policy</a>.</> : a}</p></div>)}
-    </LegalPage>
+      <p className="sm t3" style={{ marginTop: 12 }}>Prices in USD. Taxes may be added at checkout depending on your country. Sign in first, from the Account screen in the studio, so the credits are saved to your account.</p>
+
+      <h2 className="sec">Image models</h2>
+      <div className="ptable">
+        <div className="head"><span className="grow">One image</span><span>Credits</span></div>
+        {imageModels.map((m) => <div key={m.id}><span className="grow"><span className="b">{m.name}</span><span className="sm t2" style={{ display: 'block' }}>{m.by}. {m.desc}</span></span><Coin n={m.cost} /></div>)}
+      </div>
+
+      <h2 className="sec">Video models</h2>
+      <div className="ptable">
+        <div className="head"><span className="grow">One video, shortest length. Bought credits only</span><span>From</span></div>
+        {videoModels.map((m) => { const p = VIDEO_PRICING[m.id]; return <div key={m.id}><span className="grow"><span className="b">{m.name}</span><span className="sm t2" style={{ display: 'block' }}>{m.by}. {p.durations.join(' or ')} seconds, up to {p.resolutions[p.resolutions.length - 1]}</span></span><Coin n={m.cost} /></div>; })}
+      </div>
+      <p className="sm t3" style={{ marginTop: 8 }}>Longer or sharper videos cost more. The exact price is on the button before you generate.</p>
+
+      <h2 className="sec">Working on an image</h2>
+      <div className="ptable">
+        <div className="head"><span className="grow">Tool</span><span>Credits</span></div>
+        {TOOL_ROWS.map(([name, what, cost]) => <div key={name}><span className="grow"><span className="b">{name}</span><span className="sm t2" style={{ display: 'block' }}>{what}</span></span><Coin n={cost} /></div>)}
+      </div>
+
+      <h2 className="sec">Questions</h2>
+      <div className="faq">
+        {FAQ.map(([q, a, link]) => <details key={q}><summary>{q}</summary><p>{a}{link ? <> See <a className="link" href={link[0]}>{link[1]}</a>.</> : null}</p></details>)}
+      </div>
+    </Page>
   );
 }

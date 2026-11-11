@@ -1,16 +1,13 @@
 'use client';
 import { useState } from 'react';
-import ImageActions, { IA_CSS } from '../../ImageActions';
-import ReportSheet from '../../ReportSheet';
+import ReportSheet from '../../studio/ReportSheet';
 
-const CSS_VARS = ':root{--txt:#e9e7f5;--mut:#7c7c94}.pp-grab{width:42px;height:5px;border-radius:9px;background:#33334a;margin:0 auto 6px}.pp-done{width:100%;margin-top:14px;padding:13px;border-radius:999px;border:none;background:#e9e7f5;color:#0b0b12;font-weight:800;font-size:15px}@keyframes ppFade{from{opacity:0}}@keyframes ppUp{from{transform:translateY(100%)}to{transform:none}}';
-
-export default function CardActions({ id, prompt, style, ratio, tier, url, format }) {
+// What a visitor can do with a shared image: start their own from it, share it, copy the prompt, report it.
+export default function CardActions({ id, prompt, ratio, tier, format }) {
   const [toast, setToast] = useState('');
   const [reporting, setReporting] = useState(false);
-  const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2200); };
-  const vibeQs = new URLSearchParams({ vibe: id, p: prompt || '', ...(format && format !== 'free' ? { format } : {}), ...(style ? { style } : {}), ...(ratio ? { ratio } : {}), ...(tier ? { tier } : {}) });
-  const styleQs = new URLSearchParams({ vibe: 'style', ...(style ? { style } : {}), ...(ratio ? { ratio } : {}), ...(tier ? { tier } : {}) });
+  const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
+  const startQs = new URLSearchParams({ vibe: id, p: prompt || '', ...(format && format !== 'free' ? { format } : {}), ...(ratio ? { ratio } : {}), ...(tier ? { tier } : {}) });
   const copy = async (text, msg) => {
     try { await navigator.clipboard.writeText(text); flash(msg); } catch { window.prompt('Copy:', text); }
   };
@@ -21,23 +18,19 @@ export default function CardActions({ id, prompt, style, ratio, tier, url, forma
     }
     copy(link, 'Link copied');
   };
-  const go = (href) => { window.location.href = href; };
   return (
     <>
-      <style>{CSS_VARS + IA_CSS}</style>
-      <ImageActions title={prompt}
-        primary={[
-          { key: 'vibe', icon: '✦', label: 'Pulse this vibe', tone: 'accent', onClick: () => go(`/?${vibeQs}`) },
-          { key: 'share', icon: '↗', label: 'Share', onClick: share },
-        ]}
-        more={[
-          { key: 'copy', icon: '✎', label: 'Copy prompt', onClick: () => copy(prompt, 'Prompt copied') },
-          { key: 'repaint', icon: '◐', label: 'Repaint', hint: '2⚡ · paint an area', onClick: () => go(`/?${new URLSearchParams({ repaint: id, src: url })}`) },
-          { key: 'feed', icon: '▦', label: 'Explore the feed', onClick: () => go('/?tab=community') },
-          { key: 'report', icon: '⚑', label: 'Report', hint: 'Breaks the rules?', tone: 'danger', onClick: () => setReporting(true) },
-        ]} />
+      <a className="btn btn-p btn-wide" style={{ height: 52 }} href={`/?${startQs}`}>Start from this idea</a>
+      <div className="r" style={{ gap: 8, marginTop: 8 }}>
+        <button className="btn btn-s grow" onClick={share}>Share</button>
+        <button className="btn btn-s grow" onClick={() => copy(prompt, 'Prompt copied')}>Copy prompt</button>
+      </div>
+      <div className="r" style={{ justifyContent: 'space-between', marginTop: 8 }}>
+        <a className="link sm r" style={{ minHeight: 44 }} href="/?tab=community">See more on PixelPulse</a>
+        <button className="link sm t3" style={{ minHeight: 44 }} onClick={() => setReporting(true)}>Report</button>
+      </div>
       {reporting && <ReportSheet id={id} onClose={() => setReporting(false)} onDone={(m) => flash(m)} />}
-      {toast && <div className="pc-toast">{toast}</div>}
+      {toast && <div className="toast" role="status">{toast}</div>}
     </>
   );
 }

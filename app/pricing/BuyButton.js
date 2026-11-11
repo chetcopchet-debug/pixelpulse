@@ -13,8 +13,10 @@ export default function BuyButton({ plan, label }) {
     } catch { setErr("Checkout is unavailable right now."); }
     setBusy(false);
   };
-  return <div style={{ marginTop: 12 }}>
-    <button onClick={buy} disabled={busy} style={{ width: "100%", padding: "11px 14px", borderRadius: 999, border: 0, fontWeight: 800, fontSize: 15, color: "#fff", background: "linear-gradient(90deg,#a855f7,#ec4899)", opacity: busy ? .6 : 1, cursor: "pointer" }}>{busy ? "Opening checkout…" : label}</button>
-    {err && <p style={{ margin: "6px 0 0", fontSize: 12.5, color: "#fca5a5" }}>{err}</p>}
-  </div>;
+  return (
+    <div style={{ marginTop: "auto", paddingTop: 10 }}>
+      <button className="btn btn-p btn-wide" onClick={buy} disabled={busy}>{busy ? "Opening checkout…" : label}</button>
+      {err && <p className="sm bad" role="alert" style={{ marginTop: 8 }}>{err}</p>}
+    </div>
+  );
 }

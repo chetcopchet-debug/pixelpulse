@@ -11,9 +11,10 @@ import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
 import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
-import { finalizeJob, recordJob, pendingJobs, jobFromRow, webhookFields } from '../../../lib/videoJobs';
+import { finalizeJob, recordJob, pendingJobs, jobFromRow, webhookFields, repairRecent } from '../../../lib/videoJobs';
 import { videoQuote, VIDEO_PRICING } from '../../../lib/videoPricing';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
+import { replicateStart, THROTTLED_MSG } from '../../../lib/replicate';
 import sharp from 'sharp';
 
 // Pulse Effects: center-crop the photo to 9:16 (720x1280) so wan outputs a vertical, share-ready clip.
@@ -31,11 +32,14 @@ export const fetchCache = 'force-no-store';
 const AN = PREMIUM.animate;
 const DEFAULT_MOTION = 'subtle natural cinematic motion, gentle slow camera push-in, lifelike movement, keep the scene and subject consistent';
 const JOB_TTL = 60 * 60_000;
-const api = (path, init = {}) => fetch(`https://api.replicate.com/v1/${path}`, { cache: 'no-store', ...init,
-  headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json', ...(init.headers || {}) } });
+// Starting a run goes through replicateStart, which waits and retries when the Replicate account is throttled.
+const api = (path, init = {}) => replicateStart(`https://api.replicate.com/v1/${path}`, { ...init,
+  headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json', ...(init.headers || {}) } }, { tries: 3 });
+const startFailed = (r) => (r?.status === 429 ? `${THROTTLED_MSG} Your credits were returned.` : 'Could not start the video, your credits were refunded.');
 // Replicate calls our webhook when the video is done, so the server saves it even if the browser tab is closed.
 // The webhook token is signed and carries everything except the prediction id (not known before the run starts).
-const hookFor = (request, fields) => webhookFields(new URL(request.url).origin, makeJob({ ...fields, w: 1 }));
+// On deployments behind Vercel's login wall (previews), Replicate can only get in with Vercel's bypass secret.
+const hookFor = (request, fields) => webhookFields(new URL(request.url).origin, makeJob({ ...fields, w: 1 }), process.env.VERCEL_AUTOMATION_BYPASS_SECRET);
 
 // POST { id, prompt? } -> { job } (start). Charged up front from PAID credits; refunded if the video fails.
 export async function POST(request) {
@@ -78,7 +82,7 @@ export async function POST(request) {
   if (!r || !r.ok || !p.id) {
     console.error('animate start', r?.status, p?.detail || p?.error || '');
     await spend.release(); await charge.refund();
-    return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
+    return NextResponse.json({ error: startFailed(r), paid: await paidFor(creator) }, { status: r?.status === 429 ? 429 : 502 });
   }
   await logGeneration({ userId: creator.id, ip, mode: effect ? `effect:${effect}` : 'animate', prompt: raw, inputRef: row.id, outputRef: `pred:${p.id}`, moderation: 'passed:input-only' });
   await recordJob({ ...fields, p: p.id });
@@ -115,7 +119,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   if (!r || !r.ok || !p.id) {
     console.error('t2v start', body.model, r?.status, p?.detail || p?.error || '');
     await spend.release(); await charge.refund();
-    return NextResponse.json({ error: 'Could not start the video, your credits were refunded.', paid: await paidFor(creator) }, { status: 502 });
+    return NextResponse.json({ error: startFailed(r), paid: await paidFor(creator) }, { status: r?.status === 429 ? 429 : 502 });
   }
   await logGeneration({ userId: creator.id, ip, mode: `t2v:${body.model}`, prompt: raw, outputRef: `pred:${p.id}`, moderation: 'passed:text-only' });
   await recordJob({ ...fields, p: p.id });
@@ -124,6 +128,9 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   setCreatorCookie(res, creator);
   return res;
 }
+
+// What to tell the person when a job ended without a video. `lost`: the run finished but the file could not be kept.
+const failText = (out) => `${out.lost ? 'The video was made but could not be saved' : 'The video failed'}${out.charged ? '. Your credits were returned.' : '.'}`;
 
 // GET ?job=<token>  -> { status: processing | done | failed, item? }   (the tab that started the video)
 // GET ?pending=1    -> { jobs: [...] }  every unfinished video of this creator, finishing any that are ready
@@ -138,16 +145,18 @@ export async function GET(request) {
     const jobs = [];
     for (const row of rows.slice(0, 3)) { // at most 3 saves per request (each may download a video)
       const out = await finalizeJob(jobFromRow(row));
-      jobs.push({ id: row.prediction_id.slice(0, 12), kind: row.kind, prompt: row.prompt, started: row.created_at, status: out.status, ...(out.item ? { item: out.item } : {}) });
+      jobs.push({ id: row.prediction_id.slice(0, 12), kind: row.kind, prompt: row.prompt, started: row.created_at, status: out.status, ...(out.item ? { item: out.item } : {}), ...(out.status === 'failed' ? { error: failText(out) } : {}) });
     }
     for (const row of rows.slice(3)) jobs.push({ id: row.prediction_id.slice(0, 12), kind: row.kind, prompt: row.prompt, started: row.created_at, status: 'processing' });
-    return NextResponse.json({ jobs, paid: await paidFor(creator) });
+    // Videos saved before conversion existed are converted here, a couple per visit.
+    const repaired = await repairRecent(creator.id).catch((e) => { console.error('video repair', e?.message || e); return []; });
+    return NextResponse.json({ jobs, repaired, paid: await paidFor(creator) });
   }
 
   const job = readJob(params.get('job'));
   if (!job || !job.p || creator.isNew || creator.id !== job.u) return NextResponse.json({ error: 'Unknown video job.' }, { status: 404 });
   const out = await finalizeJob(job);
   if (out.status === 'done') return NextResponse.json({ status: 'done', item: out.item });
-  if (out.status === 'failed') return NextResponse.json({ status: 'failed', error: `The video failed${out.charged ? ', your credits were refunded' : ''}.`, paid: await paidFor(creator) });
+  if (out.status === 'failed') return NextResponse.json({ status: 'failed', error: failText(out), paid: await paidFor(creator) });
   return NextResponse.json({ status: 'processing' });
 }

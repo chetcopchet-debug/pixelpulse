@@ -4,6 +4,7 @@ import { FORMATS, FORMAT_LIST, FORMAT_GROUPS, isFormat } from '../../../lib/form
 import { FORMAT_SEO } from '../../../lib/formatsSeo';
 import { SITE_URL } from '../../../lib/site';
 import Thumb from '../../Thumb';
+import Page from '../../studio/Page';
 
 export const revalidate = 600;
 export function generateStaticParams() { return FORMAT_LIST.filter((f) => f.id !== 'free').map((f) => ({ slug: f.id })); }
@@ -36,7 +37,7 @@ export default async function FormatPage(props) {
   if (!f) notFound();
   const m = FORMAT_SEO[f.id];
   const items = await examples(f);
-  const shape = f.id === 'avatar' || f.id === 'anime-avatar' ? 'fp-circle' : f.ratio === '9:16' ? 'fp-tall' : f.ratio === '16:9' ? 'fp-wide' : 'fp-sq';
+  const shape = f.id === 'avatar' || f.id === 'anime-avatar' ? 'circle' : f.ratio === '9:16' ? 'tall' : f.ratio === '16:9' ? 'wide' : 'square';
   const related = FORMAT_LIST.filter((o) => o.group === f.group && o.id !== f.id);
   const ld = [
     { '@context': 'https://schema.org', '@type': 'WebApplication', name: `PixelPulse ${m.h1}`, url: `${SITE_URL}/formats/${f.id}`, applicationCategory: 'DesignApplication', operatingSystem: 'Any (web)', description: m.seo, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } },
@@ -45,62 +46,29 @@ export default async function FormatPage(props) {
   ];
   const go = (p) => `/?format=${f.id}${p ? `&vibe=1&p=${encodeURIComponent(p)}` : ''}`;
   return (
-    <div className="fp-root">
-      <style>{CSS}</style>
+    <Page>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, '\\u003c') }} />
-      <a href="/" className="fp-brand"><span className="fp-logo"><i /></span><b>PixelPulse</b></a>
-      <main>
-        <nav className="fp-crumbs"><a href="/formats">Formats</a> › <span>{f.label}</span></nav>
-        <span className="fp-kicker">{f.icon} {FORMAT_GROUPS[f.group]}</span>
-        <h1>{m.h1}</h1>
-        <p className="fp-lead">{m.intro}</p>
-        <a className="fp-go" href={go()}>✦ Create {/^[aeiou]/i.test(f.label) ? 'an' : 'a'} {f.label.toLowerCase()} — free</a>
-        <ul className="fp-facts"><li>{f.ratio} frame</li><li>{f.blurb}</li>{f.autoCutout && <li>Transparent PNG</li>}</ul>
-        <h2>Try one of these</h2>
-        <div className="fp-ex">{m.examples.map((p) => <a key={p} href={go(p)}>✦ {p}</a>)}</div>
-        {items.length > 0 && <h2>From the Pulse Feed</h2>}
-        <div className="fp-grid">
-          {items.map((x) => (
-            <a key={x.id} href={`/p/${x.id}`} className={shape}><Thumb src={x.public_url} ratio={f.ratio || "1:1"} alt={x.prompt} /></a>
-          ))}
-        </div>
-        <h2>Questions</h2>
-        <div className="fp-faq">{m.faq.map((x) => <details key={x.q}><summary>{x.q}</summary><p>{x.a}</p></details>)}</div>
-        <h2>Related formats</h2>
-        <nav className="fp-others">{related.map((o) => <a key={o.id} href={`/formats/${o.id}`}>{o.icon} {o.label}</a>)}<a href="/formats">All formats →</a></nav>
-      </main>
-    </div>
+      <nav className="sm t3 r" style={{ gap: 6, minHeight: 44 }} aria-label="Breadcrumb"><a className="link r" style={{ minHeight: 44 }} href="/formats">Formats</a><span aria-hidden="true">/</span><span>{f.label}</span></nav>
+      <h1 style={{ marginTop: 4 }}>{m.h1}</h1>
+      <p className="lead">{m.intro}</p>
+      <a className="btn btn-p btn-wide" style={{ marginTop: 20, height: 52 }} href={go()}>Create {/^[aeiou]/i.test(f.label) ? 'an' : 'a'} {f.label.toLowerCase()}, free to try</a>
+      <ul className="tags" style={{ listStyle: 'none', marginTop: 14 }}><li className="tag">{f.ratio} frame</li><li className="tag">{f.blurb}</li>{f.autoCutout && <li className="tag">Transparent PNG</li>}</ul>
+
+      <h2 className="sec">Try one of these</h2>
+      <div className="rows">{m.examples.map((p) => <a key={p} href={go(p)}><span>{p}</span><span className="t3" aria-hidden="true">›</span></a>)}</div>
+
+      {items.length > 0 && <h2 className="sec">Made on PixelPulse</h2>}
+      <div className="grid3" style={{ gap: 6 }}>
+        {items.map((x) => (
+          <a key={x.id} href={`/p/${x.id}`} className="tile" style={{ aspectRatio: shape === 'tall' ? '9 / 16' : shape === 'wide' ? '16 / 9' : '1', borderRadius: shape === 'circle' ? '50%' : 8 }}><Thumb src={x.public_url} ratio={f.ratio || "1:1"} alt={x.prompt} /></a>
+        ))}
+      </div>
+
+      <h2 className="sec">Questions</h2>
+      <div className="faq">{m.faq.map((x) => <details key={x.q}><summary>{x.q}</summary><p>{x.a}</p></details>)}</div>
+
+      <h2 className="sec">Related formats</h2>
+      <nav className="tags" aria-label="Related formats">{related.map((o) => <a key={o.id} className="tag" href={`/formats/${o.id}`}>{o.label}</a>)}<a className="tag" href="/formats">All formats</a></nav>
+    </Page>
   );
 }
-
-const CSS = `
-body{margin:0;background:#07070a}
-.fp-root{min-height:100vh;background:radial-gradient(900px 420px at 50% -160px,rgba(147,51,234,.22),transparent),#07070a;color:#e9e7f5;font-family:system-ui,-apple-system,sans-serif;padding:16px 16px 48px;box-sizing:border-box}
-.fp-root *{box-sizing:border-box}
-.fp-root main{max-width:760px;margin:0 auto}
-.fp-brand{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:#fff;font-size:18px;margin-bottom:22px}
-.fp-brand b{background:linear-gradient(90deg,#c084fc,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.fp-logo{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#9333ea,#ec4899);display:grid;place-items:center;box-shadow:0 0 16px rgba(147,51,234,.55)}
-.fp-logo i{width:9px;height:9px;border-radius:50%;background:#fff}
-.fp-kicker{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid rgba(236,72,153,.5);font-size:12px;color:#f0abfc}
-h1{font-size:32px;margin:12px 0 8px;letter-spacing:-.02em}
-.fp-lead{color:#b9b7cc;line-height:1.55;margin:0 0 18px}
-.fp-go{display:flex;justify-content:center;padding:15px;border-radius:999px;background:linear-gradient(90deg,#9333ea,#ec4899);color:#fff;font-weight:800;text-decoration:none;box-shadow:0 8px 26px rgba(236,72,153,.35)}
-.fp-facts{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:14px 0 22px}
-.fp-facts li{padding:6px 12px;border-radius:999px;background:#151520;border:1px solid #2a2a40;font-size:12px;color:#cfcde0}
-h2{font-size:16px;margin:8px 0 12px}
-.fp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.fp-grid a{display:block;overflow:hidden;background:#101018}
-.fp-grid img{width:100%;height:100%;object-fit:cover;display:block}
-.fp-sq{aspect-ratio:1;border-radius:16px}.fp-tall{aspect-ratio:9/16;border-radius:16px}.fp-circle{aspect-ratio:1;border-radius:50%}
-.fp-wide{aspect-ratio:16/9;border-radius:16px}
-.fp-crumbs{font-size:12px;color:#8a8aa3;margin-bottom:10px}.fp-crumbs a{color:#c4b5fd;text-decoration:none}
-.fp-ex{display:flex;flex-direction:column;gap:8px}
-.fp-ex a{padding:12px 14px;border-radius:16px;background:#151520;border:1px solid #2a2a40;color:#e9e7f5;text-decoration:none;font-size:14px}
-.fp-faq details{border-bottom:1px solid #22223a;padding:12px 2px}
-.fp-faq summary{cursor:pointer;font-weight:700;font-size:14px}
-.fp-faq p{color:#b9b7cc;line-height:1.55;font-size:14px;margin:8px 0 0}
-h2{margin-top:26px!important}
-.fp-others{display:flex;flex-wrap:wrap;gap:8px;margin-top:26px}
-.fp-others a{padding:9px 14px;border-radius:999px;border:1px solid #2a2a40;background:#151520;color:#e9e7f5;text-decoration:none;font-size:13px}
-`;
