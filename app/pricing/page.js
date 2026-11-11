@@ -2,12 +2,12 @@ import { LegalPage } from '../_legal/Legal';
 import { PLANS } from '../../lib/paid';
 import BuyButton from './BuyButton';
 import { IMAGE_MODELS, VIDEO_MODELS } from '../../lib/catalog';
-export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: '10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
+export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: 'Try free with 3 credits, then 10 free credits every day when you sign in. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
 const COSTS = [...IMAGE_MODELS.map((m) => [`${m.icon} ${m.label} image · ${m.by}`, m.cost]), ['◎ Guide (from an image)', 5], ['✎ Edit with words', 8], ['◐ Repaint an area', 8], ['◇ HD download (2x)', 1], ['✂ Cutout (remove background)', 1], ['◉ Face Lock (same face, new scene) · purchased credits', 7], ['▶ Animate an image (5s video) · purchased credits', 15], ...VIDEO_MODELS.map((m) => [`▶ ${m.label} video (${m.secs}s) · ${m.by} · purchased credits`, m.cost]), ['✦ Amplify prompt', 0]];
 const card = { padding: 18, borderRadius: 20, background: '#12121c', border: '1px solid #2a2a40' };
 const FAQ = [
-  ['Which credits are used first?', 'Your 10 free daily credits are always used first. Paid credits are only used after the free ones run out.'],
+  ['Which credits are used first?', 'Free credits are always used first: 3 to try without an account, then 10 every day once you sign in. Paid credits are only used after the free ones run out.'],
   ['Do purchased credits expire?', 'Creator Pack credits never expire. Pulse Pro adds 1,200 credits each billing month; unused credits stay in your balance.'],
   ['How do I cancel Pulse Pro?', 'Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.'],
   ['Can I get a refund?', 'Yes — unused purchased credits can be refunded within 14 days. See the Refund Policy.'],
@@ -19,7 +19,7 @@ export default function Pricing() {
     <LegalPage title="Pricing" noRemoval>
       <p>Start free every day. Buy more only if you need it.</p>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', marginTop: 16 }}>
-        <div style={card}><b>Free</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>$0</div><p style={{ margin: 0 }}>10 credits every day, refilled at midnight UTC. No signup.</p></div>
+        <div style={card}><b>Free</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>$0</div><p style={{ margin: 0 }}>3 credits to try, no signup. Sign in and get 10 credits every day, refilled at midnight UTC.</p></div>
         <div style={card}><b>{PLANS.pack.name}</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>{PLANS.pack.price} <small style={{ fontSize: 12, color: '#a1a1b5' }}>one-time</small></div><p style={{ margin: 0 }}>{PLANS.pack.credits} credits that never expire.</p><BuyButton plan="pack" label={`Buy ${PLANS.pack.name}`} /></div>
         <div style={{ ...card, borderColor: 'rgba(236,72,153,.7)' }}><b>{PLANS.pro.name}</b><div style={{ fontSize: 26, fontWeight: 800, margin: '6px 0' }}>{PLANS.pro.price} <small style={{ fontSize: 12, color: '#a1a1b5' }}>/ month</small></div><p style={{ margin: 0 }}>{PLANS.pro.credits.toLocaleString('en-US')} credits every month. Cancel anytime.</p><BuyButton plan="pro" label={`Get ${PLANS.pro.name}`} /></div>
       </div>

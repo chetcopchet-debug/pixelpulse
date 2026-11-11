@@ -7,7 +7,7 @@ const FALLBACK = [
 ];
 
 // need: { label, cost } | null (opened from the profile menu)
-export default function PricingModal({ invite, onInvite, need, credits, paid, resetIn, plans, onClose, signedIn = true, onSignIn }) {
+export default function PricingModal({ guest = false, invite, onInvite, need, credits, paid, resetIn, plans, onClose, signedIn = true, onSignIn }) {
   const list = plans?.length ? plans : FALLBACK;
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -30,7 +30,7 @@ export default function PricingModal({ invite, onInvite, need, credits, paid, re
         <h3>{need ? "Keep the pulse going" : "Get more credits"}</h3>
         <p className="pm-sub">
           {need?.paidOnly ? <>{need.label} is a premium tool: <b>{need.cost}⚡</b> from purchased credits — you have <b>{paid}⚡</b>.</> : need ? <>{need.label} needs <b>{need.cost}⚡</b> — you have <b>{credits + paid}⚡</b>.</> : <>You have <b>{credits}⚡</b> free today{paid ? <> + <b>{paid}⚡</b> paid</> : null}.</>}
-          <br />{need?.paidOnly ? "Free daily credits can't be used for premium tools." : <>Your 10 free credits refill in <b>{resetIn}</b>.</>}
+          <br />{need?.paidOnly ? "Free daily credits can't be used for premium tools." : guest ? "Sign in to get 10 free credits every day." : <>Your 10 free credits refill in <b>{resetIn}</b>.</>}
         </p>
         <div className="pm-plans">
           {list.map((p) => (
@@ -49,7 +49,7 @@ export default function PricingModal({ invite, onInvite, need, credits, paid, re
         {onInvite && invite?.enabled !== false && <button className="pm-invite" onClick={onInvite}>🎁 Invite a friend — you both get +{invite?.bonus || 10}⚡{invite?.invites ? <small> · {invite.invites} joined</small> : null}</button>}
         {!signedIn && onSignIn && <p className="pm-fine" style={{ margin: "12px 0 0" }}><button className="pm-link" onClick={onSignIn}>✉ Sign in</button> to keep your credits safe on every device.</p>}
         <p className="pm-fine">Free credits are used first. Secure checkout by Lemon Squeezy · cancel Pro anytime.</p>
-        <button className="pm-close" onClick={onClose}>{need && !need.paidOnly ? "Wait for free credits" : "Close"}</button>
+        <button className="pm-close" onClick={onClose}>{need && !need.paidOnly && !guest ? "Wait for free credits" : "Close"}</button>
       </div>
       <style>{`
 .pm-scrim{position:fixed;inset:0;z-index:80;background:rgba(5,5,9,.72);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;animation:ppFade .2s}
