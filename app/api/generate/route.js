@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { setCreditsCookie, getClientIp, freeState, chargeCredits, paidFor, GUEST_TRIAL, DAILY_CREDITS } from '../../../lib/credits';
 import { readAccount } from '../../../lib/account';
+import { THROTTLED_MSG } from '../../../lib/replicate';
 import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RATIOS } from '../../../lib/generation';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
@@ -126,10 +127,12 @@ export async function POST(request) {
 
     if (result.error) {
       await refund();
-      const status = result.error === 'timeout' ? 504 : 502;
+      const status = result.error === 'timeout' ? 504 : result.error === 'throttled' ? 429 : 502;
       const msg = result.error === 'timeout'
         ? 'Generation timed out. Your credits were refunded. / היצירה לקחה יותר מדי זמן, הקרדיט הוחזר.'
-        : 'Image generation failed. Your credits were refunded. / יצירת התמונה נכשלה, הקרדיט הוחזר.';
+        : result.error === 'throttled'
+          ? `${THROTTLED_MSG} Your credits were refunded.`
+          : 'Image generation failed. Your credits were refunded. / יצירת התמונה נכשלה, הקרדיט הוחזר.';
       const res = jsonError(msg, status, currentCredits());
       if (!admin) setCreditsCookie(res, state);
       return res;

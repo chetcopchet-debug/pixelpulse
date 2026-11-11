@@ -242,28 +242,38 @@ export function useStudio() {
     setViewer(null); say("Deleted");
   }, [say]);
 
+  // Put a changed copy of an item (for example a converted video with a new address) everywhere it is shown.
+  const swapItem = useCallback((item) => {
+    if (!item?.id) return;
+    setItems((prev) => prev.map((h) => (h.id === item.id ? { ...h, ...item } : h)));
+    setRuns((rs) => rs.map((r) => (r.item?.id === item.id ? { ...r, item: { ...r.item, ...item } } : r)));
+    setViewer((v) => (v?.item?.id === item.id ? { ...v, item: { ...v.item, ...item } } : v));
+  }, []);
+
   // A player could not play a video. That says nothing about the file itself (the phone may simply not support
-  // it), so the page never treats it as a failed video. It tells the server, which reads the stored file:
-  // only a file that is missing or is not a video at all is removed and refunded.
-  // Returns "removed" | "format" (file is fine, this browser can't play its format) | "device" (file is fine).
-  const reported = useRef(new Map());
+  // its format), so the page never treats it as a failed video. It tells the server, which reads the stored file:
+  //   - a real video is converted to the format every phone plays, and the page gets its new address;
+  //   - only a file that is missing or is not a video at all is removed and refunded.
+  // Returns "converted" | "removed" | "format" (fine file, could not be converted) | "device" (fine file).
+  const reports = useRef(new Map());
   const reportVideo = useCallback(async (item, err) => {
     if (!item?.id || !item.video) return "device";
-    if (reported.current.has(item.id)) return reported.current.get(item.id);
-    const res = await post("/api/video/check", { id: item.id, code: err?.code, message: err?.message }).catch(() => null);
+    const n = reports.current.get(item.id) || 0;
+    if (n >= 2) return "device"; // tried a conversion and a full re-make already
+    reports.current.set(item.id, n + 1);
+    const res = await post("/api/video/check", { id: item.id, code: err?.code, message: err?.message, again: n > 0 }).catch(() => null);
     const d = res ? await json(res) : {};
-    let out = "device";
+    if (res?.ok && d.converted && d.item) { swapItem(toItem(d.item)); return "converted"; }
     if (res?.ok && d.removed) {
-      out = "removed";
       sync(d);
       setItems((prev) => prev.filter((h) => h.id !== item.id));
       setRuns((rs) => rs.filter((r) => r.item?.id !== item.id));
       setViewer((v) => (v?.item?.id === item.id ? null : v));
       say(d.refunded ? `That video's file was missing or damaged. It was removed and ${d.refunded} credits were returned.` : "That video's file was missing or damaged, so it was removed.");
-    } else if (res?.ok && d.playable === false) out = "format";
-    reported.current.set(item.id, out);
-    return out;
-  }, [sync, say]);
+      return "removed";
+    }
+    return res?.ok && d.playable === false ? "format" : "device";
+  }, [sync, say, swapItem]);
 
   // The first time the owner plays a video, one frame is saved as its picture for lists.
   const [posters, setPosters] = useState({});
@@ -325,8 +335,9 @@ export function useStudio() {
     const d = await get("/api/animate?pending=1").then(json).catch(() => null);
     if (!d || !Array.isArray(d.jobs)) return null;
     sync(d);
+    if (Array.isArray(d.repaired)) d.repaired.forEach((r) => swapItem(toItem(r))); // old videos converted on this visit
     return d.jobs;
-  }, [sync]);
+  }, [sync, swapItem]);
   const hasResumed = runs.some((r) => r.resumed && r.status === "running");
   useEffect(() => {
     if (!hasResumed) return;

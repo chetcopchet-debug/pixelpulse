@@ -4,6 +4,7 @@ import { setupChecks, googleEnabled, deploymentKind } from '../../lib/setup';
 import { recentJobs } from '../../lib/videoJobs';
 import { bump } from '../../lib/usage';
 import { madeWith } from '../studio/models';
+import { converterVersion } from '../../lib/transcode';
 import Page from '../studio/Page';
 export const metadata = { title: 'Admin · PixelPulse', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,7 @@ export default async function AdminLogin(props) {
   const videos = admin ? await recentJobs(10).catch(() => []) : [];
   const hooks = admin ? Number(await bump('hook:replicate', 0, 1e9).catch(() => 0)) || 0 : 0;
   const bypass = Boolean(process.env.VERCEL_AUTOMATION_BYPASS_SECRET);
+  const converter = showSetup ? await converterVersion().catch(() => null) : null;
   const when = (t) => new Date(t).toLocaleString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   return (
     <Page bare>
@@ -91,6 +93,10 @@ export default async function AdminLogin(props) {
                 <span className={`b sm ${c.ok ? 'ok' : c.optional ? 't3' : 'bad'}`}>{c.ok ? 'Set' : c.optional ? 'Not set' : 'Missing'}</span>
               </div>
             ))}
+            <div>
+              <span className="grow"><span className="b">Video converter</span><span className="sm t2" style={{ display: 'block' }}>{converter ? `${converter}. Every saved video is brought to H.264 with the index first, the format phones play.` : 'ffmpeg did not start in this deployment, so videos are saved exactly as the model made them and some may not play on phones.'}</span></span>
+              <span className={`b sm ${converter ? 'ok' : 'bad'}`}>{converter ? 'Ready' : 'Missing'}</span>
+            </div>
             <div>
               <span className="grow"><span className="b">Google sign-in</span><span className="sm t2" style={{ display: 'block' }}>{google ? 'Switched on in Supabase. The Google button is shown.' : 'Supabase did not report Google as switched on, so the button is hidden. Check Supabase, Authentication, Sign In / Providers, Google.'}</span></span>
               <span className={`b sm ${google ? 'ok' : 't3'}`}>{google ? 'On' : 'Off'}</span>

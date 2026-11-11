@@ -12,19 +12,25 @@ import { download } from "./download";
 function Player({ item, own, s }) {
   const ref = useRef(null);
   const [plain, setPlain] = useState(false);
-  const [failed, setFailed] = useState(null); // null | "device" | "format"
+  const [failed, setFailed] = useState(null); // null | "checking" | "device" | "format"
   const framed = useRef(false);
   const onError = async () => {
     const e = ref.current?.error;
     if (!plain) { setPlain(true); return; }
-    setFailed("device");
-    if (own) { const why = await s.reportVideo(item, { code: e?.code, message: e?.message }); if (why !== "removed") setFailed(why); }
+    if (!own) { setFailed("device"); return; }
+    setFailed("checking");
+    // The server converts a file this device can't play; the viewer then gets the new address and starts over.
+    const why = await s.reportVideo(item, { code: e?.code, message: e?.message });
+    if (why !== "removed" && why !== "converted") setFailed(why);
   };
   const onTime = () => {
     const el = ref.current;
     if (!own || plain || framed.current || !el || el.currentTime < 0.3) return;
     framed.current = true; s.savePoster(item, el);
   };
+  if (failed === "checking") {
+    return <div className="vfail" role="status"><i className="spin" style={{ width: 28, height: 28 }} /><p className="b">Preparing the video for this device</p><p className="sm t2">This takes a few seconds and happens once.</p></div>;
+  }
   if (failed) {
     return (
       <div className="vfail" role="alert">
