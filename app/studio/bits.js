@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { thumbUrl } from "../../lib/thumbs";
+import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import Icon from "./icons";
 
 // Stops the page behind a sheet or the viewer from scrolling. Safe to nest.
@@ -33,12 +33,23 @@ export function Picture({ src, alt = "", eager }) {
   return <img key={cur} src={cur} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" onError={() => setStage(stage === 0 && small !== src ? 1 : 2)} />;
 }
 
-// Square tile for grids. Videos show their first frame and a play mark.
-export function Tile({ item, onClick, label }) {
+// A video in a list is shown as one still picture, never as a <video>: a phone can only decode a few videos
+// at once, and every <video> in a list also downloads megabytes. The picture is saved the first time the owner
+// plays the video; until then the tile shows a play mark. `version` forces a reload after a new picture is saved.
+export function Poster({ item, version }) {
+  const base = posterUrl(item.url);
+  const [bad, setBad] = useState(false);
+  useEffect(() => { setBad(false); }, [base, version]);
+  if (!base || bad) return <span className="vph" aria-hidden="true"><Icon name="play" size={22} /></span>;
+  return <img src={version ? `${base}?v=${version}` : base} alt="" loading="lazy" decoding="async" onError={() => setBad(true)} />;
+}
+
+// Square tile for grids.
+export function Tile({ item, onClick, label, poster }) {
   return (
     <button className="tile" onClick={onClick} aria-label={label || item.prompt || (item.video ? "Video" : "Image")}>
       {item.video
-        ? <><video src={`${item.url}#t=0.1`} muted playsInline preload="metadata" /><span className="badge"><Icon name="play" size={10} />Video</span></>
+        ? <><Poster item={item} version={poster} /><span className="badge"><Icon name="play" size={10} />Video</span></>
         : <Picture src={item.url} />}
     </button>
   );

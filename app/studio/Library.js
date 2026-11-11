@@ -58,7 +58,7 @@ export default function Library({ s }) {
           {groups.map((g) => (
             <section key={g.label}>
               <h2 className="d day">{g.label}</h2>
-              <div className="grid3">{g.items.map((x) => <Tile key={x.id || x.url} item={x} onClick={() => s.setViewer({ item: x })} />)}</div>
+              <div className="grid3">{g.items.map((x) => <Tile key={x.id || x.url} item={x} poster={s.posters[x.id]} onClick={() => s.setViewer({ item: x })} />)}</div>
             </section>
           ))}
           {s.cursor ? <div className="pad" style={{ marginTop: 20 }}><button className="btn btn-s btn-wide" onClick={more} disabled={loadingMore}>{loadingMore ? <i className="spin" /> : "Show older"}</button></div> : null}

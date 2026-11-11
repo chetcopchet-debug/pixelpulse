@@ -5,6 +5,7 @@ import { FORMATS } from "../../lib/formats";
 import { prepareUpload, uploadRaw } from "../clientImage";
 import { imageModel, imageModels, videoModel, videoModels, videoPlan, TOOLS, IMAGE_RATIOS, toItem, madeWith } from "./models";
 import { setDownloadMark } from "./download";
+import { posterUrl as posterUrlOf } from "../../lib/thumbs";
 
 const json = (r) => r.json().catch(() => ({}));
 const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
@@ -241,21 +242,49 @@ export function useStudio() {
     setViewer(null); say("Deleted");
   }, [say]);
 
-  // A player could not load a video: ask the server to read the stored file. A broken file is removed and refunded.
-  const checked = useRef(new Set());
-  const checkVideo = useCallback(async (item) => {
-    if (!item?.id || !item.video || checked.current.has(item.id)) return;
-    checked.current.add(item.id);
-    const res = await post("/api/video/check", { id: item.id }).catch(() => null);
+  // A player could not play a video. That says nothing about the file itself (the phone may simply not support
+  // it), so the page never treats it as a failed video. It tells the server, which reads the stored file:
+  // only a file that is missing or is not a video at all is removed and refunded.
+  // Returns "removed" | "format" (file is fine, this browser can't play its format) | "device" (file is fine).
+  const reported = useRef(new Map());
+  const reportVideo = useCallback(async (item, err) => {
+    if (!item?.id || !item.video) return "device";
+    if (reported.current.has(item.id)) return reported.current.get(item.id);
+    const res = await post("/api/video/check", { id: item.id, code: err?.code, message: err?.message }).catch(() => null);
     const d = res ? await json(res) : {};
+    let out = "device";
     if (res?.ok && d.removed) {
+      out = "removed";
       sync(d);
       setItems((prev) => prev.filter((h) => h.id !== item.id));
       setRuns((rs) => rs.filter((r) => r.item?.id !== item.id));
       setViewer((v) => (v?.item?.id === item.id ? null : v));
-      say(d.refunded ? `That video didn't save correctly. It was removed and ${d.refunded} credits were returned.` : "That video didn't save correctly, so it was removed.");
-    } else say("This video can't be played here. Try downloading it.");
+      say(d.refunded ? `That video's file was missing or damaged. It was removed and ${d.refunded} credits were returned.` : "That video's file was missing or damaged, so it was removed.");
+    } else if (res?.ok && d.playable === false) out = "format";
+    reported.current.set(item.id, out);
+    return out;
   }, [sync, say]);
+
+  // The first time the owner plays a video, one frame is saved as its picture for lists.
+  const [posters, setPosters] = useState({});
+  const posterTried = useRef(new Set());
+  const savePoster = useCallback(async (item, el) => {
+    if (!item?.id || !el || posterTried.current.has(item.id)) return;
+    posterTried.current.add(item.id);
+    try {
+      const at = posterUrlOf(item.url); if (!at) return;
+      const have = await fetch(at, { method: "HEAD", cache: "no-store" }).then((r) => r.ok, () => false);
+      if (have) return;
+      const w = el.videoWidth, h = el.videoHeight; if (!w || !h) return;
+      const k = Math.min(1, 480 / w);
+      const c = document.createElement("canvas"); c.width = Math.round(w * k); c.height = Math.round(h * k);
+      c.getContext("2d").drawImage(el, 0, 0, c.width, c.height);
+      const data = c.toDataURL("image/jpeg", 0.8); // throws if the browser did not allow reading the frame
+      if (data.length < 2000) return;
+      const res = await post("/api/video/poster", { id: item.id, data });
+      if (res.ok) setPosters((p) => ({ ...p, [item.id]: Date.now() }));
+    } catch {}
+  }, []);
 
   const uploadLock = useRef(false);
   const upload = useCallback(async (file) => {
@@ -380,7 +409,7 @@ export function useStudio() {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs, feed,
     viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
-    generate, retry, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, checkVideo,
+    generate, retry, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, askCredits, signedIn, signOut, buy, refreshWallet,
   };
 }

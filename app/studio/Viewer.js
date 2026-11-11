@@ -1,9 +1,45 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
 import { imageModel, imageModels, madeWith, TOOLS } from "./models";
 import { download } from "./download";
+
+// The only place a video is actually played. Starts muted so every browser allows it to start by itself.
+// First try: a mode that lets the page save one frame as the video's picture for lists. If the browser refuses
+// that mode the same file is loaded again the plain way. If it still can't play, the person gets a way to watch
+// it anyway (the phone's own player handles more formats than a browser) and the server is told what happened.
+function Player({ item, own, s }) {
+  const ref = useRef(null);
+  const [plain, setPlain] = useState(false);
+  const [failed, setFailed] = useState(null); // null | "device" | "format"
+  const framed = useRef(false);
+  const onError = async () => {
+    const e = ref.current?.error;
+    if (!plain) { setPlain(true); return; }
+    setFailed("device");
+    if (own) { const why = await s.reportVideo(item, { code: e?.code, message: e?.message }); if (why !== "removed") setFailed(why); }
+  };
+  const onTime = () => {
+    const el = ref.current;
+    if (!own || plain || framed.current || !el || el.currentTime < 0.3) return;
+    framed.current = true; s.savePoster(item, el);
+  };
+  if (failed) {
+    return (
+      <div className="vfail" role="alert">
+        <Icon name="alert" size={28} />
+        <p className="b">This browser can't play the video</p>
+        <p className="sm t2" style={{ maxWidth: 320 }}>{failed === "format" ? "The file is saved and complete, but it uses a video format this browser doesn't support." : "The file is saved and complete."} Open it in your phone's video player, or download it.</p>
+        <div className="r" style={{ gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+          <a className="btn btn-p" href={item.url} target="_blank" rel="noreferrer">Open the video</a>
+          <button className="btn btn-s" onClick={() => download(item)}><Icon name="download" size={18} />Download</button>
+        </div>
+      </div>
+    );
+  }
+  return <video key={plain ? "plain" : "frame"} ref={ref} src={item.url} {...(plain ? {} : { crossOrigin: "anonymous" })} controls autoPlay muted loop playsInline onError={onError} onTimeUpdate={onTime} />;
+}
 
 // One result, full screen: the picture or video, what you can do with it next, and how it was made.
 export default function Viewer({ s }) {
@@ -49,7 +85,7 @@ export default function Viewer({ s }) {
 
         <div className="stage">
           {shown.video
-            ? <video key={shown.url} src={shown.url} controls autoPlay loop playsInline onError={() => { if (!readonly) s.checkVideo(shown); }} />
+            ? <Player key={shown.url} item={shown} own={!readonly} s={s} />
             : <img key={shown.url} className="fadein" src={shown.url} alt={shown.prompt || ""} />}
           {before ? (
             <div className="seg" role="tablist" aria-label="Compare with the original">

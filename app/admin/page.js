@@ -67,7 +67,7 @@ export default async function AdminLogin(props) {
               const bad = v.status === 'failed' || (v.file && !v.file.ok && !v.file.unsure);
               const label = v.status === 'processing' ? 'Rendering' : v.status === 'failed' ? (v.refunded ? 'Failed, refunded' : 'Failed') : v.file && !v.file.ok && !v.file.unsure ? 'File broken' : 'Saved';
               const detail = v.status === 'done'
-                ? (v.file ? (v.file.ok ? `File check passed: ${Math.round((v.file.size || 0) / 1024)} KB, ${v.file.type || 'video'}` : `File check: ${v.file.why}`) : 'Saved')
+                ? `${v.file ? (v.file.ok ? `File check passed: ${Math.round((v.file.size || 0) / 1024)} KB, ${v.file.type || 'video'}` : `File check: ${v.file.why}`) : 'Saved'}${v.error ? `. Note: ${v.error}` : ''}`
                 : (v.error || (v.status === 'processing' ? 'Waiting for the model' : 'No reason recorded'));
               return (
                 <div key={v.id}>

@@ -2,7 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
 import Icon from "./icons";
-import { Price, Picture, Brand, Balance, useNow } from "./bits";
+import { Price, Picture, Poster, Brand, Balance, useNow } from "./bits";
 import { imageModel, videoModel, videoPlan, TOOLS } from "./models";
 
 const IDEAS = {
@@ -60,7 +60,7 @@ function Run({ run, s, now }) {
       ) : (
         <button className={`tile run-media${tall ? " tall" : ""}`} style={{ aspectRatio: ar }} onClick={() => s.setViewer({ item: run.item })} aria-label={run.item.video ? "Open video" : "Open image"}>
           {run.item.video
-            ? <><video src={`${run.item.url}#t=0.1`} muted playsInline preload="metadata" /><span className="play"><Icon name="play" size={22} /></span></>
+            ? <><Poster item={run.item} version={s.posters[run.item.id]} /><span className="play"><Icon name="play" size={22} /></span></>
             : <img className="fadein" src={run.item.url} alt={run.prompt || ""} loading="lazy" decoding="async" />}
         </button>
       )}

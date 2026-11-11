@@ -90,7 +90,7 @@ export default function Explore({ s }) {
       {shared.length >= 6 ? (
         <section className="section">
           <h2 className="d pad" style={{ fontSize: 28, lineHeight: "32px", marginBottom: 12 }}>Made on PixelPulse</h2>
-          <div className="grid3">{shared.map((x) => <Tile key={x.id} item={x} onClick={() => s.setViewer({ item: x, readonly: true })} />)}</div>
+          <div className="grid3">{shared.map((x) => <Tile key={x.id} item={x} poster={s.posters[x.id]} onClick={() => s.setViewer({ item: x, readonly: true })} />)}</div>
         </section>
       ) : null}
 

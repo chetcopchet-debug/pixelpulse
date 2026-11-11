@@ -60,3 +60,40 @@ test('the webhook address carries the Vercel bypass secret only when there is on
   assert.equal(webhookFields('https://a.vercel.app', 'tok').webhook, 'https://a.vercel.app/api/webhooks/replicate?job=tok');
   assert.equal(webhookFields('https://a.vercel.app', 'tok', 's3 cret').webhook, 'https://a.vercel.app/api/webhooks/replicate?job=tok&x-vercel-protection-bypass=s3%20cret');
 });
+
+import { probeMp4 } from '../lib/videoJobCore.js';
+import { posterUrl, thumbPath } from '../lib/thumbs.js';
+
+// Builds a tiny but structurally real MP4: ftyp, then mdat and moov in the given order.
+const box = (type, ...parts) => { const body = Buffer.concat(parts); const h = Buffer.alloc(8); h.writeUInt32BE(body.length + 8, 0); h.write(type, 4, 'latin1'); return Buffer.concat([h, body]); };
+function fakeMp4({ codec = 'avc1', profile = 100, level = 30, width = 480, height = 832, indexFirst = false } = {}) {
+  const entry = Buffer.alloc(78); entry.write(codec, 0, 'latin1'); entry.writeUInt16BE(width, 28); entry.writeUInt16BE(height, 30); // width and height sit 32 bytes into the entry
+  const cfg = codec.startsWith('avc') ? box('avcC', Buffer.from([1, profile, 0, level, 0xff])) : Buffer.alloc(0);
+  const stsd = box('stsd', Buffer.from([0, 0, 0, 0, 0, 0, 0, 1]), box(codec, entry.subarray(4), cfg));
+  const moov = box('moov', box('trak', box('mdia', box('minf', box('stbl', stsd)))));
+  const mdat = box('mdat', Buffer.alloc(400, 7));
+  return Buffer.concat([box('ftyp', Buffer.concat([Buffer.from('isom', 'latin1'), Buffer.from([0, 0, 2, 0]), Buffer.from('isomiso2avc1mp41', 'latin1')])), ...(indexFirst ? [moov, mdat] : [mdat, moov])]);
+}
+
+test('reading what is inside a video file', () => {
+  const ok = probeMp4(fakeMp4());
+  assert.equal(ok.codec, 'avc1'); assert.equal(ok.profile, 100); assert.equal(ok.web, true);
+  assert.deepEqual([ok.width, ok.height, ok.indexFirst], [480, 832, false]);
+  assert.equal(ok.summary, 'H.264 High level 3.0, 480x832, index at the end');
+  assert.equal(probeMp4(fakeMp4({ indexFirst: true })).indexFirst, true);
+  assert.equal(probeMp4(fakeMp4({ profile: 66 })).web, true, 'Baseline plays everywhere');
+  const p444 = probeMp4(fakeMp4({ profile: 244 }));
+  assert.equal(p444.web, false, 'H.264 4:4:4 does not play on most phones'); assert.match(p444.summary, /High 4:4:4/);
+  assert.equal(probeMp4(fakeMp4({ profile: 110 })).web, false, '10-bit H.264');
+  const hevc = probeMp4(fakeMp4({ codec: 'hvc1' })); assert.equal(hevc.web, false); assert.match(hevc.summary, /H\.265/);
+  assert.equal(probeMp4(fakeMp4({ codec: 'av01' })).web, null, 'depends on the device: not judged');
+  assert.equal(probeMp4(Buffer.from('<html>not a video</html>')).summary, 'not an MP4 file');
+});
+
+test('a video poster lives where an image thumbnail would', () => {
+  assert.equal(posterUrl('https://x.supabase.co/storage/v1/object/public/images/i/abc123.mp4'), 'https://x.supabase.co/storage/v1/object/public/images/t/abc123.webp');
+  assert.equal(posterUrl('https://x.supabase.co/storage/v1/object/public/images/i/abc123.webp'), null);
+  assert.equal(thumbPath('i/abc123.mp4'), 't/abc123.webp');
+  assert.equal(thumbPath('i/abc123.png'), 't/abc123.webp');
+  assert.equal(thumbPath('elsewhere/abc.mp4'), null);
+});

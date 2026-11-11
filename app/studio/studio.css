@@ -112,6 +112,8 @@ html:has(.pp) body { background: transparent !important; }
 .pp .tile { position: relative; display: block; overflow: hidden; border-radius: 6px; background: var(--fill); width: 100%; }
 .pp .tile > img, .pp .tile > video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
 .pp .tile.contain > img { object-fit: contain; }
+.pp .tile > .vph { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
+.pp .play + .vph, .pp .vph:has(+ .play) { visibility: hidden; }
 .pp .badge { position: absolute; right: 6px; bottom: 6px; display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border-radius: 6px; background: rgba(0, 0, 0, .62); color: #FFFFFF; font-size: 12px; line-height: 16px; font-weight: 600; }
 .pp .play { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; background: rgba(0, 0, 0, .55); color: #FFFFFF; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .pp .bar { height: 4px; border-radius: 2px; background: var(--fill-2); overflow: hidden; }
@@ -210,6 +212,7 @@ html:has(.pp) body { background: transparent !important; }
 .pp .stage .seg { position: absolute; left: 12px; top: 12px; height: 38px; background: rgba(0, 0, 0, .6); }
 .pp .stage .seg > button { height: 32px; padding: 0 12px; color: #D0D0D0; font-size: 13px; }
 .pp .stage .seg > button.on { background: #FFFFFF; color: #000000; box-shadow: none; }
+.pp .vfail { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 260px; padding: 28px 20px; text-align: center; }
 .pp .next { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .pp .next > button { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; min-height: 92px; padding: 10px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-size: 13px; line-height: 16px; font-weight: 600; }
 .pp .next > button:disabled { opacity: .5; }
