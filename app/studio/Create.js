@@ -4,6 +4,7 @@ import { FORMATS } from "../../lib/formats";
 import Icon from "./icons";
 import { Price, Picture, Poster, Brand, Balance, useNow } from "./bits";
 import { imageModel, videoModel, videoPlan, TOOLS, comparePlan } from "./models";
+import { autoPick } from "./auto";
 
 const IDEAS = {
   image: [
@@ -124,9 +125,12 @@ export default function Create({ s }) {
   // The prompt box grows with the text, up to six lines.
   useLayoutEffect(() => { const el = textRef.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(132, Math.max(44, el.scrollHeight))}px`; }, [s.prompt]);
 
-  const im = imageModel(s.imgModel), vm = videoModel(s.vidModel);
+  const vm = videoModel(s.vidModel);
   const plan = video ? videoPlan(vm.id, s.vDur, s.vRes, s.ratio) : null;
   const cmp = !video && !s.ref ? comparePlan(s.compare) : null; // two or more models chosen: compare them
+  // Auto: the model follows the prompt, and the button shows it with its price before anything is charged.
+  const auto = !video && !s.ref && !cmp && s.auto ? autoPick(`${s.prompt} ${s.format !== "free" ? FORMATS[s.format]?.label || "" : ""}`, s.wallet) : null;
+  const im = imageModel(auto ? auto.id : s.imgModel);
   const cost = s.ref ? (video ? TOOLS.animate.cost : TOOLS.reference.cost) : video ? plan?.cost : cmp ? cmp.cost : im.cost;
   const action = s.ref ? (video ? "Animate image" : "Generate from image") : video ? "Generate video" : cmp ? `Compare ${cmp.models.length} models` : "Generate";
   const placeholder = s.ref ? (video ? "Describe the motion (optional)" : "Describe the new image") : video ? "Describe the video you want" : "Describe the image you want";
@@ -186,8 +190,8 @@ export default function Create({ s }) {
               <span className="sm t2 b" style={{ whiteSpace: "nowrap", padding: "0 4px" }}>{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span>
             ) : (
               <>
-                <button className="chip-tap" onClick={() => s.setSheet({ type: "models" })} aria-label={cmp ? `Comparing ${cmp.models.length} models. Change` : `Model: ${video ? vm.name : im.name}. Change`}>
-                  <span className="chip">{cmp ? `${cmp.models.length} models` : video ? vm.name : im.name}<Icon name="down" size={16} /></span>
+                <button className="chip-tap" onClick={() => s.setSheet({ type: "models" })} aria-label={cmp ? `Comparing ${cmp.models.length} models. Change` : auto ? "Model: Auto. Change" : `Model: ${video ? vm.name : im.name}. Change`}>
+                  <span className="chip">{cmp ? `${cmp.models.length} models` : auto ? "Auto" : video ? vm.name : im.name}<Icon name="down" size={16} /></span>
                 </button>
                 {video ? (
                   <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label="Length, quality and shape. Change">
@@ -205,6 +209,7 @@ export default function Create({ s }) {
               </>
             )}
           </div>
+          {auto && s.prompt.trim() ? <p className="sm t2 autoline" role="status"><span className="b" style={{ color: "var(--text)" }}>{im.name}.</span> {auto.why}.{auto.fitted ? " Fits your balance." : ""}</p> : null}
           <button className="btn btn-p btn-wide btn-split" onClick={s.generate} disabled={!canGo}>
             <span>{action}</span>{cost ? <Price n={cost} /> : null}
           </button>

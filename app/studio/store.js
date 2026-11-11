@@ -2,6 +2,7 @@
 // All state and server calls for the studio. The screens only read from here and call these actions.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
+import { autoPick } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
 import { imageModel, imageModels, videoModel, videoModels, videoPlan, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith } from "./models";
 import { setDownloadMark } from "./download";
@@ -28,9 +29,13 @@ export function useStudio() {
   const [tab, setTab] = useState("explore");
   const [mode, setMode] = useState("image");
   const [prompt, setPrompt] = useState("");
-  const [imgModel, setImgModel] = useState("fast");
+  const [imgModel, setImgModelRaw] = useState("fast");
+  const [auto, setAutoRaw] = useState(false); // Auto: the model is chosen from the prompt (images only)
   const [vidModel, setVidModelRaw] = useState("veo-lite");
   const [compare, setCompare] = useState([]); // image model ids to run side by side; fewer than two means "one model"
+  // The three ways to choose are exclusive: one model, Auto, or comparing several.
+  const setImgModel = useCallback((id) => { setAutoRaw(false); setCompare([]); setImgModelRaw(id); }, []);
+  const setAuto = useCallback((on) => { if (on) setCompare([]); setAutoRaw(Boolean(on)); }, []);
   const [ratio, setRatio] = useState("1:1");
   const [vDur, setVDur] = useState(null);
   const [vRes, setVRes] = useState(null);
@@ -141,8 +146,8 @@ export function useStudio() {
   const startImage = useCallback((o) => {
     const m = imageModel(o.model);
     const cost = o.ref ? TOOLS.reference.cost : m.cost;
-    const label = o.ref ? TOOLS.reference.label : m.name;
-    if (!afford(cost, { label })) return false;
+    const label = o.ref ? TOOLS.reference.label : o.auto ? `${m.name}, picked by Auto` : m.name;
+    if (!afford(cost, { label: o.ref ? TOOLS.reference.label : m.name })) return false;
     const key = uid();
     setRuns((rs) => [...rs, { key, kind: "image", prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url, again: { ...o, kind: "image" } }]);
     markSeen();
@@ -255,8 +260,9 @@ export function useStudio() {
     }
     if (!text) { say("Describe the image first."); return; }
     if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
-    if (startImage({ model: imgModel, prompt: text, ratio, ref, format })) setPrompt("");
-  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, compare, format, startVideo, startImage, startCompare, say, needAccount]);
+    const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current) : null;
+    if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick) })) setPrompt("");
+  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, startVideo, startImage, startCompare, say, needAccount]);
 
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
@@ -403,7 +409,7 @@ export function useStudio() {
   const setTheme = useCallback((t) => { setThemeRaw(t); }, []);
 
   // ---- remember choices ----
-  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, compare, ratio, theme }); }, [ready, mode, imgModel, vidModel, compare, ratio, theme]);
+  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme]);
 
   // ---- videos that were still rendering when the page was last closed ----
   const checkPending = useCallback(async () => {
@@ -437,9 +443,10 @@ export function useStudio() {
     const q = new URLSearchParams(window.location.search);
     const p = store.read("pp_studio", {});
     if (p.mode === "video") setMode("video");
-    if (imageModels.some((m) => m.id === p.imgModel)) setImgModel(p.imgModel);
+    if (imageModels.some((m) => m.id === p.imgModel)) setImgModelRaw(p.imgModel);
     if (videoModels.some((m) => m.id === p.vidModel)) setVidModelRaw(p.vidModel);
-    const cp = comparePlan(p.compare); if (cp) setCompare(cp.models.map((m) => m.id));
+    const cp = comparePlan(p.compare); if (cp) setCompare(cp.models.map((m) => m.id)); else if (p.auto === true) setAutoRaw(true);
+    const chosen = Boolean(cp) || p.auto === true; // the visitor chose Auto or a comparison: a format's suggested model doesn't replace that
     if (IMAGE_RATIOS.some((r) => r.id === p.ratio)) setRatio(p.ratio);
     if (["dark", "light", "auto"].includes(p.theme)) setThemeRaw(p.theme);
     setFavs(new Set(store.read("pp_favs", [])));
@@ -451,7 +458,7 @@ export function useStudio() {
     if (f && FORMATS[f] && f !== "free") {
       setFormat(f); setMode("image"); start = "create";
       if (FORMATS[f].ratio && IMAGE_RATIOS.some((r) => r.id === FORMATS[f].ratio)) setRatio(FORMATS[f].ratio);
-      if (FORMATS[f].engine && imageModels.some((m) => m.id === FORMATS[f].engine)) setImgModel(FORMATS[f].engine);
+      if (!chosen && FORMATS[f].engine && imageModels.some((m) => m.id === FORMATS[f].engine)) setImgModelRaw(FORMATS[f].engine);
     }
     if (q.get("p")) { setPrompt(q.get("p").slice(0, 1500)); setMode("image"); start = "create"; }
     if (q.get("vibe")) {
@@ -503,7 +510,7 @@ export function useStudio() {
   }, []);
 
   return {
-    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, compare, setCompare, ratio, setRatio,
+    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
     viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
