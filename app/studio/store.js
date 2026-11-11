@@ -79,7 +79,7 @@ export function useStudio() {
     const w = walletRef.current;
     if (!w.loaded || w.admin) return true; // not loaded yet: the server decides
     if (w.paid >= cost || (!paidOnly && w.free >= cost)) return true; // the server pays from one pocket, never a mix
-    if (!paidOnly && w.guest && cost <= FREE_DAILY) askSignIn(w.free > 0 ? `${label} costs ${cost} credits. Sign in to get ${FREE_DAILY} free credits every day.` : `Your free tries are used. Sign in to get ${FREE_DAILY} free credits every day.`);
+    if (!paidOnly && w.guest && cost <= FREE_DAILY) askSignIn(w.free > 0 ? `${label} costs ${cost} credits. Create an account or sign in to get ${FREE_DAILY} free credits every day.` : `Your free tries are used. Create an account or sign in to get ${FREE_DAILY} free credits every day.`);
     else askCredits(cost, label, paidOnly);
     return false;
   }, [askSignIn, askCredits]);
@@ -260,7 +260,7 @@ export function useStudio() {
   }, [addItem, say]);
 
   // ---- account ----
-  const signedIn = useCallback(async () => { setSheet(null); await refreshWallet(); loadLibrary(); say("Signed in"); }, [refreshWallet, loadLibrary, say]);
+  const signedIn = useCallback(async () => { setSheet(null); await refreshWallet(); loadLibrary(); say("You're signed in"); }, [refreshWallet, loadLibrary, say]);
   const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); window.location.href = "/"; }, []);
   const buy = useCallback(async (planId) => {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
@@ -328,7 +328,8 @@ export function useStudio() {
       if (IMAGE_RATIOS.some((r) => r.id === q.get("ratio"))) setRatio(q.get("ratio"));
       if (imageModels.some((m) => m.id === q.get("tier"))) setImgModel(q.get("tier"));
     }
-    if (q.get("signedin") === "1") setTimeout(() => say("Signed in"), 300);
+    if (q.get("signedin") === "1") { start = store.read("pp_seen", 0) ? "create" : "explore"; setTimeout(() => say("You're signed in"), 300); }
+    if (q.get("signin") === "1") setTimeout(() => askSignIn(), 200);
     if (q.get("paid") === "1") {
       setTimeout(() => say("Thank you. Your credits are on the way."), 300);
       [3000, 8000, 20000].forEach((ms) => setTimeout(refreshWallet, ms));

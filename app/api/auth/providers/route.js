@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
-export const revalidate = 300;
-// Which OAuth providers are enabled in Supabase Auth (cached 5 min). Feature flag for the Google button.
+import { googleEnabled } from '../../../../lib/setup';
+// Asked on every visit, never frozen at build time: a deployment built before its settings were complete
+// must not keep hiding the Google button.
+export const dynamic = 'force-dynamic';
+// Which sign-in buttons to show. Google appears when it is switched on in Supabase Auth.
 export async function GET() {
-  let google = false;
-  try {
-    const r = await fetch(`${process.env.SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY || '' }, next: { revalidate: 300 } });
-    const d = await r.json();
-    google = Boolean(d?.external?.google);
-  } catch {}
-  return NextResponse.json({ google }, { headers: { 'Cache-Control': 'public, s-maxage=300' } });
+  return NextResponse.json({ google: await googleEnabled() }, { headers: { 'Cache-Control': 'public, s-maxage=120' } });
 }

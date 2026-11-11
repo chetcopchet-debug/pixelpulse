@@ -1,28 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import Icon from "./icons";
-import { Price, lockScroll } from "./bits";
+import { Price } from "./bits";
+import Sheet from "./Sheet";
 import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, IMAGE_RATIOS, TOOLS } from "./models";
 import { FREE_DAILY } from "./store";
-
-export function Sheet({ title, sub, onClose, children }) {
-  useEffect(() => lockScroll(), []);
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-  return (
-    <div className="scrim" onClick={onClose}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <div className="grab" />
-        <div className="sheet-h"><h2 className="d">{title}</h2><button className="ib" aria-label="Close" onClick={onClose}><Icon name="x" /></button></div>
-        {sub ? <p className="sm t2" style={{ padding: "2px 20px 6px" }}>{sub}</p> : null}
-        <div className="sheet-b">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 export function ModelSheet({ s, onClose }) {
   const video = s.mode === "video";
@@ -115,7 +97,7 @@ export function PricingSheet({ s, need, label, paidOnly, onClose }) {
           </div>
         ))}
         {!open ? <p className="sm t2" style={{ padding: "4px 8px" }}>Payments are opening soon. Until then you can keep creating with free credits.</p> : null}
-        {w.guest && !paidOnly ? <button className="btn btn-s btn-wide" onClick={() => s.askSignIn()}>Sign in for {FREE_DAILY} free credits every day</button> : null}
+        {w.guest && !paidOnly ? <button className="btn btn-s btn-wide" onClick={() => s.askSignIn()}>Create an account for {FREE_DAILY} free credits a day</button> : null}
         <a className="btn btn-wide" href="/pricing">See all prices</a>
       </div>
     </Sheet>
@@ -168,37 +150,44 @@ export function SignInSheet({ s, reason, onClose }) {
     setBusy(false); if (ok) s.signedIn(); else setErr(d.error || "That code didn't work. Check it and try again.");
   };
   return (
-    <Sheet title={step === "email" ? "Sign in" : "Check your email"} sub={step === "email" ? reason || `Keep your work on every device and get ${FREE_DAILY} free credits every day. No password.` : null} onClose={onClose}>
+    <Sheet title={step === "email" ? "Sign in or create an account" : "Check your email"} sub={step === "email" ? reason : null} onClose={onClose}>
       {step === "email" ? (
         <form className="c" style={{ gap: 10, padding: "4px 8px" }} onSubmit={send}>
+          <p className="t2">One step does both. New here? Your account is created. Been here before? You're signed in. There is no password to remember.</p>
           {google ? (
             <>
-              <a className="btn btn-s btn-wide" href="/api/auth/google">
+              <a className="btn btn-s btn-wide" style={{ height: 52 }} href="/api/auth/google">
                 <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" /><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" /><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" /><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" /></svg>
                 Continue with Google
               </a>
-              <p className="sm t3" style={{ textAlign: "center" }}>or use your email</p>
+              <p className="sm t3" style={{ textAlign: "center" }}>or with your email</p>
             </>
           ) : null}
           <input className="field" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" aria-label="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button className="btn btn-p btn-wide" disabled={busy || !email.includes("@")}>{busy ? <i className="spin" /> : "Email me a sign-in link"}</button>
-          {err ? <p className="sm" style={{ color: "var(--neg)" }} role="alert">{err}</p> : null}
-          <p className="sm t3">What you made on this device moves into your account.</p>
+          <button className="btn btn-p btn-wide" style={{ height: 52 }} disabled={busy || !email.includes("@")}>{busy ? <i className="spin" /> : "Continue with email"}</button>
+          {err ? <p className="sm bad" role="alert">{err}</p> : null}
+          <p className="sm t3">We email you a link; tapping it signs you in. What you made on this device moves into your account, and you get {FREE_DAILY} free credits every day.</p>
         </form>
       ) : (
         <form className="c" style={{ gap: 10, padding: "4px 8px" }} onSubmit={verify}>
-          <p className="t2">We sent a sign-in link to <b style={{ color: "var(--text)" }}>{email}</b>. Open the email and tap the link; this page signs in by itself.</p>
-          <p className="sm t3">If the link opens in another browser, you're signed in there instead.</p>
+          <p className="t2">We sent an email to <b style={{ color: "var(--text)" }}>{email}</b>.</p>
+          <div className="card" style={{ padding: "4px 16px" }}>
+            <p className="lrow" style={{ padding: 0 }}><span className="b num t3">1</span><span className="grow">Open the email on this device.</span></p>
+            <p className="lrow" style={{ padding: 0 }}><span className="b num t3">2</span><span className="grow">Tap the link inside it.</span></p>
+            <p className="lrow" style={{ padding: 0 }}><span className="b num t3">3</span><span className="grow">You're signed in. This page updates by itself.</span></p>
+          </div>
+          <p className="sm t3">Nothing in a minute? Look in the spam folder, or send it again.</p>
           {showCode ? (
             <>
               <input className="field num" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={10} placeholder="Code from the email" aria-label="Code from the email" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
               <button className="btn btn-p btn-wide" disabled={busy || code.length < 6}>{busy ? <i className="spin" /> : "Sign in with the code"}</button>
             </>
-          ) : <button type="button" className="btn btn-s btn-wide" onClick={() => setShowCode(true)}>I have a code instead</button>}
-          {err ? <p className="sm" style={{ color: "var(--neg)" }} role="alert">{err}</p> : null}
-          <div className="r" style={{ gap: 16 }}>
+          ) : null}
+          {err ? <p className="sm bad" role="alert">{err}</p> : null}
+          <div className="r" style={{ gap: 16, flexWrap: "wrap" }}>
             <button type="button" className="link sm" style={{ minHeight: 44 }} onClick={send} disabled={busy}>Send it again</button>
             <button type="button" className="link sm" style={{ minHeight: 44 }} onClick={() => { setStep("email"); setErr(""); setShowCode(false); }}>Use another email</button>
+            {showCode ? null : <button type="button" className="link sm" style={{ minHeight: 44 }} onClick={() => setShowCode(true)}>The email has a code</button>}
           </div>
         </form>
       )}

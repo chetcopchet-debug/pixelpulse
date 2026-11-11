@@ -219,6 +219,50 @@ html:has(.pp) body { background: transparent !important; }
 .pp .spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: pp-spin .7s linear infinite; flex: none; }
 @keyframes pp-spin { to { transform: rotate(360deg); } }
 
+/* pages outside the studio: prices, policies, formats, shared images, admin */
+.pp.plain { padding-left: 0; }
+.pp .site-top { padding: 0 16px 0 20px; max-width: 1000px; margin: 0 auto; }
+.pp .doc { max-width: 720px; margin: 0 auto; padding: 8px 20px 0; }
+.pp .doc.wide { max-width: 960px; }
+.pp .doc h1 { font-family: var(--font-display), 'Arial Narrow', Arial, sans-serif; font-weight: 700; letter-spacing: -0.02em; font-size: 34px; line-height: 38px; margin: 16px 0 8px; }
+.pp .lead { font-size: 16px; line-height: 24px; color: var(--text-2); max-width: 560px; }
+.pp .prose h2, .pp .doc h2.sec { font-family: var(--font-display), 'Arial Narrow', Arial, sans-serif; font-weight: 700; letter-spacing: -0.02em; font-size: 20px; line-height: 26px; margin: 32px 0 8px; }
+.pp .prose p, .pp .prose li { font-size: 15px; line-height: 24px; color: var(--text-2); }
+.pp .prose p { margin: 0 0 12px; }
+.pp .prose ul { padding-left: 20px; margin: 0 0 12px; }
+.pp .prose li { margin-bottom: 6px; }
+.pp .prose a { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.pp .prose b { color: var(--text); font-weight: 600; }
+.pp .notice { padding: 12px 14px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--text); font-size: 14px; line-height: 20px; }
+.pp .cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.pp .pcard { display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.pp .pcard .amount { font-family: var(--font-display), Arial, sans-serif; font-weight: 700; letter-spacing: -0.02em; font-size: 32px; line-height: 36px; }
+.pp .ptable { border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.pp .ptable > div { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 16px; }
+.pp .ptable > div + div { border-top: 1px solid var(--line); }
+.pp .ptable .head { min-height: 40px; font-size: 13px; font-weight: 600; color: var(--text-3); }
+.pp .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.pp .tiles > a { display: flex; flex-direction: column; gap: 4px; min-height: 84px; padding: 14px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.pp .rows { display: flex; flex-direction: column; gap: 8px; }
+.pp .rows > a { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 10px 14px; border-radius: 14px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.pp .tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pp .tag { display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 10px; background: var(--fill); font-size: 13px; line-height: 18px; font-weight: 600; color: var(--text-2); }
+.pp a.tag { height: 44px; color: var(--text); }
+.pp .tags.links .tag { height: 44px; }
+.pp .faq details { border-top: 1px solid var(--line); }
+.pp .faq details:last-child { border-bottom: 1px solid var(--line); }
+.pp .faq summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 8px 0; cursor: pointer; font-weight: 600; list-style: none; }
+.pp .faq summary::-webkit-details-marker { display: none; }
+.pp .faq summary::after { content: '+'; font-size: 20px; color: var(--text-3); flex: none; }
+.pp .faq details[open] summary::after { content: '\2212'; }
+.pp .faq p { padding: 0 0 16px; color: var(--text-2); }
+.pp .shot { display: block; width: 100%; overflow: hidden; border-radius: 16px; background: var(--card); }
+.pp .shot > img { width: 100%; height: 100%; object-fit: contain; }
+.pp .center { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; }
+.pp .form { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 380px; }
+.pp .ok { color: var(--pos); }
+.pp .bad { color: var(--neg); }
+
 /* wide screens: the navigation moves to the side, sheets become dialogs */
 @media (min-width: 900px) {
   .pp { --nav-h: 0px; padding-left: 88px; }

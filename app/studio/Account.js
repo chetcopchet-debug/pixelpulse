@@ -50,7 +50,7 @@ export default function Account({ s }) {
           </div>
         )}
 
-        <h2 className="d h2" style={{ margin: "32px 0 10px" }}>Sign-in</h2>
+        <h2 className="d h2" style={{ margin: "32px 0 10px" }}>Your account</h2>
         <div className="card">
           {w.account ? (
             <>
@@ -59,8 +59,8 @@ export default function Account({ s }) {
             </>
           ) : (
             <div style={{ padding: 16 }}>
-              <p className="t2" style={{ marginBottom: 12 }}>Sign in to keep your work on every device and get {FREE_DAILY} free credits every day.</p>
-              <button className="btn btn-p btn-wide" onClick={() => s.askSignIn()}>Sign in</button>
+              <p className="t2" style={{ marginBottom: 12 }}>You're using PixelPulse as a guest. With an account your work is kept on every device and you get {FREE_DAILY} free credits every day. One step, no password.</p>
+              <button className="btn btn-p btn-wide" onClick={() => s.askSignIn()}>Sign in or create an account</button>
             </div>
           )}
         </div>

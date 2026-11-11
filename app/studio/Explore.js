@@ -23,7 +23,7 @@ export default function Explore({ s }) {
     <div className="screen">
       <header className="top">
         <Brand wordmark />
-        {w.account || w.admin ? <Balance s={s} /> : <button className="btn" style={{ padding: "0 8px" }} onClick={() => s.askSignIn()}>Sign in</button>}
+        {w.account || w.admin ? <Balance s={s} /> : <button className="btn btn-s" style={{ height: 44, padding: "0 14px" }} onClick={() => s.askSignIn()}>Sign in or sign up</button>}
       </header>
 
       <section className="hero">
