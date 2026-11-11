@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { setCreditsCookie, getClientIp, freeState, chargeCredits, paidFor, GUEST_TRIAL, DAILY_CREDITS } from '../../../lib/credits';
+import { accountGate, SIGN_IN_MSG } from '../../../lib/needAccount';
+import { setCreditsCookie, getClientIp, freeState, chargeCredits, paidFor } from '../../../lib/credits';
 import { readAccount } from '../../../lib/account';
 import { THROTTLED_MSG } from '../../../lib/replicate';
 import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RATIOS } from '../../../lib/generation';
@@ -28,6 +29,8 @@ function jsonError(message, status, credits) {
 }
 
 export async function POST(request) {
+  // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
+  const stop = accountGate(request); if (stop) return stop;
   const ip = getClientIp(request);
   const admin = isAdmin(request);
   const creator = getCreatorId(request);
@@ -92,7 +95,7 @@ export async function POST(request) {
   // Charge before calling Replicate (admin bypasses credits and rate limits). Free first, then paid balance.
   // A guest who used the trial is asked to sign in (10 free credits a day) before being shown prices.
   const notEnough = async () => NextResponse.json({
-    error: state.guest ? `Your ${GUEST_TRIAL} free tries are used. Sign in to get ${DAILY_CREDITS} free credits every day.` : `Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`,
+    error: state.guest ? SIGN_IN_MSG : `Not enough credits for ${tierDef.label} (costs ${cost}). / אין מספיק קרדיטים למודל הזה.`,
     needCredits: { cost, label: tierDef.label }, ...(state.guest ? { needSignIn: true } : {}), credits: currentCredits(), paid: await paidFor(creator),
   }, { status: 402 });
   const charge = await chargeCredits({ admin, state, ip, creator, cost, signedIn });

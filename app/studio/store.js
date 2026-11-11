@@ -21,6 +21,7 @@ const store = {
 };
 
 export const FREE_DAILY = 10;
+const SIGN_UP_REASON = `Sign up or sign in to create. You get ${FREE_DAILY} free credits every day.`;
 
 export function useStudio() {
   const [ready, setReady] = useState(false);
@@ -40,7 +41,6 @@ export function useStudio() {
   const [cursor, setCursor] = useState(null);
   const [library, setLibrary] = useState("loading"); // loading | ready | off
   const [favs, setFavs] = useState(() => new Set());
-  const [feed, setFeed] = useState([]);
   const [viewer, setViewer] = useState(null); // { item, before?, readonly? }
   const [sheet, setSheet] = useState(null);
   const [toast, setToast] = useState("");
@@ -73,14 +73,31 @@ export function useStudio() {
   }, []);
   useEffect(() => { setDownloadMark(wallet.loaded && !wallet.admin && !wallet.purchased && wallet.paid === 0); }, [wallet]);
 
-  const askSignIn = useCallback((reason) => setSheet({ type: "signin", reason }), []);
+  // Where the person is and what they wrote, kept in the browser (not only in memory) whenever the sign-in screen
+  // opens: signing in can leave this page (Google goes away and comes back, an emailed link may open a new tab),
+  // and they must land exactly where they were, with their text. `after.tab` sends them somewhere else instead.
+  const here = useRef({}); here.current = { tab, mode, prompt, ref };
+  const afterSignIn = useRef(null);
+  const askSignIn = useCallback((reason, after) => {
+    const cur = here.current;
+    afterSignIn.current = after?.tab || null;
+    store.write("pp_draft", { tab: after?.tab || cur.tab, mode: cur.mode, prompt: cur.prompt, ref: cur.ref ? { id: cur.ref.id, url: cur.ref.url, ratio: cur.ref.ratio } : null, at: Date.now() });
+    setSheet({ type: "signin", reason });
+  }, []);
+  // Creating needs an account. True when the visitor is a guest: the sign-in screen is opened and the action stops.
+  const needAccount = useCallback((after) => {
+    const w = walletRef.current;
+    if (!w.loaded || w.admin || w.account) return false; // not loaded yet: the server decides
+    askSignIn(SIGN_UP_REASON, after);
+    return true;
+  }, [askSignIn]);
   const askCredits = useCallback((need, label, paidOnly) => setSheet({ type: "pricing", need, label, paidOnly: Boolean(paidOnly) }), []);
   // True if the wallet covers it. Otherwise opens the right sheet: sign in (guest, small amount) or prices.
   const afford = useCallback((cost, { paidOnly, label } = {}) => {
     const w = walletRef.current;
     if (!w.loaded || w.admin) return true; // not loaded yet: the server decides
     if (w.paid >= cost || (!paidOnly && w.free >= cost)) return true; // the server pays from one pocket, never a mix
-    if (!paidOnly && w.guest && cost <= FREE_DAILY) askSignIn(w.free > 0 ? `${label} costs ${cost} credits. Create an account or sign in to get ${FREE_DAILY} free credits every day.` : `Your free tries are used. Create an account or sign in to get ${FREE_DAILY} free credits every day.`);
+    if (!w.account) askSignIn(SIGN_UP_REASON);
     else askCredits(cost, label, paidOnly);
     return false;
   }, [askSignIn, askCredits]);
@@ -132,7 +149,7 @@ export function useStudio() {
       try {
         const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}) });
         const d = await json(res); sync(d);
-        if (res.status === 402) { dropRun(key); refused(d, cost, label); return; }
+        if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label); return; }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "The image didn't finish. Any credits were returned.");
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id });
         if (d.stored) addItem(item);
@@ -170,7 +187,7 @@ export function useStudio() {
       try {
         const res = await post("/api/animate", o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r });
         const d = await json(res); sync(d);
-        if (res.status === 402) { dropRun(key); refused(d, cost, label, true); return; }
+        if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
         if (!res.ok || !d.job) throw new Error(plain(d.error) || "The video couldn't start. Your credits were returned.");
         await pollJob(key, d.job);
       } catch (e) { patchRun(key, { status: "failed", error: e.message || "The video didn't finish. Your credits were returned." }); }
@@ -182,6 +199,7 @@ export function useStudio() {
 
   // The Generate button.
   const generate = useCallback(() => {
+    if (needAccount({ tab: "create" })) return;
     const text = prompt.trim();
     if (mode === "video") {
       if (ref) { if (startVideo({ source: ref, prompt: text })) { setPrompt(""); setRef(null); } return; }
@@ -191,11 +209,12 @@ export function useStudio() {
     }
     if (!text) { say("Describe the image first."); return; }
     if (startImage({ model: imgModel, prompt: text, ratio, ref, format })) setPrompt("");
-  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, format, startVideo, startImage, say]);
+  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, format, startVideo, startImage, say, needAccount]);
 
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
     const t = TOOLS[tool];
+    if (needAccount()) return;
     if (!item?.id) { say("This image wasn't saved, so it can't be changed."); return; }
     if (busyTool) return;
     if (!afford(t.cost, { paidOnly: t.paidOnly, label: t.label })) return;
@@ -203,7 +222,7 @@ export function useStudio() {
     try {
       const res = await post(`/api/${tool}`, { id: item.id, ...extra });
       const d = await json(res); sync(d);
-      if (res.status === 402) { refused(d, t.cost, t.label, t.paidOnly); return; }
+      if (res.status === 402 || res.status === 401) { refused(d, t.cost, t.label, t.paidOnly); return; }
       if (!res.ok || !d.item) throw new Error(plain(d.error) || `${t.label} didn't finish. Any credits were returned.`);
       const made = toItem(d.item);
       addItem(made);
@@ -211,19 +230,21 @@ export function useStudio() {
       say(t.done);
     } catch (e) { say(e.message); }
     finally { setBusyTool(""); }
-  }, [busyTool, afford, refused, sync, addItem, say]);
+  }, [busyTool, afford, refused, sync, addItem, say, needAccount]);
 
   const animate = useCallback((item) => {
+    if (needAccount()) return;
     if (!item?.id) { say("This image wasn't saved, so it can't be animated."); return; }
     setViewer(null); setTab("create"); setMode("video");
     startVideo({ source: item, prompt: "" });
-  }, [startVideo, say]);
+  }, [startVideo, say, needAccount]);
 
   const variations = useCallback((item) => {
+    if (needAccount()) return;
     const m = imageModels.some((x) => x.id === item.model) ? item.model : "fast";
     setViewer(null); setTab("create"); setMode("image");
     startImage({ model: m, prompt: item.prompt, ratio: IMAGE_RATIOS.some((r) => r.id === item.ratio) ? item.ratio : "1:1" });
-  }, [startImage]);
+  }, [startImage, needAccount]);
 
   const useAgain = useCallback((item) => {
     setPrompt(item.prompt || "");
@@ -298,6 +319,7 @@ export function useStudio() {
 
   const uploadLock = useRef(false);
   const upload = useCallback(async (file) => {
+    if (needAccount()) return;
     if (!file || uploadLock.current) return;
     uploadLock.current = true; setUploading(true);
     const uploadId = crypto.randomUUID ? crypto.randomUUID() : `${uid()}${uid()}`;
@@ -307,15 +329,21 @@ export function useStudio() {
         ? await fetch("/api/upload", { method: "POST", headers: { "Content-Type": "application/json", "x-upload-id": uploadId }, body: JSON.stringify({ data: prep.data }) })
         : await uploadRaw(prep.raw, uploadId);
       const d = await json(res);
+      if (res.status === 401 && d.needSignIn) { askSignIn(plain(d.error)); return; }
       if (!res.ok || !d.item) throw new Error(plain(d.error) || (res.status === 413 ? "That photo is too large. Try a smaller one." : "The upload didn't work. Try again."));
       const item = toItem(d.item);
       addItem(item); setRef(item); setTab("create");
     } catch (e) { say(e.message || "The upload didn't work. Try again."); }
     finally { setUploading(false); uploadLock.current = false; }
-  }, [addItem, say]);
+  }, [addItem, say, needAccount, askSignIn]);
 
   // ---- account ----
-  const signedIn = useCallback(async () => { setSheet(null); await refreshWallet(); loadLibrary(); say("You're signed in"); }, [refreshWallet, loadLibrary, say]);
+  const signedIn = useCallback(async () => {
+    setSheet(null);
+    if (afterSignIn.current) { setTab(afterSignIn.current); afterSignIn.current = null; }
+    store.write("pp_draft", null);
+    await refreshWallet(); loadLibrary(); say("You're signed in");
+  }, [refreshWallet, loadLibrary, say]);
   const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); window.location.href = "/"; }, []);
   const buy = useCallback(async (planId) => {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
@@ -360,7 +388,6 @@ export function useStudio() {
   // ---- first load ----
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
-    if (q.get("repaint")) { window.location.replace(`/classic${window.location.search}`); return; }
     const p = store.read("pp_studio", {});
     if (p.mode === "video") setMode("video");
     if (imageModels.some((m) => m.id === p.imgModel)) setImgModel(p.imgModel);
@@ -384,7 +411,19 @@ export function useStudio() {
       if (IMAGE_RATIOS.some((r) => r.id === q.get("ratio"))) setRatio(q.get("ratio"));
       if (imageModels.some((m) => m.id === q.get("tier"))) setImgModel(q.get("tier"));
     }
-    if (q.get("signedin") === "1") { start = store.read("pp_seen", 0) ? "create" : "explore"; setTimeout(() => say("You're signed in"), 300); }
+    if (q.get("signedin") === "1") {
+      start = store.read("pp_seen", 0) ? "create" : "explore";
+      // Back from Google or from the emailed link: put the person where they were, with what they wrote.
+      const d = store.read("pp_draft", null);
+      if (d && Date.now() - (Number(d.at) || 0) < 60 * 60_000) {
+        if (["explore", "create", "library", "account"].includes(d.tab)) start = d.tab;
+        if (d.mode === "video" || d.mode === "image") setMode(d.mode);
+        if (typeof d.prompt === "string" && d.prompt) setPrompt(d.prompt.slice(0, 1500));
+        if (d.ref?.id && typeof d.ref.url === "string") setRef(toItem({ id: d.ref.id, public_url: d.ref.url, aspect_ratio: d.ref.ratio }));
+      }
+      store.write("pp_draft", null);
+      setTimeout(() => say("You're signed in"), 300);
+    }
     if (q.get("signin") === "1") setTimeout(() => askSignIn(), 200);
     if (q.get("paid") === "1") {
       setTimeout(() => say("Thank you. Your credits are on the way."), 300);
@@ -397,7 +436,6 @@ export function useStudio() {
     refreshWallet().then((d) => {
       if (d?.account) get("/api/favorites").then(json).then((fv) => { if (fv.cloud && Array.isArray(fv.ids)) setFavs((prev) => new Set([...prev, ...fv.ids])); }).catch(() => {});
     });
-    get("/api/feed?limit=30").then(json).then((d) => { if (Array.isArray(d.items)) setFeed(d.items.map(toItem)); }).catch(() => {});
     (async () => {
       await post("/api/session").catch(() => {});
       const jobs = (await checkPending()) || [];
@@ -418,9 +456,9 @@ export function useStudio() {
 
   return {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, ratio, setRatio,
-    vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs, feed,
+    vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
     viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
-    askSignIn, askCredits, signedIn, signOut, buy, refreshWallet,
+    askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
   };
 }

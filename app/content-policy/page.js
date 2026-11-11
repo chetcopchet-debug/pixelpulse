@@ -3,7 +3,7 @@ export const metadata = { title: 'Content Policy · PixelPulse', description: 'P
 export default function ContentPolicy() {
   return (
     <LegalPage title="Content Policy">
-      <p>Keep the pulse friendly. These rules apply to prompts, uploads, edits and anything published to the Pulse Feed.</p>
+      <p>These rules apply to prompts, uploads, edits and anything you share.</p>
       <h2>Not allowed</h2>
       <ul>
         <li>Sexual content involving minors, in any form. Reported to authorities.</li>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { accountGate } from '../../../lib/needAccount';
 import { getSupabase, BUCKET } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid, creatorTag } from '../../../lib/identity';
 import { getClientIp } from '../../../lib/credits';
@@ -22,6 +23,8 @@ const err = (error, status) => NextResponse.json({ error }, { status });
 //  - JSON { tmpPath }  (original bytes already PUT to a signed URL from /api/upload/sign)
 //  - raw image body (Content-Type image/* or application/octet-stream), up to Vercel's ~4.5MB body limit
 export async function POST(request) {
+  // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
+  const stop = accountGate(request); if (stop) return stop;
   const supabase = getSupabase();
   if (!supabase) return err('Cloud storage is not available.', 503);
   const creator = getCreatorId(request);

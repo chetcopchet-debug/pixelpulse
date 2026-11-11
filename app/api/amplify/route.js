@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { accountGate } from '../../../lib/needAccount';
 import { reserveSpend } from '../../../lib/usage';
 import { getClientIp } from '../../../lib/credits';
 import { getCreatorId } from '../../../lib/identity';
@@ -29,6 +30,8 @@ function parseSuggestions(text) {
 }
 
 export async function POST(request) {
+  // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
+  const stop = accountGate(request); if (stop) return stop;
   const body = await request.json().catch(() => ({}));
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, MAX_PROMPT_LENGTH) : '';
   const intensity = ['subtle', 'bold', 'wild'].includes(body?.intensity) ? body.intensity : 'bold';

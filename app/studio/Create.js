@@ -142,7 +142,7 @@ export default function Create({ s }) {
             onChange={(e) => s.setPrompt(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); s.generate(); } }} />
           <div className="chips">
-            <button className="chip-tap" aria-label={s.uploading ? "Uploading" : video ? "Add a start frame" : "Add a reference image"} disabled={s.uploading} onClick={() => fileRef.current?.click()}>
+            <button className="chip-tap" aria-label={s.uploading ? "Uploading" : video ? "Add a start frame" : "Add a reference image"} disabled={s.uploading} onClick={() => { if (!s.needAccount({ tab: "create" })) fileRef.current?.click(); }}>
               <span className="chip">{s.uploading ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="plus" size={18} />}</span>
             </button>
             {s.ref ? (

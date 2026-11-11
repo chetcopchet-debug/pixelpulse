@@ -11,7 +11,7 @@ export default function Terms() {
       <h2>Your content</h2>
       <ul>
         <li>You keep whatever rights you have in your prompts, uploads and results. You are responsible for what you create, upload and publish.</li>
-        <li>When you publish an image to the Pulse Feed, you allow PixelPulse to display it publicly, including on share pages and previews.</li>
+        <li>When you share an image publicly, you allow PixelPulse to display it, including on share pages and previews.</li>
         <li>Only upload images you have the right to use. Uploaded photos stay private and can't be published.</li>
       </ul>
       <h2>Acceptable use</h2>
@@ -23,7 +23,7 @@ export default function Terms() {
         <li><b>Prohibited content.</b> Don't create, upload or share sexual or nude content, content that sexualizes or depicts minors in any way that is sexual or revealing, graphic violence or gore, or content that harasses, threatens or promotes harm. Any content sexualizing minors is reported to the relevant authorities.</li>
         <li><b>You are responsible.</b> You are solely responsible for your prompts, uploads and results and for how you use them, and you confirm you have every right and consent needed. You agree to indemnify PixelPulse against claims arising from content you create or upload in breach of these terms.</li>
         <li><b>Removal and bans.</b> We may, at our discretion and without notice, hide, remove or delete any content and suspend or ban any account or device, including through automated systems. Repeated violations lead to an automatic ban.</li>
-        <li><b>Reporting.</b> Anyone can report content with the ⚑ Report button on any public image or share page, no account needed. Reports about minors or about real people shown without consent are hidden right away while we review, and we aim to act on every valid removal request within 48 hours. You can also reach us via <a href="/contact">Contact</a>.</li>
+        <li><b>Reporting.</b> Anyone can report content with the Report button on any share page, no account needed. Reports about minors or about real people shown without consent are hidden right away while we review, and we aim to act on every valid removal request within 48 hours. You can also reach us via <a href="/contact">Contact</a>.</li>
         <li><b>Records.</b> To prevent abuse and to cooperate with lawful requests, we keep a log of generation activity (account or device id, a hashed IP address, prompts, input and output references, safety-check results and time). See the <a href="/privacy">Privacy Policy</a>.</li>
       </ul>
       <h2>No warranty</h2>
