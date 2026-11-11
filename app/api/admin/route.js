@@ -19,7 +19,7 @@ export async function POST(request) {
   else { const b = await request.json().catch(() => ({})); key = b?.key; logout = b?.logout === true; }
   if (logout) { const r = isForm ? back('/') : NextResponse.json({ success: true, admin: false }); clearAdminCookie(r); return r; }
   if (!checkAdminKey(key)) return isForm ? back('/admin?e=key') : NextResponse.json({ error: 'Invalid key.' }, { status: 401 });
-  const res = isForm ? back('/') : NextResponse.json({ success: true, admin: true });
+  const res = isForm ? back('/admin') : NextResponse.json({ success: true, admin: true });
   setAdminCookie(res);
   return res;
 }

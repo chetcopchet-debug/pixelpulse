@@ -237,7 +237,8 @@ export default function Home() {
     if (params.has("admin")) { params.delete("admin"); const qs = params.toString(); window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash); }
     loadCredits();
     // Upgrade legacy (unsigned) identity cookie before loading private history
-    fetch("/api/session", { method: "POST" }).catch(() => {}).finally(loadHistory);
+    // Finish any video that completed while this tab was closed, then load the gallery.
+    fetch("/api/session", { method: "POST" }).catch(() => {}).finally(() => fetch("/api/animate?pending=1", { cache: "no-store" }).catch(() => {}).finally(loadHistory));
     loadFeed();
     loadDaily();
   }, []);
