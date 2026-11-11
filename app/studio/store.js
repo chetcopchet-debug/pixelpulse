@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
 import { prepareUpload, uploadRaw } from "../clientImage";
-import { imageModel, imageModels, videoModel, videoModels, videoPlan, TOOLS, IMAGE_RATIOS, toItem, madeWith } from "./models";
+import { imageModel, imageModels, videoModel, videoModels, videoPlan, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith } from "./models";
 import { setDownloadMark } from "./download";
 import { posterUrl as posterUrlOf } from "../../lib/thumbs";
 
@@ -30,6 +30,7 @@ export function useStudio() {
   const [prompt, setPrompt] = useState("");
   const [imgModel, setImgModel] = useState("fast");
   const [vidModel, setVidModelRaw] = useState("veo-lite");
+  const [compare, setCompare] = useState([]); // image model ids to run side by side; fewer than two means "one model"
   const [ratio, setRatio] = useState("1:1");
   const [vDur, setVDur] = useState(null);
   const [vRes, setVRes] = useState(null);
@@ -159,6 +160,51 @@ export function useStudio() {
     return true;
   }, [afford, refused, sync, addItem, patchRun, dropRun]);
 
+  // ---- comparing models: one prompt, one image from each ----
+  const patchPart = useCallback((key, id, patch) => setRuns((rs) => rs.map((r) => {
+    if (r.key !== key || !r.parts) return r;
+    const parts = r.parts.map((p) => (p.id === id ? { ...p, ...patch } : p));
+    return { ...r, parts, status: parts.some((p) => p.status === "running") ? "running" : "done" };
+  })), []);
+  const runPart = useCallback(async (key, m, o, delay) => {
+    try {
+      if (delay) await sleep(delay);
+      for (let attempt = 1; ; attempt++) {
+        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free" });
+        const d = await json(res); sync(d);
+        // The provider limits how many generations can start at once. Wait and try again instead of failing.
+        if (res.status === 429 && attempt < 3) { await sleep(10_000); continue; }
+        if (res.status === 402 || res.status === 401) { refused(d, m.cost, m.name); throw new Error(d.needSignIn ? "Sign in to create." : "Not enough credits for this one."); }
+        if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "This one didn't finish. Its credits were returned.");
+        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: d.tier || m.id });
+        if (d.stored) addItem(item);
+        patchPart(key, m.id, { status: "done", item, unsaved: !d.stored });
+        return;
+      }
+    } catch (e) { patchPart(key, m.id, { status: "failed", error: e.message || "This one didn't finish. Its credits were returned." }); }
+  }, [sync, refused, addItem, patchPart]);
+  const startCompare = useCallback((o) => {
+    const plan = comparePlan(o.models);
+    if (!plan) return false;
+    const w = walletRef.current;
+    if (w.loaded && !w.admin && !covers(w, plan.models.map((m) => m.cost))) {
+      if (!w.account) askSignIn(SIGN_UP_REASON); else askCredits(plan.cost, `Compare ${plan.models.length} models`);
+      return false;
+    }
+    const key = uid(); const t0 = Date.now();
+    setRuns((rs) => [...rs, { key, kind: "compare", prompt: o.prompt, label: `Comparing ${plan.models.length} models`, ratio: o.ratio, cost: plan.cost, status: "running", t0, again: { prompt: o.prompt, ratio: o.ratio, format: o.format },
+      parts: plan.models.map((m) => ({ id: m.id, name: m.name, cost: m.cost, status: "running", t0, eta: m.id === "fast" ? 6 : 25 })) }]);
+    markSeen();
+    plan.models.forEach((m, i) => runPart(key, m, o, i * 700)); // a small gap between starts is kinder to the provider's limits
+    return true;
+  }, [askSignIn, askCredits, runPart]);
+  const retryPart = useCallback((run, id) => {
+    const m = imageModel(id); if (!run?.again || m.id !== id) return;
+    if (!afford(m.cost, { label: m.name })) return;
+    patchPart(run.key, id, { status: "running", t0: Date.now(), error: null });
+    runPart(run.key, m, run.again, 0);
+  }, [afford, patchPart, runPart]);
+
   const pollJob = useCallback(async (key, job) => {
     const started = Date.now();
     while (Date.now() - started < 20 * 60_000) {
@@ -208,8 +254,9 @@ export function useStudio() {
       return;
     }
     if (!text) { say("Describe the image first."); return; }
+    if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
     if (startImage({ model: imgModel, prompt: text, ratio, ref, format })) setPrompt("");
-  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, format, startVideo, startImage, say, needAccount]);
+  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, compare, format, startVideo, startImage, startCompare, say, needAccount]);
 
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
@@ -356,7 +403,7 @@ export function useStudio() {
   const setTheme = useCallback((t) => { setThemeRaw(t); }, []);
 
   // ---- remember choices ----
-  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, ratio, theme }); }, [ready, mode, imgModel, vidModel, ratio, theme]);
+  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, compare, ratio, theme }); }, [ready, mode, imgModel, vidModel, compare, ratio, theme]);
 
   // ---- videos that were still rendering when the page was last closed ----
   const checkPending = useCallback(async () => {
@@ -392,6 +439,7 @@ export function useStudio() {
     if (p.mode === "video") setMode("video");
     if (imageModels.some((m) => m.id === p.imgModel)) setImgModel(p.imgModel);
     if (videoModels.some((m) => m.id === p.vidModel)) setVidModelRaw(p.vidModel);
+    const cp = comparePlan(p.compare); if (cp) setCompare(cp.models.map((m) => m.id));
     if (IMAGE_RATIOS.some((r) => r.id === p.ratio)) setRatio(p.ratio);
     if (["dark", "light", "auto"].includes(p.theme)) setThemeRaw(p.theme);
     setFavs(new Set(store.read("pp_favs", [])));
@@ -455,10 +503,10 @@ export function useStudio() {
   }, []);
 
   return {
-    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, ratio, setRatio,
+    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
     viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
-    generate, retry, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
+    generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
   };
 }

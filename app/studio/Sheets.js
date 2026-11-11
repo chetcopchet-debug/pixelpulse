@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Icon from "./icons";
 import { Price } from "./bits";
 import Sheet from "./Sheet";
-import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, IMAGE_RATIOS, TOOLS } from "./models";
+import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
 import { FREE_DAILY } from "./store";
 
 export function ModelSheet({ s, onClose }) {
@@ -12,22 +12,48 @@ export function ModelSheet({ s, onClose }) {
   const all = video ? videoModels : imageModels;
   const list = sort === "price" ? [...all].sort((a, b) => a.cost - b.cost) : all;
   const current = video ? s.vidModel : s.imgModel;
+  // Images can also be compared: tick two to four models and the same prompt runs on each.
+  const canCompare = !video && !s.ref;
+  const [multi, setMulti] = useState(canCompare && Boolean(comparePlan(s.compare)));
+  const [picked, setPicked] = useState(() => (comparePlan(s.compare) ? s.compare : [s.imgModel]));
+  const plan = comparePlan(picked);
+  const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= MAX_COMPARE ? (s.say(`Up to ${MAX_COMPARE} models at a time.`), p) : [...p, id]));
+  const sub = video ? "Prices are for the standard setting. Length and quality change the price."
+    : multi ? `Tick 2 to ${MAX_COMPARE} models. Your prompt runs on each one, and you pay each model's price.` : "The price is for one image.";
   return (
-    <Sheet title={video ? "Video models" : "Image models"} sub={video ? "Prices are for the standard setting. Length and quality change the price." : "The price is for one image."} onClose={onClose}>
+    <Sheet title={video ? "Video models" : "Image models"} sub={sub} onClose={onClose}>
+      {canCompare ? (
+        <div className="seg" role="tablist" aria-label="How many models" style={{ display: "flex", margin: "0 8px 10px" }}>
+          <button role="tab" aria-selected={!multi} className={multi ? "" : "on"} style={{ flex: 1 }} onClick={() => setMulti(false)}>One model</button>
+          <button role="tab" aria-selected={multi} className={multi ? "on" : ""} style={{ flex: 1 }} onClick={() => setMulti(true)}>Compare models</button>
+        </div>
+      ) : null}
       <div className="r" style={{ gap: 6, padding: "0 8px 8px" }}>
         <button className={`chip${sort === "best" ? " on" : ""}`} onClick={() => setSort("best")}>Recommended</button>
         <button className={`chip${sort === "price" ? " on" : ""}`} onClick={() => setSort("price")}>Lowest price</button>
       </div>
-      {list.map((m) => (
-        <button key={m.id} className={`mrow${m.id === current ? " on" : ""}`} aria-pressed={m.id === current} onClick={() => { (video ? s.setVidModel : s.setImgModel)(m.id); onClose(); }}>
-          <span className="grow">
-            <span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span>
-            <span className="sm t2" style={{ display: "block" }}>{m.desc}</span>
-          </span>
-          {m.id === current ? <span className="tick"><Icon name="check" size={14} /></span> : null}
-          <Price n={m.cost} />
-        </button>
-      ))}
+      {list.map((m) => {
+        const on = multi ? picked.includes(m.id) : m.id === current && !(canCompare && comparePlan(s.compare));
+        return (
+          <button key={m.id} className={`mrow${on ? " on" : ""}`} aria-pressed={on}
+            onClick={() => { if (multi) { toggle(m.id); return; } (video ? s.setVidModel : s.setImgModel)(m.id); if (!video) s.setCompare([]); onClose(); }}>
+            {multi ? <span className={`box${on ? " on" : ""}`} aria-hidden="true">{on ? <Icon name="check" size={14} /> : null}</span> : null}
+            <span className="grow">
+              <span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span>
+              <span className="sm t2" style={{ display: "block" }}>{m.desc}</span>
+            </span>
+            {!multi && on ? <span className="tick"><Icon name="check" size={14} /></span> : null}
+            <Price n={m.cost} />
+          </button>
+        );
+      })}
+      {multi ? (
+        <div className="sheet-foot">
+          <button className="btn btn-p btn-wide btn-split" disabled={!plan} onClick={() => { s.setCompare(plan.models.map((m) => m.id)); onClose(); }}>
+            <span>{plan ? `Compare ${plan.models.length} models` : "Tick at least 2 models"}</span>{plan ? <Price n={plan.cost} /> : null}
+          </button>
+        </div>
+      ) : null}
     </Sheet>
   );
 }
