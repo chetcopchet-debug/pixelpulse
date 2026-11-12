@@ -31,7 +31,7 @@ export function useStudio() {
   const [prompt, setPrompt] = useState("");
   const [imgModel, setImgModelRaw] = useState("fast");
   const [auto, setAutoRaw] = useState(false); // Auto: the model is chosen from the prompt (images only)
-  const [vidModel, setVidModelRaw] = useState("veo-lite");
+  const [vidModel, setVidModelRaw] = useState("h3-lite");
   const [compare, setCompare] = useState([]); // image model ids to run side by side; fewer than two means "one model"
   // The three ways to choose are exclusive: one model, Auto, or comparing several.
   const setImgModel = useCallback((id) => { setAutoRaw(false); setCompare([]); setImgModelRaw(id); }, []);
@@ -67,7 +67,7 @@ export function useStudio() {
   useEffect(() => {
     if (!off.size) return;
     if (off.has(imgModel)) setImgModelRaw((imageModels.find((m) => m.id === "fast" && !off.has(m.id)) || imageModels.find((m) => !off.has(m.id)) || { id: "fast" }).id);
-    if (off.has(vidModel)) setVidModelRaw((videoModels.find((m) => m.id === "veo-lite" && !off.has(m.id)) || videoModels.find((m) => !off.has(m.id)) || { id: "veo-lite" }).id);
+    if (off.has(vidModel)) setVidModelRaw((videoModels.find((m) => m.id === "h3-lite" && !off.has(m.id)) || videoModels.find((m) => !off.has(m.id)) || { id: "h3-lite" }).id);
     if (compare.some((id) => off.has(id))) setCompare(compare.filter((id) => !off.has(id)));
   }, [off, imgModel, vidModel, compare]);
   const runsRef = useRef(runs); runsRef.current = runs;
@@ -247,7 +247,7 @@ export function useStudio() {
     const label = o.ref ? TOOLS.reference.label : o.auto ? `${m.name}, picked by Auto` : m.name;
     if (!afford(cost, { label: o.ref ? TOOLS.reference.label : m.name })) return false;
     const key = uid();
-    setRuns((rs) => [...rs, { key, kind: "image", prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url, again: { ...o, kind: "image" } }]);
+    setRuns((rs) => [...rs, { key, kind: "image", model: o.ref ? "guided" : m.id, prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url, again: { ...o, kind: "image" } }]);
     markSeen();
     (async () => {
       try {
@@ -344,6 +344,29 @@ export function useStudio() {
     })();
     return true;
   }, [afford, refused, sync, patchRun, dropRun, pollJob, say]);
+
+  // ---- images that were still being made when the page was closed ----
+  // The server finishes them and saves them anyway. What was waiting is remembered on the device, so on the way
+  // back the Create screen shows them as still running and fills them in from the Library as they arrive.
+  const recoverRuns = useCallback(async (list) => {
+    const open = new Map(list.map((r) => [r.key, r])); const used = new Set();
+    for (let round = 0; open.size && round < 40; round++) {
+      if (round) await sleep(4000);
+      const d = await get("/api/history?limit=24").then(json).catch(() => null);
+      const found = (d?.items || []).map(toItem).filter((x) => !x.video);
+      for (const r of [...open.values()].sort((a, b) => a.t0 - b.t0)) {
+        const item = found.find((x) => !used.has(x.id) && x.prompt === r.prompt.trim() && x.model === r.model && Date.parse(x.at) >= r.t0 - 60_000);
+        if (item) {
+          used.add(item.id); open.delete(r.key);
+          addItem(item, { keep: true });
+          setRuns((rs) => rs.filter((x) => x.key !== `h${item.id}`).map((x) => (x.key === r.key ? { ...x, status: "done", item } : x)));
+        } else if (Date.now() - r.t0 > 130_000) {
+          open.delete(r.key);
+          patchRun(r.key, { status: "failed", error: "We couldn't find this image after you came back. If it failed, its credits were returned. If it was made, it is in your Library." });
+        }
+      }
+    }
+  }, [addItem, patchRun]);
 
   const retry = useCallback((run) => { dropRun(run.key); if (run.again?.kind === "video") startVideo(run.again); else if (run.again) startImage(run.again); }, [dropRun, startVideo, startImage]);
 
@@ -496,7 +519,7 @@ export function useStudio() {
     store.write("pp_draft", null);
     await refreshWallet(); loadLibrary(); loadProjects(); say("You're signed in");
   }, [refreshWallet, loadLibrary, loadProjects, say]);
-  const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); window.location.href = "/"; }, []);
+  const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); store.write("pp_pending", []); window.location.href = "/"; }, []);
   const buy = useCallback(async (planId) => {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
     const d = res ? await json(res) : {};
@@ -509,6 +532,16 @@ export function useStudio() {
 
   // ---- remember choices ----
   useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project]);
+  // Remember which images are still being made (see recoverRuns). Videos have their own record on the server.
+  useEffect(() => {
+    if (!ready) return;
+    const waiting = [];
+    for (const r of runs) {
+      if (r.kind === "image" && r.status === "running" && r.model) waiting.push({ model: r.model, prompt: r.prompt, ratio: r.ratio, label: r.label, cost: r.cost, t0: r.t0, eta: r.eta });
+      if (r.kind === "compare") for (const p of r.parts) if (p.status === "running") waiting.push({ model: p.id, prompt: r.prompt, ratio: r.ratio, label: p.name, cost: p.cost, t0: p.t0, eta: p.eta });
+    }
+    store.write("pp_pending", waiting);
+  }, [ready, runs]);
 
   // ---- videos that were still rendering when the page was last closed ----
   const checkPending = useCallback(async () => {
@@ -586,6 +619,11 @@ export function useStudio() {
       setTimeout(async () => { const d = await refreshWallet(); if (d && !d.account && !d.admin) askSignIn("Purchase complete. Sign in so your credits are safe on every device."); }, 2500);
     }
     if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
+    // Images that were being made when the page was last closed, if that was moments ago.
+    const back = (Array.isArray(store.read("pp_pending", [])) ? store.read("pp_pending", []) : [])
+      .filter((r) => r && typeof r.prompt === "string" && typeof r.model === "string" && Date.now() - r.t0 < 150_000).slice(0, 8)
+      .map((r) => ({ key: uid(), kind: "image", model: r.model, prompt: r.prompt, label: String(r.label || "Image"), ratio: IMAGE_RATIOS.some((x) => x.id === r.ratio) ? r.ratio : "1:1", cost: Number(r.cost) || 0, status: "running", t0: Number(r.t0), eta: Number(r.eta) || 20, back: true }));
+    if (back.length) { setRuns(back); start = "create"; }
     setTab(start); setReady(true);
 
     refreshWallet().then((d) => {
@@ -608,6 +646,7 @@ export function useStudio() {
       }));
       const past = got.slice(0, 6).reverse().map((item) => ({ key: `h${item.id}`, kind: item.video ? "video" : "image", prompt: item.prompt, label: madeWith(item.model), ratio: item.ratio, status: "done", item, past: true }));
       setRuns((rs) => [...past, ...ended, ...waiting, ...rs]);
+      if (back.length) recoverRuns(back);
     })();
   }, []);
 
