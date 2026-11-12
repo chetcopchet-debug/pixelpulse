@@ -155,6 +155,78 @@ export function AskSheet({ s, tool, item, onClose }) {
   );
 }
 
+// Projects: add an item to one ("pick"), start one ("new"), or rename and delete one ("edit").
+export function ProjectSheet({ s, mode, item, id, onClose }) {
+  const proj = s.projects.find((p) => p.id === id);
+  const [view, setView] = useState(mode); // pick | new | edit | delete
+  const [name, setName] = useState(mode === "edit" ? proj?.name || "" : "");
+  const [busy, setBusy] = useState(false);
+  const current = item ? (s.items.find((x) => x.id === item.id) ?? item).project || null : null;
+  const pick = async (pid) => {
+    if (busy) return;
+    if (pid === current) { onClose(); return; }
+    setBusy(true); const ok = await s.moveItem(item, pid); setBusy(false);
+    if (ok) onClose();
+  };
+  const create = async (e) => {
+    e?.preventDefault();
+    if (busy || !name.trim()) return;
+    setBusy(true);
+    const p = await s.createProject(name);
+    if (p && item) await s.moveItem(item, p.id); else if (p) s.setProject(p.id); // started from the Library: open it
+    setBusy(false);
+    if (p) onClose();
+  };
+  const rename = async (e) => {
+    e?.preventDefault();
+    if (busy || !name.trim()) return;
+    setBusy(true); const ok = await s.renameProject(id, name); setBusy(false);
+    if (ok) onClose();
+  };
+  const del = async () => { if (busy) return; setBusy(true); const ok = await s.deleteProject(id); setBusy(false); if (ok) onClose(); };
+  const field = <input className="field" autoFocus maxLength={40} value={name} placeholder="Project name" aria-label="Project name" onChange={(e) => setName(e.target.value)} />;
+
+  if (view === "new") return (
+    <Sheet title="New project" sub={item ? "This item is added to it." : "A project keeps related images and videos together."} onClose={onClose}>
+      <form className="c" style={{ gap: 12, padding: "4px 8px" }} onSubmit={create}>
+        {field}
+        <button className="btn btn-p btn-wide" disabled={busy || !name.trim()}>{busy ? <i className="spin" /> : "Create project"}</button>
+      </form>
+    </Sheet>
+  );
+  if (view === "edit") return (
+    <Sheet title="Project" onClose={onClose}>
+      <form className="c" style={{ gap: 12, padding: "4px 8px" }} onSubmit={rename}>
+        {field}
+        <button className="btn btn-p btn-wide" disabled={busy || !name.trim() || name.trim() === proj?.name}>{busy ? <i className="spin" /> : "Save name"}</button>
+        <button type="button" className="btn btn-wide" onClick={() => setView("delete")}><Icon name="trash" size={18} />Delete project</button>
+      </form>
+    </Sheet>
+  );
+  if (view === "delete") return (
+    <Sheet title="Delete this project?" onClose={onClose}>
+      <div className="c" style={{ gap: 12, padding: "4px 8px" }}>
+        <p className="t2">{proj?.count ? `Its ${proj.count} ${proj.count === 1 ? "item stays" : "items stay"} in your Library. Only the project "${proj.name}" goes.` : `"${proj?.name || "This project"}" is empty.`}</p>
+        <button className="btn btn-p btn-wide" disabled={busy} onClick={del}>{busy ? <i className="spin" /> : "Delete project"}</button>
+        <button className="btn btn-s btn-wide" onClick={onClose}>Keep it</button>
+      </div>
+    </Sheet>
+  );
+  return (
+    <Sheet title="Add to a project" onClose={onClose}>
+      {s.projects.map((p) => (
+        <button key={p.id} className={`mrow${p.id === current ? " on" : ""}`} aria-pressed={p.id === current} disabled={busy} onClick={() => pick(p.id)}>
+          <Icon name="folder" />
+          <span className="grow b clamp1" style={{ fontSize: 16, textAlign: "left" }}>{p.name}</span>
+          {p.id === current ? <span className="tick"><Icon name="check" size={14} /></span> : <span className="sm t3 num">{p.count}</span>}
+        </button>
+      ))}
+      {current ? <button className="mrow" disabled={busy} onClick={() => pick(null)}><Icon name="x" /><span className="grow b" style={{ fontSize: 16, textAlign: "left" }}>Take out of the project</span></button> : null}
+      <button className="mrow" disabled={busy} onClick={() => { setName(""); setView("new"); }}><Icon name="plus" /><span className="grow b" style={{ fontSize: 16, textAlign: "left" }}>New project</span></button>
+    </Sheet>
+  );
+}
+
 export function SignInSheet({ s, reason, onClose }) {
   const [step, setStep] = useState("email");
   const [email, setEmail] = useState("");

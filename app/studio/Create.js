@@ -136,6 +136,7 @@ export default function Create({ s }) {
   const placeholder = s.ref ? (video ? "Describe the motion (optional)" : "Describe the new image") : video ? "Describe the video you want" : "Describe the image you want";
   const lockedRatio = !video && s.format !== "free" ? FORMATS[s.format]?.ratio : null; // a format fixes the shape
   const canGo = Boolean(s.prompt.trim()) || (video && s.ref);
+  const project = s.projectsOn ? s.projects.find((p) => p.id === s.project) : null; // new creations are saved into it
 
   return (
     <div className="screen">
@@ -167,6 +168,12 @@ export default function Create({ s }) {
             <div className="r" style={{ gap: 4 }}>
               <span className="chip grow clamp1" style={{ flex: "0 1 auto" }}>Format: {FORMATS[s.format].label}</span>
               <button className="ib" aria-label="Remove the format" onClick={() => s.setFormat("free")}><Icon name="x" size={18} /></button>
+            </div>
+          ) : null}
+          {project ? (
+            <div className="r" style={{ gap: 4 }}>
+              <span className="chip grow clamp1" style={{ flex: "0 1 auto" }}><Icon name="folder" size={16} />Saving to: {project.name}</span>
+              <button className="ib" aria-label="Stop saving into this project" onClick={() => s.setProject(null)}><Icon name="x" size={18} /></button>
             </div>
           ) : null}
           {s.ref ? (

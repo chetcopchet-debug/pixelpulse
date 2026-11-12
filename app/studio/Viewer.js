@@ -63,6 +63,8 @@ export default function Viewer({ s }) {
 
   const shown = before && side === "before" ? before : item;
   const fav = item.id && s.favs.has(item.id);
+  // The Library's copy knows the project even when this item was opened from the Create screen.
+  const inProject = s.projects.find((p) => p.id === ((s.items.find((x) => x.id === item.id) ?? item).project || null));
   const canEdit = !readonly && !item.video && item.id;
   const varCost = imageModel(imageModels.some((m) => m.id === item.model) ? item.model : "fast").cost;
   const busy = s.busyTool;
@@ -144,6 +146,12 @@ export default function Viewer({ s }) {
             <div className="r" style={{ gap: 32, marginTop: 20 }}>
               <div><p className="sm t3">Made with</p><p className="b">{madeWith(item.model)}</p></div>
               <div><p className="sm t3">Shape</p><p className="b num">{item.ratio}</p></div>
+              {s.projectsOn && item.id ? (
+                <div style={{ minWidth: 0 }}>
+                  <p className="sm t3">Project</p>
+                  <button className="link b clamp1" style={{ textAlign: "left" }} onClick={() => s.setSheet({ type: "project", mode: "pick", item })}>{inProject ? inProject.name : "Add to a project"}</button>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

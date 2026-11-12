@@ -73,4 +73,5 @@ export const toItem = (r) => ({
   model: r.model || null,
   at: r.created_at || new Date().toISOString(),
   video: isVideoUrl(r.public_url),
+  project: r.project_id || null,
 });

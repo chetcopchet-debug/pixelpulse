@@ -44,6 +44,13 @@ export function useStudio() {
   const [wallet, setWallet] = useState({ loaded: false, free: 0, freeLimit: 3, guest: true, paid: 0, admin: false, account: null, plans: [], payments: false, purchased: false });
   const [runs, setRuns] = useState([]);
   const [items, setItems] = useState([]);
+  // Projects: folders in the Library. `project` is the one being worked in: the Library shows its items and new
+  // creations are saved into it. null = everything.
+  const [projects, setProjects] = useState([]);
+  const [projectsOn, setProjectsOn] = useState(false);
+  const [project, setProjectRaw] = useState(null);
+  const projectRef = useRef(null);
+  const libSeq = useRef(0);
   const [cursor, setCursor] = useState(null);
   const [library, setLibrary] = useState("loading"); // loading | ready | off
   const [favs, setFavs] = useState(() => new Set());
@@ -113,9 +120,30 @@ export function useStudio() {
   }, [askSignIn, askCredits]);
 
   // ---- library ----
-  const addItem = useCallback((item) => { if (item?.id) setItems((prev) => [item, ...prev.filter((h) => h.id !== item.id)]); }, []);
+  // A new item goes to the top of the Library, and into the project being worked in.
+  // `keep`: the server already decided the item's project (a video is filed where it was started), so it is
+  // not moved into the project that happens to be open now.
+  const addItem = useCallback((item, { keep = false } = {}) => {
+    if (!item?.id) return;
+    const pid = projectRef.current;
+    if (keep) {
+      if (item.project) setProjects((ps) => ps.map((p) => (p.id === item.project ? { ...p, count: p.count + 1 } : p)));
+      if (pid && item.project !== pid) return; // another project is open: it isn't part of this list
+      setItems((prev) => [item, ...prev.filter((h) => h.id !== item.id)]);
+      return;
+    }
+    const it = pid && !item.project ? { ...item, project: pid } : item;
+    if (it !== item) {
+      post("/api/projects/items", { project: pid, ids: [item.id] }).catch(() => {});
+      setProjects((ps) => ps.map((p) => (p.id === pid ? { ...p, count: p.count + 1, cover: p.cover || (it.video ? null : it.url) } : p)));
+    }
+    setItems((prev) => [it, ...prev.filter((h) => h.id !== it.id)]);
+  }, []);
   const loadLibrary = useCallback(async (more) => {
-    const d = await get(`/api/history?limit=36${more ? `&cursor=${encodeURIComponent(more)}` : ""}`).then(json).catch(() => null);
+    const seq = more ? libSeq.current : ++libSeq.current; // a newer load (another project) makes this answer stale
+    const pid = projectRef.current;
+    const d = await get(`/api/history?limit=36${more ? `&cursor=${encodeURIComponent(more)}` : ""}${pid ? `&project=${pid}` : ""}`).then(json).catch(() => null);
+    if (seq !== libSeq.current) return [];
     if (!d || d.error) { setLibrary((s) => (s === "loading" ? "ready" : s)); return []; }
     if (d.enabled === false) { setLibrary("off"); return []; }
     const got = (d.items || []).map(toItem);
@@ -125,6 +153,62 @@ export function useStudio() {
     return got;
   }, []);
   const loadMore = useCallback(() => (cursor ? loadLibrary(cursor) : null), [cursor, loadLibrary]);
+
+  // ---- projects ----
+  const setProject = useCallback((id) => {
+    const next = id || null;
+    if (next === projectRef.current) return;
+    projectRef.current = next; setProjectRaw(next);
+    setItems([]); setCursor(null); setLibrary("loading"); loadLibrary();
+  }, [loadLibrary]);
+  const loadProjects = useCallback(async () => {
+    const d = await get("/api/projects").then(json).catch(() => null);
+    if (!d || d.error) return null;
+    const on = d.enabled !== false, list = on ? d.projects || [] : [];
+    setProjectsOn(on); setProjects(list);
+    if (projectRef.current && !list.some((p) => p.id === projectRef.current)) setProject(null); // the remembered project is gone
+    return list;
+  }, [setProject]);
+  const projectCall = useCallback(async (body) => {
+    const res = await post("/api/projects", body).catch(() => null);
+    const d = res ? await json(res) : {};
+    if (!res?.ok) { say(plain(d.error) || "That didn't work. Try again."); return null; }
+    return d;
+  }, [say]);
+  const createProject = useCallback(async (name) => {
+    const d = await projectCall({ action: "create", name });
+    if (!d?.project) return null;
+    setProjects((ps) => [d.project, ...ps]);
+    return d.project;
+  }, [projectCall]);
+  const renameProject = useCallback(async (id, name) => {
+    const d = await projectCall({ action: "rename", id, name });
+    if (!d?.project) return false;
+    setProjects((ps) => ps.map((p) => (p.id === id ? { ...p, name: d.project.name } : p)));
+    return true;
+  }, [projectCall]);
+  // Deleting a project keeps its images and videos. They only stop belonging to it.
+  const deleteProject = useCallback(async (id) => {
+    const d = await projectCall({ action: "delete", id });
+    if (!d) return false;
+    setProjects((ps) => ps.filter((p) => p.id !== id));
+    if (projectRef.current === id) setProject(null); else setItems((prev) => prev.map((h) => (h.project === id ? { ...h, project: null } : h)));
+    say("Project deleted. Its items are still in your Library.");
+    return true;
+  }, [projectCall, setProject, say]);
+  const moveItem = useCallback(async (item, pid) => {
+    if (!item?.id) return false;
+    const to = pid || null;
+    const res = await post("/api/projects/items", { project: to, ids: [item.id] }).catch(() => null);
+    const d = res ? await json(res) : {};
+    if (!res?.ok) { say(plain(d.error) || "Couldn't move it. Try again."); return false; }
+    const open = projectRef.current;
+    setItems((prev) => (open && open !== to ? prev.filter((h) => h.id !== item.id) : prev.map((h) => (h.id === item.id ? { ...h, project: to } : h))));
+    setViewer((v) => (v?.item?.id === item.id ? { ...v, item: { ...v.item, project: to } } : v));
+    loadProjects();
+    say(to ? "Added to the project" : "Taken out of the project");
+    return true;
+  }, [say, loadProjects]);
 
   const toggleFav = useCallback((item) => {
     if (!item?.id) return;
@@ -217,7 +301,7 @@ export function useStudio() {
       const s = await get(`/api/animate?job=${encodeURIComponent(job)}`).then(json).catch(() => ({ status: "processing" }));
       if (s.status === "processing") continue;
       sync(s);
-      if (s.status === "done" && s.item) { const item = toItem(s.item); addItem(item); patchRun(key, { status: "done", item }); say("Your video is ready"); return; }
+      if (s.status === "done" && s.item) { const item = toItem(s.item); addItem(item, { keep: true }); patchRun(key, { status: "done", item }); say("Your video is ready"); return; }
       throw new Error(plain(s.error) || "The video didn't finish. Your credits were returned.");
     }
     patchRun(key, { status: "late" });
@@ -236,7 +320,8 @@ export function useStudio() {
     markSeen();
     (async () => {
       try {
-        const res = await post("/api/animate", o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r });
+        const pid = projectRef.current; // the video is filed in the project that is open when it starts
+        const res = await post("/api/animate", { ...(o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r }), ...(pid ? { project: pid } : {}) });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
         if (!res.ok || !d.job) throw new Error(plain(d.error) || "The video couldn't start. Your credits were returned.");
@@ -395,8 +480,8 @@ export function useStudio() {
     setSheet(null);
     if (afterSignIn.current) { setTab(afterSignIn.current); afterSignIn.current = null; }
     store.write("pp_draft", null);
-    await refreshWallet(); loadLibrary(); say("You're signed in");
-  }, [refreshWallet, loadLibrary, say]);
+    await refreshWallet(); loadLibrary(); loadProjects(); say("You're signed in");
+  }, [refreshWallet, loadLibrary, loadProjects, say]);
   const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); window.location.href = "/"; }, []);
   const buy = useCallback(async (planId) => {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
@@ -409,7 +494,7 @@ export function useStudio() {
   const setTheme = useCallback((t) => { setThemeRaw(t); }, []);
 
   // ---- remember choices ----
-  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme]);
+  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project]);
 
   // ---- videos that were still rendering when the page was last closed ----
   const checkPending = useCallback(async () => {
@@ -430,7 +515,7 @@ export function useStudio() {
         const j = jobs.find((x) => x.id === r.jobId);
         if (j && j.status === "processing") continue;
         if (j && j.status === "failed") patchRun(r.key, { status: "failed", error: plain(j.error) || "The video didn't finish. Your credits were returned." });
-        else if (j?.item) { const item = toItem(j.item); addItem(item); patchRun(r.key, { status: "done", item }); }
+        else if (j?.item) { const item = toItem(j.item); addItem(item, { keep: true }); patchRun(r.key, { status: "done", item }); }
         else { dropRun(r.key); reload = true; }
       }
       if (reload) { await loadLibrary(); say("Your video is ready in Library"); }
@@ -448,6 +533,7 @@ export function useStudio() {
     const cp = comparePlan(p.compare); if (cp) setCompare(cp.models.map((m) => m.id)); else if (p.auto === true) setAutoRaw(true);
     const chosen = Boolean(cp) || p.auto === true; // the visitor chose Auto or a comparison: a format's suggested model doesn't replace that
     if (IMAGE_RATIOS.some((r) => r.id === p.ratio)) setRatio(p.ratio);
+    if (typeof p.project === "string" && /^[0-9a-f-]{36}$/i.test(p.project)) { projectRef.current = p.project; setProjectRaw(p.project); }
     if (["dark", "light", "auto"].includes(p.theme)) setThemeRaw(p.theme);
     setFavs(new Set(store.read("pp_favs", [])));
 
@@ -489,6 +575,8 @@ export function useStudio() {
     setTab(start); setReady(true);
 
     refreshWallet().then((d) => {
+      // Projects belong to an account. Without one, nothing is filtered by a project remembered on this device.
+      if (d?.account || d?.admin) loadProjects(); else if (projectRef.current) setProject(null);
       if (d?.account) get("/api/favorites").then(json).then((fv) => { if (fv.cloud && Array.isArray(fv.ids)) setFavs((prev) => new Set([...prev, ...fv.ids])); }).catch(() => {});
     });
     (async () => {
@@ -512,6 +600,7 @@ export function useStudio() {
   return {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
+    projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
