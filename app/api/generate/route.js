@@ -7,6 +7,7 @@ import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
 import { isAdmin } from '../../../lib/admin';
+import { ownedProject, fileInProject } from '../../../lib/projectOwner';
 import { MODEL_TIERS, DEFAULT_TIER, guidedTier, TEXT_TIERS } from '../../../lib/models';
 import { getSupabase } from '../../../lib/supabase';
 import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
@@ -156,6 +157,10 @@ export async function POST(request) {
       extra: format !== 'free' ? { format } : {},
     });
     await glog('passed', stored?.id || 'unsaved');
+    // Filed here, on the server, in the project that was open when the image was asked for. So it lands there even
+    // if the visitor left the site before the image was ready.
+    const pj = stored?.id ? await ownedProject(creator.id, body?.project) : null;
+    if (pj) await fileInProject(stored.id, creator.id, pj);
 
     const res = NextResponse.json({
       success: true,
@@ -164,7 +169,7 @@ export async function POST(request) {
       stored: Boolean(stored?.id),
       ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
       ...(stored?.id && FORMATS[format]?.autoCutout ? { cutoutPass: issueCutoutPass(stored.id, creator.id) } : {}),
-      tier: storedTier, format,
+      tier: storedTier, format, project: pj,
       credits: currentCredits(), ...(admin ? {} : { paid: await paidFor(creator) }),
       ...(admin ? { admin: true } : {}),
     });

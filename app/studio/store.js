@@ -221,6 +221,10 @@ export function useStudio() {
     });
   }, []);
 
+  // The project that is open now, as a field for a request. The server files the result there itself, so it is
+  // in the right project even if the page is closed before the result comes back.
+  const inProject = () => (projectRef.current ? { project: projectRef.current } : {});
+
   // ---- runs (what the Create screen shows) ----
   const patchRun = useCallback((key, patch) => setRuns((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r))), []);
   const dropRun = useCallback((key) => setRuns((rs) => rs.filter((r) => r.key !== key)), []);
@@ -237,12 +241,12 @@ export function useStudio() {
     markSeen();
     (async () => {
       try {
-        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}) });
+        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...inProject() });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label); return; }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "The image didn't finish. Any credits were returned.");
-        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id });
-        if (d.stored) addItem(item);
+        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id, project_id: d.project });
+        if (d.stored) addItem(item, { keep: "project" in d });
         patchRun(key, { status: "done", item, unsaved: !d.stored });
       } catch (e) { patchRun(key, { status: "failed", error: e.message || "Something went wrong. Any credits were returned." }); }
     })();
@@ -259,14 +263,14 @@ export function useStudio() {
     try {
       if (delay) await sleep(delay);
       for (let attempt = 1; ; attempt++) {
-        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free" });
+        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.project ? { project: o.project } : {}) });
         const d = await json(res); sync(d);
         // The provider limits how many generations can start at once. Wait and try again instead of failing.
         if (res.status === 429 && attempt < 3) { await sleep(10_000); continue; }
         if (res.status === 402 || res.status === 401) { refused(d, m.cost, m.name); throw new Error(d.needSignIn ? "Sign in to create." : "Not enough credits for this one."); }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "This one didn't finish. Its credits were returned.");
-        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: d.tier || m.id });
-        if (d.stored) addItem(item);
+        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: d.tier || m.id, project_id: d.project });
+        if (d.stored) addItem(item, { keep: "project" in d });
         patchPart(key, m.id, { status: "done", item, unsaved: !d.stored });
         return;
       }
@@ -281,10 +285,10 @@ export function useStudio() {
       return false;
     }
     const key = uid(); const t0 = Date.now();
-    setRuns((rs) => [...rs, { key, kind: "compare", prompt: o.prompt, label: `Comparing ${plan.models.length} models`, ratio: o.ratio, cost: plan.cost, status: "running", t0, again: { prompt: o.prompt, ratio: o.ratio, format: o.format },
+    setRuns((rs) => [...rs, { key, kind: "compare", prompt: o.prompt, label: `Comparing ${plan.models.length} models`, ratio: o.ratio, cost: plan.cost, status: "running", t0, again: { prompt: o.prompt, ratio: o.ratio, format: o.format, project: projectRef.current },
       parts: plan.models.map((m) => ({ id: m.id, name: m.name, cost: m.cost, status: "running", t0, eta: m.id === "fast" ? 6 : 25 })) }]);
     markSeen();
-    plan.models.forEach((m, i) => runPart(key, m, o, i * 700)); // a small gap between starts is kinder to the provider's limits
+    plan.models.forEach((m, i) => runPart(key, m, { ...o, project: projectRef.current }, i * 700)); // a small gap between starts is kinder to the provider's limits
     return true;
   }, [askSignIn, askCredits, runPart]);
   const retryPart = useCallback((run, id) => {
@@ -358,12 +362,12 @@ export function useStudio() {
     if (!afford(t.cost, { paidOnly: t.paidOnly, label: t.label })) return;
     setBusyTool(tool);
     try {
-      const res = await post(`/api/${tool}`, { id: item.id, ...extra });
+      const res = await post(`/api/${tool}`, { id: item.id, ...extra, ...inProject() });
       const d = await json(res); sync(d);
       if (res.status === 402 || res.status === 401) { refused(d, t.cost, t.label, t.paidOnly); return; }
       if (!res.ok || !d.item) throw new Error(plain(d.error) || `${t.label} didn't finish. Any credits were returned.`);
       const made = toItem(d.item);
-      addItem(made);
+      addItem(made, { keep: "project_id" in d.item });
       setViewer({ item: made, before: item });
       say(t.done);
     } catch (e) { say(e.message); }
