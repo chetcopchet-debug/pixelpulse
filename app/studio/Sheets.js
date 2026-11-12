@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Icon from "./icons";
 import { Price } from "./bits";
 import Sheet from "./Sheet";
+import { IDEAS } from "./ideas";
 import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
 import { FREE_DAILY } from "./store";
 
@@ -300,6 +301,23 @@ export function SignInSheet({ s, reason, onClose }) {
           </div>
         </form>
       )}
+    </Sheet>
+  );
+}
+
+// Ideas to start from: the same cards a newcomer sees on the Create screen, one tap away for everyone else.
+export function IdeasSheet({ s, onClose }) {
+  const list = IDEAS[s.mode === "video" ? "video" : "image"];
+  return (
+    <Sheet title="Ideas to start from" sub="Tap one to put it in the prompt box. Then change it to make it yours." onClose={onClose}>
+      <div className="ideas in-sheet">
+        {list.map((x) => (
+          <button key={x.img} className="idea2" onClick={() => { s.setPrompt(x.prompt); onClose(); }} aria-label={`Use this idea: ${x.title}`}>
+            <img src={`/ideas/${x.img}.webp`} alt="" loading="lazy" decoding="async" />
+            <span>{x.title}</span>
+          </button>
+        ))}
+      </div>
     </Sheet>
   );
 }

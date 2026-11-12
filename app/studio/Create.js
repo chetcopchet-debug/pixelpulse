@@ -6,30 +6,10 @@ import Icon from "./icons";
 import { Price, Picture, Poster, Brand, Balance, useNow } from "./bits";
 import { imageModel, videoModel, videoPlan, TOOLS, comparePlan, stageOf, stageTime } from "./models";
 import { nextActions } from "./next";
+import { IDEAS } from "./ideas";
 import { autoPick } from "./auto";
 import { fitBox, fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
-
-// Starting points for someone who has not made anything yet. The card shows a short title; a tap fills the
-// prompt box with the full text. The pictures are in public/ideas.
-const IDEAS = {
-  image: [
-    { img: "aurora", title: "Aurora over a frozen lake", prompt: "Aurora over a frozen lake at night, mountains reflected in the ice, flat vector illustration in teal and navy" },
-    { img: "cabin", title: "A cozy cabin in falling snow", prompt: "A cozy cabin in falling snow, warm light in the windows, pine trees, full moon, flat illustration" },
-    { img: "sneaker", title: "Product photo of a sneaker", prompt: "Product photo of a white sneaker with iridescent panels on a wooden table, shallow depth of field, soft daylight" },
-    { img: "lighthouse", title: "A lighthouse in a storm", prompt: "A lighthouse in a storm at night, its beam cutting across dark waves, flat illustration, muted teal" },
-    { img: "neon", title: "Neon beach at night", prompt: "A lone figure on a beach at night, glowing pink sun on the horizon, neon reflections in the wet sand, synthwave" },
-    { img: "balloons", title: "Hot air balloons over a canyon", prompt: "Hot air balloons drifting over a red rock canyon at sunrise, layered paper-cut illustration, warm colors" },
-  ],
-  video: [
-    { img: "aurora", title: "Aurora over a frozen lake", prompt: "Aurora over a frozen lake at night, the lights ripple slowly and reflect on the ice" },
-    { img: "balloons", title: "Balloons drifting over a canyon", prompt: "Hot air balloons drifting over a canyon at sunrise, slow camera move to the right" },
-    { img: "lighthouse", title: "A lighthouse in a storm", prompt: "Waves crashing around a lighthouse in a storm, the beam of light sweeps across the sea" },
-    { img: "cabin", title: "Snow falling on a cabin", prompt: "Snow falling on a cabin at night, smoke rising from the chimney, warm light in the windows" },
-    { img: "neon", title: "Neon beach at night", prompt: "A lone figure walks along a neon-lit beach at night, gentle waves, slow push in" },
-    { img: "sneaker", title: "A sneaker turning on a table", prompt: "A white sneaker slowly rotating on a wooden table, shallow depth of field, soft daylight" },
-  ],
-};
 
 // A real desktop layout from this width up; below it, the phone layout.
 function useWide() {
@@ -139,6 +119,24 @@ function Row({ name, value, onClick, label }) {
   return <button className="set-row" onClick={onClick} aria-label={label}><span className="t2">{name}</span><span className="b clamp1">{value}</span><Icon name="right" size={18} style={{ color: "var(--text-3)" }} /></button>;
 }
 
+// The glow behind the window: the picture itself, blurred until only its colors are left. Two layers take turns,
+// so the colors of one picture fade into those of the next. With no picture (while something is being made) both
+// layers fade out and the background is plain. A picture is only shown once it has loaded, so nothing pops in.
+function Glow({ src }) {
+  const [st, setSt] = useState({ a: null, b: null, top: "a", on: false });
+  useEffect(() => {
+    if (!src) { setSt((p) => (p.on ? { ...p, on: false } : p)); return; }
+    let live = true;
+    const im = new Image();
+    im.onload = () => { if (live) setSt((p) => { if (p[p.top] === src) return { ...p, on: true }; const next = p.top === "a" ? "b" : "a"; return { ...p, [next]: src, top: next, on: true }; }); };
+    im.onerror = () => { if (live) setSt((p) => ({ ...p, on: false })); };
+    im.src = src;
+    return () => { live = false; };
+  }, [src]);
+  const layer = (k) => <div className={`amb${st.on && st.top === k ? " on" : ""}`} style={st[k] ? { backgroundImage: `url("${st[k]}")` } : undefined} aria-hidden="true" />;
+  return <>{layer("a")}{layer("b")}</>;
+}
+
 // The viewing window: which model and shape on top, the picture in the middle, the words that made it below.
 function Window({ run, right, body, foot, fill }) {
   return (
@@ -157,7 +155,7 @@ function Window({ run, right, body, foot, fill }) {
 
 // Everything between the top bar and the prompt box: the window with the latest result (or with what is being
 // made right now), the "What next" actions, or, before anything was made, pictures to start from.
-function Stage({ run, wait, back, s, now, video, wide, onIdea }) {
+function Stage({ run, wait, s, now, video, wide, onIdea }) {
   const ref = useRef(null);
   const size = useSize(ref);
   const [real, setReal] = useState({}); // the true shape of a picture, once it has loaded
@@ -179,7 +177,7 @@ function Stage({ run, wait, back, s, now, video, wide, onIdea }) {
 
   // The glow behind the window: the picture itself, blurred until only its colors are left.
   const glowOf = (r) => { const it = r?.kind === "compare" ? r.parts.find((p) => p.item)?.item : r?.item; return it ? (it.video ? posterUrl(it.url) : thumbUrl(it.url)) : null; };
-  const glow = wait ? glowOf(back) : run ? glowOf(run) : `/ideas/${IDEAS[video ? "video" : "image"][0].img}.webp`;
+  const glow = wait ? null : run ? glowOf(run) : `/ideas/${IDEAS[video ? "video" : "image"][0].img}.webp`;
 
   let main = null, side = null;
   if (wait) {
@@ -302,7 +300,7 @@ function Stage({ run, wait, back, s, now, video, wide, onIdea }) {
   }
   return (
     <>
-      {glow ? <div className={`amb${wait ? " dim" : ""}`} style={{ backgroundImage: `url("${glow}")` }} aria-hidden="true" /> : null}
+      <Glow src={glow} />
       <section className={`stage2${!run && !wait ? " scroll" : ""}`} aria-label="Latest result" ref={ref}>{main}</section>
       {wide ? side : null}
     </>
@@ -387,8 +385,9 @@ export default function Create({ s }) {
     </button>
   );
   const file = <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) s.upload(f); }} />;
+  const more = Boolean(stage || wait); // the start screen already shows the ideas; later they are one tap away
   const short = s.ref ? (video ? "Animate" : "Generate") : cmp ? `Compare ${cmp.models.length}` : "Generate";
-  const stageEl = <Stage run={wait ? null : stage} wait={wait} back={stage} s={s} now={now} video={video} wide={wide} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
+  const stageEl = <Stage run={wait ? null : stage} wait={wait} s={s} now={now} video={video} wide={wide} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
 
   if (wide) {
     // Desktop: settings in a column on the left, the result large in the rest of the window.
@@ -402,6 +401,7 @@ export default function Create({ s }) {
             {s.ref ? <div className="set">{refcard}</div> : (
               <button className="set-add" disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="plus" size={18} />}{s.uploading ? "Uploading" : video ? "Add a start frame" : "Add a reference image"}</button>
             )}
+            {more ? <button className="set-add" onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={18} />Ideas to start from</button> : null}
             <div className="set">
               {s.ref ? <div className="set-row"><span className="t2">Model</span><span className="b clamp1">{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span></div> : (
                 <>
@@ -443,11 +443,12 @@ export default function Create({ s }) {
           {refcard}
           <div className="r" style={{ gap: 4, alignItems: "flex-start" }}>
             {text}
+            {more && !s.prompt.trim() ? <button className="plus" aria-label="Ideas to start from" onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={22} /></button> : null}
             <button className="plus" aria-label={s.uploading ? "Uploading" : video ? "Add a start frame" : "Add a reference image"} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
           </div>
           {autoline}
-          <div className="r" style={{ gap: 6 }}>
-            <div className="chips grow">
+          <div className="gorow">
+            <div className="chips">
               {s.ref ? (
                 <span className="sm t2 b" style={{ whiteSpace: "nowrap", padding: "0 4px" }}>{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span>
               ) : (
