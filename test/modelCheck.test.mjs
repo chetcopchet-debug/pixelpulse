@@ -26,7 +26,7 @@ test('the six prices that were not verified are marked, and charged 15% above th
   for (const m of IMAGE_MODELS) assert.equal(m.usd, Math.round(m.listUsd * (m.approx ? 1.15 : 1) * 10000) / 10000, m.id);
   const rows = modelRows();
   assert.equal(rows.filter((r) => !r.tool).length, 17);
-  assert.equal(rows.filter((r) => r.tool).length, 9); // the models behind the tools are watched too
+  assert.equal(rows.filter((r) => r.tool).length, 10); // the models behind the tools are watched too
   assert.equal(rows.filter((r) => r.approx).length, 6);
   for (const r of rows.filter((x) => !x.tool)) assert.ok(r.src && r.slug && r.inputs.length >= 1, r.id);
   assert.equal(new Set(rows.map((r) => r.slug)).size, 26);
