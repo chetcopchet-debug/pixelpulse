@@ -51,6 +51,20 @@ export function videoPlan(modelId, d, r, ratio) {
 }
 export const videoOptionCost = (modelId, d, r) => videoQuote(modelId, d, r, "16:9")?.cost ?? null;
 
+// The Create screen shows one thing large: whatever produced a result most recently. A single image or video
+// counts from the moment it finished; a comparison counts from its start and again each time one of its images
+// arrives. Returns the time to compare by, or -1 for a run that has nothing to show.
+export const stageTime = (r) => (r.kind === "compare" ? Math.max(r.t0 || 0, ...(r.parts || []).map((p) => p.doneAt || 0)) : r.status === "done" && r.item ? r.doneAt || 0 : -1);
+export function stageOf(runs) {
+  let best = null, t = -1;
+  for (const r of runs) { const v = stageTime(r); if (v >= 0 && v >= t) { best = r; t = v; } }
+  return best;
+}
+// Does this Library item answer this waiting request? Same words, same model, made after the request started
+// (with a minute of slack for clocks that disagree) and not something that was already there when it started.
+export const answers = (item, w, taken) => !item.video && !taken.has(item.id) && !(w.skip || []).includes(item.id)
+  && item.prompt === String(w.prompt || "").trim() && item.model === w.model && Date.parse(item.at) >= w.t0 - 60_000;
+
 // Name shown for a saved item, from the `model` column of the images table.
 export function madeWith(model) {
   const id = String(model || "fast");

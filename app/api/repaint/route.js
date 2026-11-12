@@ -47,7 +47,7 @@ async function run({ row, extra }) {
   const image = await tempFile(prep.image, 'image/jpeg'), area = await tempFile(prep.mask, 'image/png');
   try {
     if (!image || !area) return { error: 'upstream' };
-    const r = await runReplicate({ model: TOOLS.repaint.model, input: TOOLS.repaint.input(image.url, area.url, prompt), budgetMs: 40_000 });
+    const r = await runReplicate({ model: TOOLS.repaint.model, input: TOOLS.repaint.input(image.url, area.url, prompt), budgetMs: 34_000 });
     const out = r.output ? firstUrl(r.output) : null;
     if (!out) return r;
     console.log(`Area edit: image ${prep.W}x${prep.H}, cut ${prep.plan.crop.w}x${prep.plan.crop.h}, sent ${prep.plan.model.w}x${prep.plan.model.h}${prep.plan.full ? ' (whole image)' : ''}`);

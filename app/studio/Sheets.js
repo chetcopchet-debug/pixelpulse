@@ -30,14 +30,15 @@ export function ModelSheet({ s, onClose }) {
         </div>
       ) : null}
       <div className="r" style={{ gap: 6, padding: "0 8px 8px" }}>
-        <button className={`chip${sort === "best" ? " on" : ""}`} onClick={() => setSort("best")}>Recommended</button>
+        <button className={`chip${sort === "best" ? " on" : ""}`} onClick={() => setSort("best")}>Best quality</button>
         <button className={`chip${sort === "price" ? " on" : ""}`} onClick={() => setSort("price")}>Lowest price</button>
       </div>
       {canCompare && !multi ? (
-        <button className={`mrow${autoOn ? " on" : ""}`} aria-pressed={autoOn} onClick={() => { s.setAuto(true); onClose(); }}>
+        <button className={`mrow mauto${autoOn ? " on" : ""}`} aria-pressed={autoOn} onClick={() => { s.setAuto(true); onClose(); }}>
           <span className="grow">
-            <span className="b" style={{ display: "block", fontSize: 16 }}>Auto</span>
-            <span className="sm t2" style={{ display: "block" }}>Picks the model that fits each prompt. You see the model and its price before you generate.</span>
+            <span className="r" style={{ gap: 8 }}><span className="b" style={{ fontSize: 16 }}>Auto</span><span className="rec">Recommended</span></span>
+            <span className="b" style={{ display: "block", marginTop: 2 }}>We pick the best model for your prompt</span>
+            <span className="sm t2" style={{ display: "block" }}>You see the model and its price before you generate.</span>
           </span>
           {autoOn ? <span className="tick"><Icon name="check" size={14} /></span> : null}
         </button>
