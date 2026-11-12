@@ -129,7 +129,7 @@ export default function Create({ s }) {
   const plan = video ? videoPlan(vm.id, s.vDur, s.vRes, s.ratio) : null;
   const cmp = !video && !s.ref ? comparePlan(s.compare) : null; // two or more models chosen: compare them
   // Auto: the model follows the prompt, and the button shows it with its price before anything is charged.
-  const auto = !video && !s.ref && !cmp && s.auto ? autoPick(`${s.prompt} ${s.format !== "free" ? FORMATS[s.format]?.label || "" : ""}`, s.wallet) : null;
+  const auto = !video && !s.ref && !cmp && s.auto ? autoPick(`${s.prompt} ${s.format !== "free" ? FORMATS[s.format]?.label || "" : ""}`, s.wallet, s.off) : null;
   const im = imageModel(auto ? auto.id : s.imgModel);
   const cost = s.ref ? (video ? TOOLS.animate.cost : TOOLS.reference.cost) : video ? plan?.cost : cmp ? cmp.cost : im.cost;
   const action = s.ref ? (video ? "Animate image" : "Generate from image") : video ? "Generate video" : cmp ? `Compare ${cmp.models.length} models` : "Generate";

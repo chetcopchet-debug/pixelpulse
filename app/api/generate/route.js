@@ -8,6 +8,8 @@ import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 
 import { isAdmin } from '../../../lib/admin';
 import { ownedProject, fileInProject } from '../../../lib/projectOwner';
+import { isDeadSlug } from '../../../lib/modelHealth';
+const MODEL_OFF_MSG = 'This model was discontinued by its maker. Pick another model.';
 import { MODEL_TIERS, DEFAULT_TIER, guidedTier, TEXT_TIERS } from '../../../lib/models';
 import { getSupabase } from '../../../lib/supabase';
 import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
@@ -67,6 +69,7 @@ export async function POST(request) {
     return jsonError('Invalid model. / מודל לא תקין.', 400);
   }
   let tierDef = MODEL_TIERS[selectedTier];
+  if (await isDeadSlug(tierDef.model)) return NextResponse.json({ error: MODEL_OFF_MSG, modelOff: selectedTier }, { status: 410 });
   let storedTier = selectedTier;
   let guideParent = null;
   if (guideId !== undefined && guideId !== null) {
@@ -129,8 +132,8 @@ export async function POST(request) {
 
     if (result.error) {
       await refund();
-      const status = result.error === 'timeout' ? 504 : result.error === 'throttled' ? 429 : 502;
-      const msg = result.error === 'timeout'
+      const status = result.error === 'timeout' ? 504 : result.error === 'throttled' ? 429 : result.error === 'discontinued' ? 410 : 502;
+      const msg = result.error === 'discontinued' ? `${MODEL_OFF_MSG} Your credits were refunded.` : result.error === 'timeout'
         ? 'Generation timed out. Your credits were refunded. / היצירה לקחה יותר מדי זמן, הקרדיט הוחזר.'
         : result.error === 'throttled'
           ? `${THROTTLED_MSG} Your credits were refunded.`

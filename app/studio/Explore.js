@@ -13,7 +13,7 @@ export default function Explore({ s }) {
   const [kind, setKind] = useState("image");
   const w = s.wallet;
   const guest = w.loaded && !w.account && !w.admin;
-  const list = kind === "video" ? videoModels : imageModels;
+  const list = (kind === "video" ? videoModels : imageModels).filter((m) => !s.off.has(m.id));
   // Guests are asked to sign in first and land on Create afterwards.
   const start = () => { if (s.needAccount({ tab: "create" })) return; s.setTab("create"); };
   const pick = (m) => {

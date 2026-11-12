@@ -15,6 +15,8 @@ import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
 import { finalizeJob, recordJob, pendingJobs, jobFromRow, webhookFields, repairRecent } from '../../../lib/videoJobs';
 import { videoQuote, VIDEO_PRICING } from '../../../lib/videoPricing';
 import { ownedProject } from '../../../lib/projectOwner';
+import { isDiscontinued, markDead, isDeadSlug } from '../../../lib/modelHealth';
+const MODEL_OFF_MSG = 'This model was discontinued by its maker. Pick another model.';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 import { replicateStart, THROTTLED_MSG } from '../../../lib/replicate';
 import sharp from 'sharp';
@@ -87,6 +89,7 @@ export async function POST(request) {
   if (!r || !r.ok || !p.id) {
     console.error('animate start', r?.status, p?.detail || p?.error || '');
     await spend.release(); await charge.refund();
+    if (r && isDiscontinued(r.status, p)) await markDead(AN.model);
     return NextResponse.json({ error: startFailed(r), paid: await paidFor(creator) }, { status: r?.status === 429 ? 429 : 502 });
   }
   await logGeneration({ userId: creator.id, ip, mode: effect ? `effect:${effect}` : 'animate', prompt: raw, inputRef: row.id, outputRef: `pred:${p.id}`, moderation: 'passed:input-only' });
@@ -101,6 +104,7 @@ export async function POST(request) {
 async function startTextVideo(request, body, { admin, creator, ip }) {
   const def = Object.prototype.hasOwnProperty.call(VIDEO_TIERS, body.model) ? VIDEO_TIERS[body.model] : null;
   if (!def) return NextResponse.json({ error: 'Invalid video model.' }, { status: 400 });
+  if (await isDeadSlug(def.model)) return NextResponse.json({ error: MODEL_OFF_MSG, modelOff: body.model }, { status: 410 });
   const raw = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
   if (!raw) return NextResponse.json({ error: 'Describe the video you want.' }, { status: 400 });
   if (raw.length > MAX_PROMPT_LENGTH) return NextResponse.json({ error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` }, { status: 400 });
@@ -125,6 +129,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   if (!r || !r.ok || !p.id) {
     console.error('t2v start', body.model, r?.status, p?.detail || p?.error || '');
     await spend.release(); await charge.refund();
+    if (r && isDiscontinued(r.status, p)) { await markDead(def.model); return NextResponse.json({ error: `${MODEL_OFF_MSG} Your credits were returned.`, modelOff: body.model, paid: await paidFor(creator) }, { status: 410 }); }
     return NextResponse.json({ error: startFailed(r), paid: await paidFor(creator) }, { status: r?.status === 429 ? 429 : 502 });
   }
   await logGeneration({ userId: creator.id, ip, mode: `t2v:${body.model}`, prompt: raw, outputRef: `pred:${p.id}`, moderation: 'passed:text-only' });

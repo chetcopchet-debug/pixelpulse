@@ -9,7 +9,7 @@ import { FREE_DAILY } from "./store";
 export function ModelSheet({ s, onClose }) {
   const video = s.mode === "video";
   const [sort, setSort] = useState("best");
-  const all = video ? videoModels : imageModels;
+  const all = (video ? videoModels : imageModels).filter((m) => !s.off.has(m.id)); // not the ones their provider switched off
   const list = sort === "price" ? [...all].sort((a, b) => a.cost - b.cost) : all;
   const current = video ? s.vidModel : s.imgModel;
   // Images can also be compared: tick two to four models and the same prompt runs on each.

@@ -16,7 +16,7 @@ test('every model in the list can be run, and nothing else can', () => {
 
 test('image credits are the ones agreed with the owner, and never below cost', () => {
   const cost = Object.fromEntries(IMAGE_MODELS.map((m) => [m.id, m.cost]));
-  assert.deepEqual(cost, { 'gpt-image': 16, 'imagen-ultra': 11, ideogram: 13, 'flux-3': 10, 'nano-banana': 7, 'seedream-5': 7, 'recraft-41': 8, 'flux-2-pro': 7, grok: 4, fast: 1 });
+  assert.deepEqual(cost, { 'gpt-image': 16, ideogram: 13, 'flux-3': 10, 'nano-banana': 7, 'seedream-5': 7, 'recraft-41': 8, 'flux-2-pro': 7, grok: 4, fast: 1 });
   for (const m of IMAGE_MODELS) assert.ok(m.cost * CREDIT_USD >= m.usd - 1e-9, m.id);
 });
 
@@ -25,9 +25,11 @@ test('the six prices that were not verified are marked, and charged 15% above th
   assert.deepEqual(approx, ['ideogram', 'flux-3', 'nano-banana', 'recraft-41', 'flux-2-pro', 'omni']);
   for (const m of IMAGE_MODELS) assert.equal(m.usd, Math.round(m.listUsd * (m.approx ? 1.15 : 1) * 10000) / 10000, m.id);
   const rows = modelRows();
-  assert.equal(rows.length, 19);
+  assert.equal(rows.filter((r) => !r.tool).length, 18);
+  assert.equal(rows.filter((r) => r.tool).length, 7); // the models behind the tools are watched too
   assert.equal(rows.filter((r) => r.approx).length, 6);
-  for (const r of rows) assert.ok(r.src && r.slug && r.inputs.length >= 1, r.id);
+  for (const r of rows.filter((x) => !x.tool)) assert.ok(r.src && r.slug && r.inputs.length >= 1, r.id);
+  assert.equal(new Set(rows.map((r) => r.slug)).size >= 24, true);
 });
 
 test('GPT Image always runs at medium quality, whatever is asked', () => {

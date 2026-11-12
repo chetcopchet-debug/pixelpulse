@@ -6,7 +6,9 @@ import { MODEL_TIERS, VIDEO_TIERS, PREMIUM, GUIDED } from '../lib/models.js';
 import { videoQuote, VIDEO_PRICING } from '../lib/videoPricing.js';
 
 test('every image model shown has the server price', () => {
-  assert.ok(imageModels.length >= 10);
+  assert.equal(imageModels.length, 9);
+  assert.ok(!imageModels.some((m) => m.id === 'imagen-ultra')); // Google switched Imagen off
+  assert.equal(madeWith('imagen-ultra'), 'Imagen 4 Ultra'); // old items keep the name
   for (const m of imageModels) {
     assert.ok(MODEL_TIERS[m.id], `server knows ${m.id}`);
     assert.equal(m.cost, MODEL_TIERS[m.id].cost, `${m.id} price`);

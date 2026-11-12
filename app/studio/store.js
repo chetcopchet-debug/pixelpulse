@@ -1,6 +1,6 @@
 "use client";
 // All state and server calls for the studio. The screens only read from here and call these actions.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
 import { autoPick } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
@@ -62,6 +62,14 @@ export function useStudio() {
   const [uploading, setUploading] = useState(false);
 
   const walletRef = useRef(wallet); walletRef.current = wallet;
+  // Models their provider has switched off (the server tells us). They are hidden everywhere and never chosen.
+  const off = useMemo(() => new Set(wallet.off || []), [wallet.off]);
+  useEffect(() => {
+    if (!off.size) return;
+    if (off.has(imgModel)) setImgModelRaw((imageModels.find((m) => m.id === "fast" && !off.has(m.id)) || imageModels.find((m) => !off.has(m.id)) || { id: "fast" }).id);
+    if (off.has(vidModel)) setVidModelRaw((videoModels.find((m) => m.id === "veo-lite" && !off.has(m.id)) || videoModels.find((m) => !off.has(m.id)) || { id: "veo-lite" }).id);
+    if (compare.some((id) => off.has(id))) setCompare(compare.filter((id) => !off.has(id)));
+  }, [off, imgModel, vidModel, compare]);
   const runsRef = useRef(runs); runsRef.current = runs;
   const toastTimer = useRef(null);
   const say = useCallback((msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 3200); }, []);
@@ -69,6 +77,7 @@ export function useStudio() {
   // ---- wallet ----
   const sync = useCallback((d) => {
     if (!d) return;
+    if (d.modelOff) setWallet((w) => ({ ...w, off: [...new Set([...(w.off || []), d.modelOff])] })); // the server just learned this model is gone
     setWallet((w) => ({ ...w, ...(d.admin ? { admin: true } : typeof d.credits === "number" ? { free: d.credits } : {}), ...(typeof d.paid === "number" ? { paid: d.paid } : {}) }));
   }, []);
   const refreshWallet = useCallback(async () => {
@@ -81,6 +90,7 @@ export function useStudio() {
       guest: d.admin ? false : "guest" in d ? Boolean(d.guest) : !d.account,
       paid: typeof d.paid === "number" ? d.paid : w.paid,
       plans: Array.isArray(d.plans) ? d.plans : w.plans, payments: Boolean(d.payments), purchased: Boolean(d.purchased),
+      off: Array.isArray(d.off) ? d.off : w.off,
     }));
     return d;
   }, []);
@@ -349,7 +359,7 @@ export function useStudio() {
     }
     if (!text) { say("Describe the image first."); return; }
     if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
-    const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current) : null;
+    const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
     if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick) })) setPrompt("");
   }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, startVideo, startImage, startCompare, say, needAccount]);
 
@@ -604,7 +614,7 @@ export function useStudio() {
   return {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
-    projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
+    off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
