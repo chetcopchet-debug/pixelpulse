@@ -16,39 +16,32 @@ if (process.env.VERCEL_ENV === 'preview' && process.env.REPLICATE_API_TOKEN) {
 if (process.env.VERCEL_ENV === 'preview' && process.env.REPLICATE_API_TOKEN) {
   const H = { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`, 'Content-Type': 'application/json' };
   const j = async (url, init) => { try { const r = await fetch(url, { headers: H, ...init }); return { status: r.status, body: await r.json().catch(() => ({})) }; } catch (e) { return { status: 0, body: { detail: String(e) } }; } };
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
-    // 1. Which models take a mask (edit only a marked area)?
-    const slugs = ['black-forest-labs/flux-fill-pro', 'black-forest-labs/flux-fill-dev', 'black-forest-labs/flux-2-fill-pro', 'black-forest-labs/flux-2-fill', 'black-forest-labs/flux-3-fill', 'black-forest-labs/flux-2-pro', 'black-forest-labs/flux-3-image', 'black-forest-labs/flux-kontext-max',
-      'ideogram-ai/ideogram-4-5', 'ideogram-ai/ideogram-v3-quality', 'ideogram-ai/ideogram-v3-turbo', 'openai/gpt-image-2.6-sunburst', 'google/nano-banana-2.1', 'bytedance/seedream-5-lite', 'recraft-ai/recraft-v4.1', 'xai/grok-imagine-image', 'qwen/qwen-image-edit-plus'];
-    for (const s of slugs) {
-      const r = await j(`https://api.replicate.com/v1/models/${s}`);
-      const props = r.body?.latest_version?.openapi_schema?.components?.schemas?.Input?.properties || {};
-      const names = Object.keys(props);
-      const pick = names.filter((n) => /mask|image|inpaint|outpaint|guidance|steps|strength/i.test(n)).map((n) => `${n}${props[n].default !== undefined ? '=' + JSON.stringify(props[n].default) : ''}${props[n].minimum !== undefined ? `[${props[n].minimum}..${props[n].maximum}]` : ''}`);
-      console.log(`[area] ${s} :: ${r.status} runs=${r.body?.run_count ?? '-'} mask=${names.some((n) => /mask/i.test(n))} :: ${pick.join(' ')}`.slice(0, 600));
-    }
-    // 2. Replicate's own collections about editing and inpainting.
-    const cols = await j('https://api.replicate.com/v1/collections');
-    for (const c of (cols.body?.results || []).filter((c) => /inpaint|edit|fill/i.test(`${c.slug} ${c.name}`))) {
-      const d = await j(`https://api.replicate.com/v1/collections/${c.slug}`);
-      const ms = (d.body?.models || []).filter((m) => /inpaint|fill|mask/i.test(`${m.name} ${m.description}`)).sort((a, b) => (b.run_count || 0) - (a.run_count || 0)).slice(0, 14);
-      console.log(`[area] collection ${c.slug}: ${ms.map((m) => `${m.owner}/${m.name}(${m.run_count})`).join(' ')}`.slice(0, 900));
-    }
-    // 3. The translator: does it answer in time, and what does it return for Hebrew?
-    for (const text of ['חתול ירוק יושב על ספה אדומה', 'כובע קש עם סרט כחול']) {
+    // 1. Which language model translates a Hebrew prompt correctly? ("straw hat", "sunset on the beach", a quoted sign that must stay Hebrew)
+    const system = 'You translate prompts for an AI image generator into precise, descriptive English. Keep every detail; do not add new ideas. Any text in double quotes must stay EXACTLY as written, in its original language. Output only the English prompt, no notes.';
+    const text = 'כובע קש עם סרט כחול מונח על שולחן עץ בחוף הים בשקיעה, לידו שלט שכתוב עליו "ברוכים הבאים"';
+    for (const s of ['openai/gpt-4o-mini', 'openai/gpt-4.1-mini', 'openai/gpt-4.1-nano', 'openai/gpt-5-nano', 'openai/gpt-5-mini', 'anthropic/claude-4.5-haiku', 'anthropic/claude-3.5-haiku', 'google/gemini-2.5-flash', 'google/gemini-3-flash', 'meta/meta-llama-3-70b-instruct', 'meta/meta-llama-3-8b-instruct']) {
+      const m = await j(`https://api.replicate.com/v1/models/${s}`);
+      const props = Object.keys(m.body?.latest_version?.openapi_schema?.components?.schemas?.Input?.properties || {});
+      if (m.status !== 200) { console.log(`[tr] ${s} :: ${m.status}`); continue; }
       const t0 = Date.now();
-      const r = await j('https://api.replicate.com/v1/models/meta/meta-llama-3-8b-instruct/predictions', { method: 'POST', headers: { ...H, Prefer: 'wait=4' }, body: JSON.stringify({ input: { system_prompt: 'You translate prompts for an AI image generator into precise, descriptive English. Output only the English prompt, no notes.', prompt: text, max_tokens: 600, temperature: 0.1 } }) });
-      console.log(`[translate] ${r.status} ${r.body?.status || ''} ${Date.now() - t0}ms :: ${JSON.stringify(Array.isArray(r.body?.output) ? r.body.output.join('') : r.body?.output || r.body?.detail || '').slice(0, 200)}`);
-      const m = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=he|en`).then((x) => x.json()).catch((e) => ({ err: String(e) }));
-      console.log(`[translate] free: ${JSON.stringify(m?.responseData?.translatedText || m).slice(0, 160)}`);
-      await new Promise((r) => setTimeout(r, 11000));
+      let r = await j(`https://api.replicate.com/v1/models/${s}/predictions`, { method: 'POST', headers: { ...H, Prefer: 'wait=8' }, body: JSON.stringify({ input: { system_prompt: system, prompt: text } }) });
+      if (r.status === 429) { await pause(11000); r = await j(`https://api.replicate.com/v1/models/${s}/predictions`, { method: 'POST', headers: { ...H, Prefer: 'wait=8' }, body: JSON.stringify({ input: { system_prompt: system, prompt: text } }) }); }
+      const out = Array.isArray(r.body?.output) ? r.body.output.join('') : r.body?.output;
+      console.log(`[tr] ${s} :: ${r.status} ${r.body?.status || ''} ${Date.now() - t0}ms props=${props.join(',').slice(0, 160)} :: ${JSON.stringify(out || r.body?.detail || r.body?.error || '').slice(0, 300)}`);
+      await pause(10500);
     }
-    // 4. The two models the admin check could not read.
+    // 2. The two models the admin check could not read: what do they answer to an empty input?
     for (const s of ['wan-video/wan-2.2-t2v-fast', 'wan-video/wan-2.2-i2v-fast']) {
-      const r = await j(`https://api.replicate.com/v1/models/${s}/predictions`, { method: 'POST', body: JSON.stringify({ input: { __check__: '__check__', num_frames: -987, resolution: '__check__', aspect_ratio: '__check__' } }) });
+      const r = await j(`https://api.replicate.com/v1/models/${s}/predictions`, { method: 'POST', body: JSON.stringify({ input: {} }) });
       if (r.body?.urls?.cancel) await j(r.body.urls.cancel, { method: 'POST' });
-      console.log(`[health] ${s} :: ${r.status} ${r.body?.status || ''} ${JSON.stringify(r.body?.title || '')} ${JSON.stringify(r.body?.detail || r.body?.error || '').slice(0, 260)}`);
-      await new Promise((r) => setTimeout(r, 11000));
+      console.log(`[health] ${s} empty input :: ${r.status} ${r.body?.status || ''} ${JSON.stringify(r.body?.title || '')} ${JSON.stringify(r.body?.detail || r.body?.error || '').slice(0, 200)}`);
+      await pause(10500);
     }
-  } catch (e) { console.log('[area] skipped:', e?.message || e); }
+    // 3. How Ideogram 4.5 takes a mask.
+    const ig = await j('https://api.replicate.com/v1/models/ideogram-ai/ideogram-4-5');
+    const ip = ig.body?.latest_version?.openapi_schema?.components?.schemas?.Input?.properties || {};
+    for (const k of ['mask', 'images', 'size', 'quality']) console.log(`[area] ideogram-4-5 ${k}: ${JSON.stringify(ip[k] || null).slice(0, 420)}`);
+  } catch (e) { console.log('[tr] skipped:', e?.message || e); }
 }

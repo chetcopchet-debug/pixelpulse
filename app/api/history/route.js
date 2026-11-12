@@ -8,7 +8,7 @@ export const fetchCache = 'force-no-store';
 // kind: upload | edit (sharpen/cutout/repaint -> png with remix_of, or guided) | created
 function kindOf(r) {
   if (r.model === 'upload' && !r.remix_of) return 'upload';
-  if (r.model === 'guided' || (r.remix_of && /\.png$/i.test(r.storage_path || ''))) return 'edit';
+  if (r.model === 'guided' || r.model === 'edit' || r.model === 'repaint' || (r.remix_of && /\.png$/i.test(r.storage_path || ''))) return 'edit';
   return 'created';
 }
 

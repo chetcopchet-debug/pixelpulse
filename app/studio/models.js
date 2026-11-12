@@ -57,6 +57,7 @@ export function madeWith(model) {
   if (id === "upload") return "Your upload";
   if (id === "guided") return "From a reference image";
   if (id === "edit") return "Edit with words";
+  if (id === "repaint") return "Edit an area";
   if (id === "animate") return "Animate";
   if (id === "facelock") return "Keep the face";
   if (id.startsWith("effect:")) return "Effect";
