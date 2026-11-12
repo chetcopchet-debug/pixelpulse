@@ -1,12 +1,16 @@
-// Preview builds only: ask Replicate whether every model we offer exists and accepts the inputs we send
-// (lib/modelCheck.js), and print the result in the build log. Nothing is generated, nothing is charged.
-// Never fails the build.
-if (process.env.VERCEL_ENV === 'preview' && process.env.REPLICATE_API_TOKEN) {
+// TEMPORARY diagnostic (preview builds only): how does Replicate describe a model its provider has discontinued?
+const token = process.env.REPLICATE_API_TOKEN;
+const H = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+const strip = (o) => JSON.stringify(o, (k, v) => (k === 'openapi_schema' || k === 'default_example' || k === 'cover_image_url' || k === 'description' ? undefined : v)).slice(0, 900);
+async function look(id) {
   try {
-    const { liveCheck } = await import('../lib/modelCheck.js');
-    const rows = await liveCheck();
-    const bad = rows.filter((r) => r.ok !== true);
-    console.log(`[models] ${rows.length} checked against Replicate, ${rows.length - bad.length} fine, ${bad.length} with a problem; ${rows.reduce((n, r) => n + r.inputs.length, 0)} inputs tried`);
-    for (const r of bad) console.log(`[models] PROBLEM ${r.slug}: ${r.problems.join(' | ')}`);
-  } catch (e) { console.log('[models] check skipped:', e?.message || e); }
+    const m = await (await fetch(`https://api.replicate.com/v1/models/${id}`, { headers: H })).json();
+    console.log(`[diag] ${id} model :: ${strip(m)}`);
+    const sch = m.latest_version?.openapi_schema || {};
+    console.log(`[diag] ${id} schema-meta :: ${JSON.stringify({ info: sch.info, keys: Object.keys(sch), xkeys: Object.keys(sch).filter((k) => k.startsWith('x-')), inputKeys: Object.keys(sch.components?.schemas?.Input || {}) }).slice(0, 600)}`);
+    // An input that can never be valid: the answer shows whether Replicate would accept runs at all. Nothing is generated.
+    const r = await fetch(`https://api.replicate.com/v1/models/${id}/predictions`, { method: 'POST', headers: H, body: JSON.stringify({ input: { aspect_ratio: '__check__', __not_an_input__: true } }) });
+    console.log(`[diag] ${id} probe :: ${r.status} ${(await r.text()).slice(0, 400)}`);
+  } catch (e) { console.log(`[diag] ${id} error ${e?.message}`); }
 }
+if (process.env.VERCEL_ENV === 'preview' && token) { await look('google/imagen-4-ultra'); await look('black-forest-labs/flux-schnell'); }
