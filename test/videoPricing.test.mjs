@@ -19,7 +19,6 @@ test('prices agreed with the owner (5 s unless noted)', () => {
   assert.equal(c('veo', 4, '720p'), 110);
   assert.equal(c('kling-4-flash', 5, '720p'), 85);
   assert.equal(c('grok-video', 5, '720p'), 45);
-  assert.equal(c('veo-lite', 4, '720p'), 36);
   assert.equal(c('h3-lite', 5, '768p'), 36);
   assert.equal(c('wan', 5, '480p'), 10);
 });
@@ -31,8 +30,8 @@ test('a price that was not verified on Replicate carries 15% on top', () => {
   assert.equal(Object.values(VIDEO_PRICING).filter((p) => p.approx).length, 1);
 });
 test('server rejects combos the model does not support', () => {
-  assert.equal(videoQuote('veo-lite', 4, '1080p'), null); // Veo Lite makes 1080p only at 8 s
-  assert.equal(videoQuote('veo-lite', 8, '1080p').cost, 115);
+  assert.equal(videoQuote('veo-lite', 4, '720p'), null); // switched off by Google, no longer offered
+  assert.equal(videoQuote('h3-lite', 5, '1080p'), null);
   assert.equal(videoQuote('veo', 5, '720p'), null);
   assert.equal(videoQuote('wan', 5, '1080p'), null);
   assert.equal(videoQuote('nope', 5, '720p'), null);
