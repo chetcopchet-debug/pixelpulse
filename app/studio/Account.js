@@ -1,7 +1,7 @@
 "use client";
 import Icon from "./icons";
 import { Brand } from "./bits";
-import { FREE_DAILY } from "./store";
+import { FREE_DAILY, BUILD } from "./store";
 
 const LINKS = [["Prices", "/pricing"], ["Terms", "/terms"], ["Privacy", "/privacy"], ["Refunds", "/refund-policy"], ["Content policy", "/content-policy"], ["Contact", "/contact"]];
 const THEMES = [["dark", "Dark"], ["light", "Light"], ["auto", "Match device"]];
@@ -86,6 +86,7 @@ export default function Account({ s }) {
         <div className="card">
           {LINKS.map(([t, h]) => <a key={h} className="lrow" href={h}><span className="grow">{t}</span><Icon name="right" style={{ color: "var(--text-3)" }} /></a>)}
         </div>
+        <p className="sm t3 num" style={{ marginTop: 20, textAlign: "center" }}>Version {BUILD}</p>
       </div>
     </div>
   );

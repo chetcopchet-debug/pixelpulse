@@ -43,6 +43,7 @@ export default function Studio() {
       {sh?.type === "ideas" ? <IdeasSheet s={s} onClose={close} /> : null}
       {sh?.type === "project" ? <ProjectSheet s={s} mode={sh.mode} item={sh.item} id={sh.id} onClose={close} /> : null}
 
+      {s.newer ? <div className="newer" role="status"><span>A newer version of the site is ready.</span><button onClick={() => window.location.reload()}>Reload</button></div> : null}
       {s.toast ? <div className="toast" role="status">{s.toast}</div> : null}
     </div>
   );

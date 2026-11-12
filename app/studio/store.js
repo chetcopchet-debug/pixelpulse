@@ -30,6 +30,7 @@ const okItem = (x) => x && typeof x.id === "string" && typeof x.url === "string"
 const trim = (rs) => { const done = rs.filter((r) => r.status === "done"); const old = new Set(done.slice(0, Math.max(0, done.length - 4)).map((r) => r.key)); return rs.filter((r) => !old.has(r.key)); };
 const LOST_MSG = "This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.";
 
+export const BUILD = process.env.NEXT_PUBLIC_BUILD || "dev"; // which build this page is
 export const FREE_DAILY = 10;
 const SIGN_UP_REASON = `Sign up or sign in to create. You get ${FREE_DAILY} free credits every day.`;
 
@@ -68,6 +69,7 @@ export function useStudio() {
   const [sheet, setSheet] = useState(null);
   const [area, setArea] = useState(null); // the image whose marked part is being changed
   const [toast, setToast] = useState("");
+  const [newer, setNewer] = useState(false); // the site has a newer build than the page on screen
   const [theme, setThemeRaw] = useState("dark");
   const [busyTool, setBusyTool] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -625,6 +627,30 @@ export function useStudio() {
     return () => clearInterval(t);
   }, [hasResumed, checkPending, addItem, patchRun, dropRun, loadLibrary, say]);
 
+  // ---- is this page the current build? ----
+  // A page left open keeps running the build it was loaded with. On coming back to it, ask the site which build
+  // is live. If it is a newer one: reload at once when nothing would be lost (nothing being made, nothing typed,
+  // nothing open), otherwise show a line with a Reload button. One automatic reload per build, never a loop.
+  const idleRef = useRef(true);
+  idleRef.current = !prompt.trim() && !sheet && !viewer && !area && !ref && !runs.some((r) => r.status === "running");
+  useEffect(() => {
+    if (BUILD === "dev") return;
+    let last = 0;
+    const check = async () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 30_000) return;
+      last = Date.now();
+      const d = await get("/api/version").then(json).catch(() => null);
+      if (!d?.build || d.build === "dev" || d.build === BUILD) return;
+      let tried = null; try { tried = sessionStorage.getItem("pp_reload"); } catch {}
+      if (idleRef.current && tried !== d.build) { try { sessionStorage.setItem("pp_reload", d.build); } catch {} window.location.reload(); return; }
+      setNewer(true);
+    };
+    check();
+    document.addEventListener("visibilitychange", check); window.addEventListener("focus", check);
+    const t = setInterval(check, 120_000);
+    return () => { document.removeEventListener("visibilitychange", check); window.removeEventListener("focus", check); clearInterval(t); };
+  }, []);
+
   // ---- first load ----
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
@@ -734,7 +760,7 @@ export function useStudio() {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
-    viewer, setViewer, sheet, setSheet, area, setArea, toast, say, theme, setTheme, busyTool, uploading,
+    viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
   };
