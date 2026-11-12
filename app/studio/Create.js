@@ -1,23 +1,33 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
+import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import Icon from "./icons";
 import { Price, Picture, Poster, Brand, Balance, useNow } from "./bits";
-import { imageModel, videoModel, videoPlan, TOOLS, comparePlan, stageOf } from "./models";
+import { imageModel, videoModel, videoPlan, TOOLS, comparePlan, stageOf, stageTime } from "./models";
+import { nextActions } from "./next";
 import { autoPick } from "./auto";
 import { fitBox, fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
 
+// Starting points for someone who has not made anything yet. The card shows a short title; a tap fills the
+// prompt box with the full text. The pictures are in public/ideas.
 const IDEAS = {
   image: [
-    "Paper-cut ocean waves at sunset, layered paper, soft shadows",
-    "A cozy cabin in falling snow, warm light in the windows",
-    "Product photo of a white sneaker on wet concrete, studio light",
+    { img: "aurora", title: "Aurora over a frozen lake", prompt: "Aurora over a frozen lake at night, mountains reflected in the ice, flat vector illustration in teal and navy" },
+    { img: "cabin", title: "A cozy cabin in falling snow", prompt: "A cozy cabin in falling snow, warm light in the windows, pine trees, full moon, flat illustration" },
+    { img: "sneaker", title: "Product photo of a sneaker", prompt: "Product photo of a white sneaker with iridescent panels on a wooden table, shallow depth of field, soft daylight" },
+    { img: "lighthouse", title: "A lighthouse in a storm", prompt: "A lighthouse in a storm at night, its beam cutting across dark waves, flat illustration, muted teal" },
+    { img: "neon", title: "Neon beach at night", prompt: "A lone figure on a beach at night, glowing pink sun on the horizon, neon reflections in the wet sand, synthwave" },
+    { img: "balloons", title: "Hot air balloons over a canyon", prompt: "Hot air balloons drifting over a red rock canyon at sunrise, layered paper-cut illustration, warm colors" },
   ],
   video: [
-    "Aurora over a frozen lake, the lights ripple and reflect on the ice",
-    "Hot air balloons drifting over a canyon at sunrise, slow camera move",
-    "Waves rolling onto a black sand beach, low angle, mist in the air",
+    { img: "aurora", title: "Aurora over a frozen lake", prompt: "Aurora over a frozen lake at night, the lights ripple slowly and reflect on the ice" },
+    { img: "balloons", title: "Balloons drifting over a canyon", prompt: "Hot air balloons drifting over a canyon at sunrise, slow camera move to the right" },
+    { img: "lighthouse", title: "A lighthouse in a storm", prompt: "Waves crashing around a lighthouse in a storm, the beam of light sweeps across the sea" },
+    { img: "cabin", title: "Snow falling on a cabin", prompt: "Snow falling on a cabin at night, smoke rising from the chimney, warm light in the windows" },
+    { img: "neon", title: "Neon beach at night", prompt: "A lone figure walks along a neon-lit beach at night, gentle waves, slow push in" },
+    { img: "sneaker", title: "A sneaker turning on a table", prompt: "A white sneaker slowly rotating on a wooden table, shallow depth of field, soft daylight" },
   ],
 };
 
@@ -58,17 +68,19 @@ function useKeyboard() {
   return frame;
 }
 
-const CAPTION = 60; // height kept for the words under the result
-const running = (r) => r.status === "running" || r.status === "late";
-function timeText(run, now) {
+const busyRun = (r) => r.status === "running" || r.status === "late";
+const elapsed = (run, now) => (now - run.t0) / 1000;
+const percent = (run, now) => Math.round(Math.min(96, Math.max(4, (elapsed(run, now) / (run.eta || 25)) * 100)));
+// An estimate, said as one: how long is left.
+function leftText(run, now) {
   if (run.status === "late") return "Still rendering";
-  const elapsed = (now - run.t0) / 1000;
-  if (run.kind !== "video") return elapsed > run.eta * 1.5 ? "Longer than usual" : "A few seconds";
-  const left = run.eta - elapsed;
-  return left > 75 ? `About ${Math.round(left / 60)} min` : left > 20 ? "Under a minute" : "Almost there";
+  const left = (run.eta || 25) - elapsed(run, now);
+  if (left > 90) return `About ${Math.round(left / 60)} minutes left`;
+  if (left > 1) return `About ${Math.ceil(left)} seconds left`;
+  return elapsed(run, now) > (run.eta || 25) * 1.5 ? "Taking longer than usual" : "Almost there";
 }
 
-// Everything still being made, and anything that failed: one slim line each, above the prompt box.
+// Other things still being made, and anything that failed: one slim line each, above the prompt box.
 function Jobs({ runs, s, now }) {
   if (!runs.length) return null;
   const shown = runs.slice(-3), more = runs.length - shown.length;
@@ -87,14 +99,13 @@ function Jobs({ runs, s, now }) {
           );
         }
         const parts = run.parts || [];
-        const pct = run.status === "late" ? 100 : Math.min(96, Math.max(4, ((now - run.t0) / 1000 / (run.eta || 25)) * 100));
         const sub = run.status === "late" ? "It will be in your Library when it's ready" : run.kind === "video" ? "You can close the site meanwhile" : run.kind === "compare" ? `${parts.filter((p) => p.status !== "running").length} of ${parts.length} ready` : run.prompt;
         return (
           <div key={run.key} className="job" role="status" aria-live="polite">
             {run.status === "late" ? <Icon name="timer" size={18} /> : <i className="spin" style={{ width: 16, height: 16 }} />}
             <p className="job-t"><span className="b clamp1">{run.label}</span>{sub ? <span className="t3 clamp1">{sub}</span> : null}</p>
-            <span className="job-r">{run.kind === "compare" ? "" : timeText(run, now)}</span>
-            {run.status === "late" ? <button className="job-x" aria-label="Dismiss" onClick={() => s.dropRun(run.key)}><Icon name="x" size={18} /></button> : <i className="job-bar" style={{ width: `${pct}%` }} />}
+            <span className="job-r">{run.kind === "compare" || run.status === "late" ? "" : leftText(run, now).replace(/ left$/, "")}</span>
+            {run.status === "late" ? <button className="job-x" aria-label="Dismiss" onClick={() => s.dropRun(run.key)}><Icon name="x" size={18} /></button> : <i className="job-bar" style={{ width: `${percent(run, now)}%` }} />}
           </div>
         );
       })}
@@ -102,101 +113,199 @@ function Jobs({ runs, s, now }) {
   );
 }
 
+// A circle that fills as the estimated time passes.
+function Ring({ pct }) {
+  const r = 50, c = 2 * Math.PI * r;
+  return (
+    <div className="ring" aria-hidden="true">
+      <svg viewBox="0 0 112 112"><circle cx="56" cy="56" r={r} /><circle cx="56" cy="56" r={r} className="on" strokeDasharray={`${(c * pct) / 100} ${c}`} /></svg>
+      <b className="d">{pct}%</b>
+    </div>
+  );
+}
+// What happens to a request, in order. The middle step is the one in progress for as long as the page waits.
+function Steps({ video, list }) {
+  const items = [["Sent", "done"], [video ? "Rendering" : "Generating", "now"], ["Saving", ""]];
+  if (list) {
+    return items.map(([t, st], i) => (
+      <div key={t} className={`act2 st ${st}`}><span className="sq"><Icon name={i === 0 ? "check" : i === 1 ? (video ? "video" : "image") : "library"} /></span><span className="grow b">{i === 2 ? "Saving to your Library" : t}</span></div>
+    ));
+  }
+  return <div className="steps2">{items.map(([t, st]) => <span key={t} className={`step ${st}`}>{st === "done" ? <Icon name="check" size={14} /> : null}{t}</span>)}</div>;
+}
+
 // One setting in the desktop column: its name, its value, and a tap to change it.
 function Row({ name, value, onClick, label }) {
   return <button className="set-row" onClick={onClick} aria-label={label}><span className="t2">{name}</span><span className="b clamp1">{value}</span><Icon name="right" size={18} style={{ color: "var(--text-3)" }} /></button>;
 }
 
-// The words under the result: what was asked, which model made it, and saving it.
-function Caption({ run, item, right, width }) {
-  const [saving, setSaving] = useState(false);
-  const save = async () => { if (saving || !item) return; setSaving(true); await download(item); setSaving(false); };
+// The viewing window: which model and shape on top, the picture in the middle, the words that made it below.
+function Window({ run, right, body, foot, fill }) {
   return (
-    <div className="cap" style={width ? { maxWidth: Math.max(360, width) } : undefined}>
-      <div className="grow" style={{ minWidth: 0 }}>
-        {run.prompt ? <p className="cap-p">{run.prompt}</p> : null}
-        <p className="sm t2 b clamp1">{run.label}{run.kind !== "video" && run.ratio ? `, ${run.ratio}` : ""}</p>
+    <div className={`vw${fill ? " fill" : ""}`}>
+      <div className="vw-h">
+        <span className="vtag clamp1">{run.label}</span>
+        {run.kind !== "video" && run.ratio ? <span className="vtag">{run.ratio}</span> : null}
+        <span className="grow" />
+        {right}
       </div>
-      {right}
-      {item ? <button className="ib f" aria-label="Download" onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button> : null}
+      <div className="vw-b">{body}</div>
+      <div className="vw-f">{foot}</div>
     </div>
   );
 }
 
-// The one large thing on the screen: the latest result, or the comparison that is being made now.
-function Stage({ run, wait, s, now, video, onIdea, pad }) {
+// Everything between the top bar and the prompt box: the window with the latest result (or with what is being
+// made right now), the "What next" actions, or, before anything was made, pictures to start from.
+function Stage({ run, wait, back, s, now, video, wide, onIdea }) {
   const ref = useRef(null);
   const size = useSize(ref);
   const [real, setReal] = useState({}); // the true shape of a picture, once it has loaded
-  const w = size.w, h = size.h - (run ? CAPTION : 0); // the room for the picture itself: the words under it need theirs
-  const tiny = h < 90;
+  const [saving, setSaving] = useState(false);
+  const item = !wait && run && run.kind !== "compare" ? run.item : null;
+  const canAct = Boolean(item && !item.video && item.id);
+  const acts = canAct ? nextActions(s, item) : [];
 
-  let body = null, caption = null;
-  if (run && run.kind === "compare") {
+  // Room for the picture itself, after the window's own top and bottom rows and what sits under the window.
+  const FRAME = wide ? 40 + 28 + 44 + 10 + 10 + 48 : 2 + 20 + 44 + 10 + 10 + 44;
+  let under = wide ? 0 : wait ? 88 : canAct ? 128 : 0;
+  const w = size.w - (wide ? 40 + 28 : 24 + 20);
+  let h = size.h - FRAME - under;
+  if (!wide && canAct && h < 200) { h += under; under = 0; } // a short screen: the picture comes first
+  const tiny = h < 80;
+
+  const save = async () => { if (saving || !item) return; setSaving(true); await download(item); setSaving(false); };
+  const copy = async (text) => { try { await navigator.clipboard.writeText(text || ""); s.say("Prompt copied"); } catch { s.say("Couldn't copy. Select the text instead."); } };
+
+  // The glow behind the window: the picture itself, blurred until only its colors are left.
+  const glowOf = (r) => { const it = r?.kind === "compare" ? r.parts.find((p) => p.item)?.item : r?.item; return it ? (it.video ? posterUrl(it.url) : thumbUrl(it.url)) : null; };
+  const glow = wait ? glowOf(back) : run ? glowOf(run) : `/ideas/${IDEAS[video ? "video" : "image"][0].img}.webp`;
+
+  let main = null, side = null;
+  if (wait) {
+    const box = fitBox(ratioOf(wait.ratio), w, h);
+    const vid = wait.kind === "video";
+    main = box && !tiny ? (
+      <>
+        <Window run={wait} fill={wide} right={<span className="sm b t2" style={{ padding: "0 8px" }}>{vid ? "Rendering" : "Generating"}</span>}
+          body={<div className="skel2" style={{ width: box.w, height: box.h }} role="status" aria-live="polite" aria-label={`${wait.label}: ${leftText(wait, now)}`}>
+            {wait.poster ? <Picture src={wait.poster} eager /> : null}
+            <div className="skel2-in">{box.h >= 170 ? <Ring pct={percent(wait, now)} /> : <b className="d" style={{ fontSize: 26 }}>{percent(wait, now)}%</b>}<p className="b">{leftText(wait, now)}</p></div>
+          </div>}
+          foot={<p className="grow clamp1 t2">{wait.prompt || (vid ? "Animating your image" : "")}</p>} />
+        {!wide && under ? <div className="next2"><h3>{vid ? "You can close the site. It saves to your Library." : "You can keep writing. It saves to your Library."}</h3><Steps video={vid} /></div> : null}
+      </>
+    ) : null;
+    side = (
+      <aside className="rightcol">
+        <h3>In progress</h3>
+        <Steps video={vid} list />
+        <p className="sm t3" style={{ margin: "8px 4px" }}>{vid && wait.cost && !s.wallet.admin ? `${wait.cost} credits are held and come back if the video fails. ` : ""}You can close the site. It is saved to your Library when it is ready.</p>
+      </aside>
+    );
+  } else if (run && run.kind === "compare") {
     const ar = ratioOf(run.ratio);
-    const g = fitGrid(run.parts.length, ar, w - (pad ? 24 : 0), h);
-    body = g && !tiny ? (
-      <div className="cmp2" style={{ gridTemplateColumns: `repeat(${g.cols}, ${g.cw}px)` }}>
-        {run.parts.map((p) => {
-          const pct = Math.min(96, Math.max(4, ((now - p.t0) / 1000 / p.eta) * 100));
-          const box = { width: g.cw, height: Math.floor(g.cw / ar) };
-          return (
-            <div key={p.id}>
-              {p.status === "done" ? (
-                <button className="tile" style={box} onClick={() => s.setViewer({ item: p.item })} aria-label={`Open the ${p.name} image`}>
-                  <img className="fadein" src={p.item.url} alt={`${p.name}: ${run.prompt || ""}`} decoding="async" />
-                </button>
-              ) : p.status === "failed" ? (
-                <div className="tile cmp-f" style={box}>
-                  <p className="sm clamp3">{p.error}</p>
-                  {run.again ? <button className="btn btn-s" style={{ height: 40 }} onClick={() => s.retryPart(run, p.id)}><Icon name="refresh" size={16} />Try again</button> : null}
-                </div>
-              ) : (
-                <div className="tile" style={box} role="status" aria-live="polite" aria-label={`${p.name}: generating`}>
-                  <div className="wait"><p className="b sm">Generating</p><div className="bar"><i style={{ width: `${pct}%` }} /></div></div>
-                </div>
-              )}
-              <div className="cmp-l"><span className="clamp1">{p.name}</span>{p.unsaved ? <span className="sm t3">Not saved</span> : <Price n={p.cost} />}</div>
-            </div>
-          );
-        })}
-      </div>
+    const g = fitGrid(run.parts.length, ar, w, h);
+    main = g && !tiny ? (
+      <Window run={run} fill={wide} right={run.cost ? <span style={{ padding: "0 8px" }}><Price n={run.cost} /></span> : null}
+        body={<div className="cmp2" style={{ gridTemplateColumns: `repeat(${g.cols}, ${g.cw}px)` }}>
+          {run.parts.map((p) => {
+            const box = { width: g.cw, height: Math.floor(g.cw / ar) };
+            return (
+              <div key={p.id}>
+                {p.status === "done" ? (
+                  <button className="tile" style={box} onClick={() => s.setViewer({ item: p.item })} aria-label={`Open the ${p.name} image`}>
+                    <img className="fadein" src={p.item.url} alt={`${p.name}: ${run.prompt || ""}`} decoding="async" />
+                  </button>
+                ) : p.status === "failed" ? (
+                  <div className="tile cmp-f" style={box}>
+                    <p className="sm clamp3">{p.error}</p>
+                    {run.again ? <button className="btn btn-s" style={{ height: 40 }} onClick={() => s.retryPart(run, p.id)}><Icon name="refresh" size={16} />Try again</button> : null}
+                  </div>
+                ) : (
+                  <div className="tile" style={box} role="status" aria-live="polite" aria-label={`${p.name}: generating`}>
+                    <div className="wait"><p className="b sm">{percent(p, now)}%</p><div className="bar"><i style={{ width: `${percent(p, now)}%` }} /></div></div>
+                  </div>
+                )}
+                <div className="cmp-l"><span className="clamp1">{p.name}</span>{p.unsaved ? <span className="sm t3">Not saved</span> : <Price n={p.cost} />}</div>
+              </div>
+            );
+          })}
+        </div>}
+        foot={<><p className="grow clamp1">{run.prompt}</p><button className="ib" aria-label="Copy the prompt" onClick={() => copy(run.prompt)}><Icon name="copy" size={18} /></button></>} />
     ) : null;
-    caption = <Caption run={run} right={run.cost ? <Price n={run.cost} /> : null} width={!pad && g ? g.cols * g.cw + (g.cols - 1) * 8 : 0} />;
   } else if (run) {
-    const item = run.item;
     const box = fitBox(real[item.url] || ratioOf(item.ratio || run.ratio), w, h);
-    body = box && !tiny ? (
-      <button className="shot2" style={{ width: box.w, height: box.h }} onClick={() => s.setViewer({ item })} aria-label={item.video ? "Open video" : "Open image"}>
-        {item.video
-          ? <><Poster item={item} version={s.posters[item.id]} /><span className="play"><Icon name="play" size={22} /></span></>
-          : <img key={item.url} className="fadein" src={item.url} alt={run.prompt || ""} decoding="async"
-              onLoad={(e) => { const t = e.currentTarget; if (t.naturalWidth && t.naturalHeight) setReal((p) => ({ ...p, [item.url]: t.naturalWidth / t.naturalHeight })); }}
-              onError={() => { if (run.past) s.dropRun(run.key); }} />}
-      </button>
+    const fav = item.id && s.favs.has(item.id);
+    main = box && !tiny ? (
+      <>
+        <Window run={run} fill={wide}
+          right={<>
+            {item.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? "Remove from favorites" : "Add to favorites"} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : undefined} /></button> : null}
+            <button className="ib" aria-label="Download" onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button>
+          </>}
+          body={<button className="shot2" style={{ width: box.w, height: box.h }} onClick={() => s.setViewer({ item })} aria-label={item.video ? "Open video" : "Open image"}>
+            {item.video
+              ? <><Poster item={item} version={s.posters[item.id]} /><span className="play"><Icon name="play" size={22} /></span></>
+              : <img key={item.url} className="fadein" src={item.url} alt={run.prompt || ""} decoding="async"
+                  onLoad={(e) => { const t = e.currentTarget; if (t.naturalWidth && t.naturalHeight) setReal((p) => ({ ...p, [item.url]: t.naturalWidth / t.naturalHeight })); }}
+                  onError={() => { if (run.past) s.dropRun(run.key); }} />}
+          </button>}
+          foot={run.unsaved
+            ? <p className="grow sm"><Icon name="alert" size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />Not saved to your Library. Download it now to keep it.</p>
+            : <><p className="grow clamp1">{run.prompt || (item.video ? "Video" : "Image")}</p>{run.prompt ? <button className="ib" aria-label="Copy the prompt" onClick={() => copy(run.prompt)}><Icon name="copy" size={18} /></button> : null}</>} />
+        {!wide && under ? (
+          <div className="next2">
+            <h3>What next</h3>
+            <div className="ncards">
+              {acts.map((a) => (
+                <button key={a.key} className="ncard" onClick={a.run} disabled={Boolean(s.busyTool)}>
+                  <span className="r" style={{ justifyContent: "space-between" }}>{s.busyTool === a.key ? <i className="spin" /> : <Icon name={a.icon} />}<Price n={a.cost} /></span>
+                  <span>{s.busyTool === a.key ? "Working" : a.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </>
     ) : null;
-    caption = <Caption run={run} item={item} width={!pad && box ? box.w : 0} />;
-  } else if (wait) {
-    // Nothing made yet and the first one is on its way: hold its place.
-    const box = fitBox(ratioOf(wait.ratio), Math.min(w, 560), h);
-    body = box && !tiny ? <div className="shot2" style={{ width: box.w, height: box.h }}><div className="wait"><p className="b">{wait.kind === "video" ? "Your video will appear here" : "Your image will appear here"}</p></div></div> : null;
-  } else {
-    body = tiny ? null : (
-      <div className="empty">
-        <h1 className="d h1">{video ? "What should the video show?" : "What do you want to make?"}</h1>
-        <p className="t2" style={{ marginBottom: 6 }}>Write it in your own words, or start from one of these.</p>
-        {IDEAS[video ? "video" : "image"].map((t) => (
-          <button key={t} className="idea" onClick={() => onIdea(t)}><span className="grow">{t}</span><Icon name="right" style={{ color: "var(--text-3)" }} /></button>
+    side = canAct ? (
+      <aside className="rightcol">
+        <h3>What next</h3>
+        {acts.map((a) => (
+          <button key={a.key} className="act2" onClick={a.run} disabled={Boolean(s.busyTool)}>
+            <span className="sq">{s.busyTool === a.key ? <i className="spin" /> : <Icon name={a.icon} />}</span>
+            <span className="grow"><span className="b">{s.busyTool === a.key ? "Working" : a.label}</span><span className="sm t3">{a.hint}</span></span>
+            <Price n={a.cost} />
+          </button>
         ))}
+      </aside>
+    ) : null;
+  } else {
+    const list = IDEAS[video ? "video" : "image"];
+    main = size.h < 150 ? null : (
+      <div className="start">
+        <div className="start-h">
+          <h1 className="d">{video ? "What should the video show?" : "What do you want to make?"}</h1>
+          <p className="t2">Write it {wide ? "on the left" : "below"}, or start from one of these.</p>
+        </div>
+        <div className="ideas">
+          {list.map((x) => (
+            <button key={x.img} className="idea2" onClick={() => onIdea(x.prompt)} aria-label={`Use this idea: ${x.title}`}>
+              <img src={`/ideas/${x.img}.webp`} alt="" loading="lazy" decoding="async" />
+              <span>{x.title}</span>
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
   return (
-    <section className="stage2" aria-label="Latest result" ref={ref}>
-      <div className={`stage2-fit${!run && !wait ? " scroll" : ""}`}>{body}</div>
-      {caption && !tiny ? caption : null}
-      {run?.unsaved && !tiny ? <p className="note pad"><Icon name="alert" size={16} />This image couldn't be saved to your Library. Download it now to keep it.</p> : null}
-    </section>
+    <>
+      {glow ? <div className={`amb${wait ? " dim" : ""}`} style={{ backgroundImage: `url("${glow}")` }} aria-hidden="true" /> : null}
+      <section className={`stage2${!run && !wait ? " scroll" : ""}`} aria-label="Latest result" ref={ref}>{main}</section>
+      {wide ? side : null}
+    </>
   );
 }
 
@@ -205,14 +314,18 @@ export default function Create({ s }) {
   const wide = useWide();
   const keyboard = useKeyboard();
   const fileRef = useRef(null), textRef = useRef(null);
-  const now = useNow(s.runs.some(running));
+  const now = useNow(s.runs.some(busyRun));
 
   // The prompt box grows with the text: up to six lines on a phone, more room on a wide screen.
-  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [44, 132]; el.style.height = "auto"; el.style.height = `${Math.min(hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide]);
+  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, 110]; el.style.height = "auto"; el.style.height = `${Math.min(hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide]);
 
+  // The window shows the newest thing: an image or video being made right now, or else the latest result.
+  // (A comparison is its own result from the moment it starts.) Everything else in progress, and anything that
+  // failed, is a slim line above the prompt box.
   const stage = stageOf(s.runs);
-  const jobs = s.runs.filter((r) => r !== stage && r.status !== "done");
-  const wait = stage ? null : [...s.runs].reverse().find(running) || null;
+  const making = [...s.runs].reverse().find((r) => r.kind !== "compare" && r.status === "running") || null;
+  const wait = making && (!stage || making.t0 >= stageTime(stage)) ? making : null;
+  const jobs = s.runs.filter((r) => r !== stage && r !== wait && r.status !== "done");
 
   const vm = videoModel(s.vidModel);
   const plan = video ? videoPlan(vm.id, s.vDur, s.vRes, s.ratio) : null;
@@ -274,14 +387,15 @@ export default function Create({ s }) {
     </button>
   );
   const file = <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) s.upload(f); }} />;
-  const stageEl = <Stage run={stage} wait={wait} s={s} now={now} video={video} pad={!wide} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
+  const short = s.ref ? (video ? "Animate" : "Generate") : cmp ? `Compare ${cmp.models.length}` : "Generate";
+  const stageEl = <Stage run={wait ? null : stage} wait={wait} back={stage} s={s} now={now} video={video} wide={wide} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
 
   if (wide) {
     // Desktop: settings in a column on the left, the result large in the rest of the window.
     return (
       <div className="create wide">
         <aside className="panel" aria-label="What to make">
-          <div className="panel-top"><Brand wordmark /></div>
+          <div className="panel-top"><Brand wordmark /><Balance s={s} /></div>
           <div className="panel-body">
             {mode}
             <div className="field2">{text}</div>
@@ -307,10 +421,7 @@ export default function Create({ s }) {
             <p className="sm t3" style={{ textAlign: "center" }}>Ctrl + Enter to generate</p>
           </div>
         </aside>
-        <main className="canvas">
-          <header className="canvas-top"><Balance s={s} /></header>
-          {stageEl}
-        </main>
+        <main className="canvas">{stageEl}</main>
         {file}
       </div>
     );
@@ -327,39 +438,39 @@ export default function Create({ s }) {
       {stageEl}
       <div className="dock2">
         <Jobs runs={jobs} s={s} now={now} />
-        <div className="composer">
+        <div className="composer mini2">
           {tags}
           {refcard}
-          {text}
-          <div className="chips">
-            <button className="chip-tap" aria-label={s.uploading ? "Uploading" : video ? "Add a start frame" : "Add a reference image"} disabled={s.uploading} onClick={pickFile}>
-              <span className="chip">{s.uploading ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="plus" size={18} />}</span>
-            </button>
-            {s.ref ? (
-              <span className="sm t2 b" style={{ whiteSpace: "nowrap", padding: "0 4px" }}>{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span>
-            ) : (
-              <>
-                <button className="chip-tap" onClick={() => s.setSheet({ type: "models" })} aria-label={modelLabel}>
-                  <span className="chip">{modelName}<Icon name="down" size={16} /></span>
-                </button>
-                {video ? (
-                  <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label="Length, quality and shape. Change">
-                    <span className="chip"><Icon name="timer" size={16} />{plan?.d} s</span>
-                    <span className="chip" style={{ marginLeft: 6 }}><Icon name="monitor" size={16} />{plan?.r}</span>
-                    <span className="chip" style={{ marginLeft: 6 }}><Icon name="ratio" size={16} />{plan?.ratio}</span>
-                  </button>
-                ) : (
-                  lockedRatio ? <span className="chip" style={{ background: "none", padding: "0 4px" }}><Icon name="ratio" size={16} />{lockedRatio}</span> : (
-                    <button className="chip-tap" onClick={() => s.setSheet({ type: "ratio" })} aria-label={`Shape: ${s.ratio}. Change`}>
-                      <span className="chip"><Icon name="ratio" size={16} />{s.ratio}</span>
-                    </button>
-                  )
-                )}
-              </>
-            )}
+          <div className="r" style={{ gap: 4, alignItems: "flex-start" }}>
+            {text}
+            <button className="plus" aria-label={s.uploading ? "Uploading" : video ? "Add a start frame" : "Add a reference image"} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
           </div>
           {autoline}
-          {go}
+          <div className="r" style={{ gap: 6 }}>
+            <div className="chips grow">
+              {s.ref ? (
+                <span className="sm t2 b" style={{ whiteSpace: "nowrap", padding: "0 4px" }}>{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span>
+              ) : (
+                <>
+                  <button className="chip-tap" onClick={() => s.setSheet({ type: "models" })} aria-label={modelLabel}>
+                    <span className="chip">{modelName}<Icon name="down" size={16} /></span>
+                  </button>
+                  {video ? (
+                    <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label="Length, quality and shape. Change">
+                      <span className="chip">{plan?.d} s, {plan?.r}, {plan?.ratio}</span>
+                    </button>
+                  ) : (
+                    lockedRatio ? <span className="chip" style={{ background: "none", padding: "0 4px" }}><Icon name="ratio" size={16} />{lockedRatio}</span> : (
+                      <button className="chip-tap" onClick={() => s.setSheet({ type: "ratio" })} aria-label={`Shape: ${s.ratio}. Change`}>
+                        <span className="chip"><Icon name="ratio" size={16} />{s.ratio}</span>
+                      </button>
+                    )
+                  )}
+                </>
+              )}
+            </div>
+            <button className="go2" onClick={s.generate} disabled={!canGo} aria-label={`${action}${cost ? `, ${cost} credits` : ""}`}><span>{short}</span>{cost ? <Price n={cost} /> : null}</button>
+          </div>
         </div>
       </div>
       {file}
