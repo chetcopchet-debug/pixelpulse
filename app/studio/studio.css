@@ -158,7 +158,6 @@ html:has(.pp) body { background: transparent !important; }
 .pp .shot3 > img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
 .pp .shot3 > .vph { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
 .pp .shot3.in { opacity: 1; animation: pp-reveal 1.3s cubic-bezier(.2, .7, .2, 1) both; }
-.pp .shot3.in.past { animation: pp-fade .4s ease both; }
 @keyframes pp-reveal { 0% { opacity: 0; filter: blur(30px); transform: scale(1.05); } 45% { opacity: 1; } 100% { opacity: 1; filter: blur(0); transform: scale(1); } }
 .pp .cap2 { display: flex; align-items: center; gap: 4px; height: 44px; max-width: 100%; padding-left: 4px; font-size: 14px; line-height: 20px; }
 .pp .cap2 .ib { color: var(--text-2); }
@@ -167,6 +166,16 @@ html:has(.pp) body { background: transparent !important; }
 .pp .under2 { align-self: stretch; display: flex; align-items: flex-start; justify-content: center; padding: 4px 12px 0; min-width: 0; }
 .pp .acts2 { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
 .pp .acts2::-webkit-scrollbar { display: none; }
+.pp .acts2.mr { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent); }
+.pp .acts2.ml { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 44px), transparent); }
+.pp .acts2.ml.mr { -webkit-mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent); }
+.pp .next4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; width: 100%; max-width: 420px; }
+.pp .nx { display: flex; flex-direction: column; justify-content: space-between; height: 52px; padding: 8px 9px 7px; border-radius: 14px; background: var(--fill); text-align: left; min-width: 0; }
+.pp .nx:first-child { grid-column: span 2; }
+.pp .nx:disabled { opacity: .5; }
+.pp .nx-t { display: flex; align-items: center; justify-content: space-between; height: 18px; }
+.pp .nx-t .price { color: var(--text-2); font-size: 12px; }
+.pp .nx-l { font-size: 12px; line-height: 16px; font-weight: 600; }
 .pp .act3 { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 22px; background: var(--fill); font-size: 13px; line-height: 18px; font-weight: 600; white-space: nowrap; }
 .pp .act3:disabled { opacity: .5; }
 .pp .act3 .price { color: var(--text-2); }

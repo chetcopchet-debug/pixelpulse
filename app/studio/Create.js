@@ -119,10 +119,10 @@ function Glow({ src }) {
 // One frame for the whole life of a creation. While it is being made the frame, already in the shape the
 // picture will have, is filled with slowly moving color; the finished picture then comes into focus in the very
 // same place. `it` is a run, or one model of a comparison.
-function Shot({ it, box, now, s, small, onGone }) {
+function Shot({ it, box, now, s, small }) {
   const item = it.status === "done" ? it.item : null;
   const [seen, setSeen] = useState(false); // the picture has loaded
-  const [calm, setCalm] = useState(Boolean(it.past)); // the reveal is over, so the moving color underneath can stop
+  const [calm, setCalm] = useState(false); // the reveal is over, so the moving color underneath can stop
   useEffect(() => { if (item?.video) setSeen(true); }, [item]);
   useEffect(() => { if (!seen) return; const t = setTimeout(() => setCalm(true), 1500); return () => clearTimeout(t); }, [seen]);
   return (
@@ -130,14 +130,29 @@ function Shot({ it, box, now, s, small, onGone }) {
       {seen && calm ? null : <div className="mist" aria-hidden="true"><i /><i /><i /></div>}
       {item ? null : <p className="mist-t" aria-hidden="true">{small ? "" : it.kind === "video" ? "Rendering " : "Generating "}<span className="num">{percent(it, now)}%</span></p>}
       {item ? (
-        <button className={`shot3${seen ? (it.past ? " in past" : " in") : ""}`} onClick={() => s.setViewer({ item })} aria-label={item.video ? "Open video" : "Open image"}>
+        <button className={`shot3${seen ? " in" : ""}`} onClick={() => s.setViewer({ item })} aria-label={item.video ? "Open video" : "Open image"}>
           {item.video
             ? <><Poster item={item} version={s.posters[item.id]} /><span className="play"><Icon name="play" size={22} /></span></>
-            : <img src={item.url} alt={item.prompt || ""} decoding="async" onLoad={() => setSeen(true)} onError={onGone} />}
+            : <img src={item.url} alt={item.prompt || ""} decoding="async" onLoad={() => setSeen(true)} />}
         </button>
       ) : null}
     </div>
   );
+}
+
+// A row that scrolls sideways and says so: the side that has more fades out, and stops fading at the end.
+function Row2({ children }) {
+  const ref = useRef(null);
+  const [more, setMore] = useState({ l: false, r: false });
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const see = () => setMore({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+    see();
+    el.addEventListener("scroll", see, { passive: true });
+    const ro = new ResizeObserver(see); ro.observe(el);
+    return () => { el.removeEventListener("scroll", see); ro.disconnect(); };
+  }, []);
+  return <div className={`acts2${more.l ? " ml" : ""}${more.r ? " mr" : ""}`} ref={ref}>{children}</div>;
 }
 
 // Everything between the top bar and the prompt box. One thing at a time: what is being made right now, or else
@@ -151,10 +166,14 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
   const item = !wait && run && run.kind !== "compare" ? run.item : null;
   const canAct = Boolean(item && !item.video && item.id);
 
-  // Room for the picture. The line of words under it, and the row of actions when the screen is tall enough,
-  // keep their place whether or not they have anything in them, so the picture never moves when it arrives.
+  // Room for the picture. The line of words under it, and the actions when the screen is tall enough, keep
+  // their place whether or not they have anything in them, so the picture never moves when it arrives.
+  // On a phone the actions of an image are two rows of tiles, all in view: nothing to scroll, nothing cut off.
+  // A short screen gets one row that scrolls sideways, with the edge fading out to show there is more.
   const side = wide ? 28 : 12;
-  const under = size.h >= 430 ? (wide ? 100 : 52) : 0;
+  const acts = show && show.kind === "image";
+  const tiles = !wide && acts && size.h >= 500;
+  const under = wide ? (size.h >= 430 ? 100 : 0) : tiles ? 114 : size.h >= 340 ? 52 : 0;
   const w = size.w - side * 2;
   const h = size.h - (wide ? 20 : 4) - 44 - under - (wide ? 20 : 8);
   const tiny = h < 80;
@@ -182,7 +201,7 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
                       <p className="sm clamp3">{p.error}</p>
                       {show.again ? <button className="btn btn-s" style={{ height: 40 }} onClick={() => s.retryPart(show, p.id)}><Icon name="refresh" size={16} />Try again</button> : null}
                     </div>
-                  ) : <Shot it={{ ...p, past: show.past }} box={box} now={now} s={s} small />}
+                  ) : <Shot it={p} box={box} now={now} s={s} small />}
                   <div className="cmp-l"><span className="clamp1">{p.name}</span>{p.unsaved ? <span className="sm t3">Not saved</span> : <Price n={p.cost} />}</div>
                 </div>
               );
@@ -192,7 +211,7 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
       }
     } else {
       const box = fitBox(ratioOf((show.item && show.item.ratio) || show.ratio), w, h);
-      if (box) { width = box.w; pic = <Shot key={show.key} it={show} box={box} now={now} s={s} onGone={() => { if (show.past) s.dropRun(show.key); }} />; }
+      if (box) { width = box.w; pic = <Shot key={show.key} it={show} box={box} now={now} s={s} />; }
     }
     const fav = item?.id && s.favs.has(item.id);
     main = pic ? (
@@ -206,14 +225,23 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
         </div>
         {under ? (
           <div className="under2" style={{ height: under }}>
-            {canAct ? (
-              <div className="acts2">
+            {canAct && tiles ? (
+              <div className="next4">
+                {nextActions(s, item).map((a) => (
+                  <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(s.busyTool)} aria-label={`${a.label}, ${a.cost} credits`}>
+                    <span className="nx-t">{s.busyTool === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<Price n={a.cost} /></span>
+                    <span className="nx-l clamp1">{a.short}</span>
+                  </button>
+                ))}
+              </div>
+            ) : canAct ? (
+              <Row2>
                 {nextActions(s, item).map((a) => (
                   <button key={a.key} className="act3" onClick={a.run} disabled={Boolean(s.busyTool)}>
                     {s.busyTool === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<span>{a.label}</span><Price n={a.cost} />
                   </button>
                 ))}
-              </div>
+              </Row2>
             ) : wait && wait.kind === "video" ? <p className="sm t3">You can close the site. The video is saved to your Library.</p> : null}
           </div>
         ) : null}
