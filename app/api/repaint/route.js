@@ -14,10 +14,10 @@ const MAX_MASK = 4 * 1024 * 1024; // data URL chars
 async function prepare(body) {
   const mask = body?.mask;
   if (typeof mask !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(mask) || mask.length > MAX_MASK) {
-    return { error: 'Invalid mask. Paint the area to repaint.' };
+    return { error: 'The marked area did not arrive. Paint over the part you want to change and try again.' };
   }
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
-  if (!prompt) return { error: 'Describe what should appear in the painted area.' };
+  if (!prompt) return { error: 'Describe what should be in the marked part.' };
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
   const badOriginal = checkPromptText(prompt);
   if (badOriginal) return { error: blocked(badOriginal) };
@@ -29,5 +29,5 @@ async function prepare(body) {
 }
 
 export async function POST(request) {
-  return runImageTool(request, { tool: 'repaint', cost: 8, usd: 0.05, label: 'Repaint', outputPolicy: 'closed' /* repaints any of your images incl. uploaded photos of people: fail closed */, limit: { n: 15, ms: 60 * 60_000 }, prepare });
+  return runImageTool(request, { tool: 'repaint', cost: 8, usd: 0.05, label: 'Edit an area', outputPolicy: 'closed' /* repaints any of your images incl. uploaded photos of people: fail closed */, limit: { n: 15, ms: 60 * 60_000 }, prepare });
 }

@@ -37,6 +37,7 @@ export const TOOLS = {
   sharpen: { label: "Upscale", cost: 1, done: "Upscaled to twice the size" },
   cutout: { label: "Remove background", cost: 1, done: "Background removed" },
   edit: { label: "Edit with words", cost: 8, done: "Edit applied", ask: "What should change?", hint: "Make it night, add snow, change the jacket to red" },
+  repaint: { label: "Edit an area", cost: 8, done: "The marked part was changed" },
   facelock: { label: "Keep the face", cost: 7, paidOnly: true, done: "Same face, new scene", ask: "Describe the new scene", hint: "As an astronaut on Mars" },
   reference: { label: "From a reference image", cost: 5, detail: "FLUX Dev" },
 };

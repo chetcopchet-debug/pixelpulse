@@ -56,6 +56,7 @@ export function useStudio() {
   const [favs, setFavs] = useState(() => new Set());
   const [viewer, setViewer] = useState(null); // { item, before?, readonly? }
   const [sheet, setSheet] = useState(null);
+  const [area, setArea] = useState(null); // the image whose marked part is being changed
   const [toast, setToast] = useState("");
   const [theme, setThemeRaw] = useState("dark");
   const [busyTool, setBusyTool] = useState("");
@@ -389,21 +390,22 @@ export function useStudio() {
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
     const t = TOOLS[tool];
-    if (needAccount()) return;
-    if (!item?.id) { say("This image wasn't saved, so it can't be changed."); return; }
-    if (busyTool) return;
-    if (!afford(t.cost, { paidOnly: t.paidOnly, label: t.label })) return;
+    if (needAccount()) return false;
+    if (!item?.id) { say("This image wasn't saved, so it can't be changed."); return false; }
+    if (busyTool) return false;
+    if (!afford(t.cost, { paidOnly: t.paidOnly, label: t.label })) return false;
     setBusyTool(tool);
     try {
       const res = await post(`/api/${tool}`, { id: item.id, ...extra, ...inProject() });
       const d = await json(res); sync(d);
-      if (res.status === 402 || res.status === 401) { refused(d, t.cost, t.label, t.paidOnly); return; }
+      if (res.status === 402 || res.status === 401) { refused(d, t.cost, t.label, t.paidOnly); return false; }
       if (!res.ok || !d.item) throw new Error(plain(d.error) || `${t.label} didn't finish. Any credits were returned.`);
       const made = toItem(d.item);
       addItem(made, { keep: "project_id" in d.item });
       setViewer({ item: made, before: item });
       say(t.done);
-    } catch (e) { say(e.message); }
+      return true;
+    } catch (e) { say(e.message); return false; }
     finally { setBusyTool(""); }
   }, [busyTool, afford, refused, sync, addItem, say, needAccount]);
 
@@ -654,7 +656,7 @@ export function useStudio() {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
-    viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
+    viewer, setViewer, sheet, setSheet, area, setArea, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
   };

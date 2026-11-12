@@ -8,6 +8,7 @@ import Explore from "./Explore";
 import Library from "./Library";
 import Account from "./Account";
 import Viewer from "./Viewer";
+import AreaEditor from "./AreaEditor";
 import { ModelSheet, RatioSheet, VideoSheet, PricingSheet, SignInSheet, AskSheet, ProjectSheet } from "./Sheets";
 
 const TABS = [["explore", "compass", "Explore"], ["create", "create", "Create"], ["library", "library", "Library"], ["account", "user", "Account"]];
@@ -31,6 +32,7 @@ export default function Studio() {
       </nav>
 
       {s.viewer ? <Viewer s={s} /> : null}
+      {s.area ? <AreaEditor s={s} item={s.area} onClose={() => s.setArea(null)} /> : null}
 
       {sh?.type === "models" ? <ModelSheet s={s} onClose={close} /> : null}
       {sh?.type === "ratio" ? <RatioSheet s={s} onClose={close} /> : null}

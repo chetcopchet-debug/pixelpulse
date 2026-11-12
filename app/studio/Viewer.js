@@ -56,10 +56,10 @@ export default function Viewer({ s }) {
   useEffect(() => { setSide("after"); setConfirm(false); }, [item]);
   useEffect(() => lockScroll(), []);
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape" && !s.sheet) s.setViewer(null); };
+    const onKey = (e) => { if (e.key === "Escape" && !s.sheet && !s.area) s.setViewer(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [s.sheet, s.setViewer]);
+  }, [s.sheet, s.area, s.setViewer]);
 
   const shown = before && side === "before" ? before : item;
   const fav = item.id && s.favs.has(item.id);
@@ -73,6 +73,7 @@ export default function Viewer({ s }) {
     { key: "sharpen", icon: "upscale", label: TOOLS.sharpen.label, cost: TOOLS.sharpen.cost, run: () => s.runTool("sharpen", item) },
     { key: "cutout", icon: "eraser", label: TOOLS.cutout.label, cost: TOOLS.cutout.cost, run: () => s.runTool("cutout", item) },
     { key: "edit", icon: "edit", label: TOOLS.edit.label, cost: TOOLS.edit.cost, run: () => s.setSheet({ type: "ask", tool: "edit", item }) },
+    { key: "repaint", icon: "brush", label: TOOLS.repaint.label, cost: TOOLS.repaint.cost, run: () => s.setArea(item) },
     { key: "variations", icon: "variations", label: "Another version", cost: varCost, run: () => s.variations(item) },
     { key: "facelock", icon: "face", label: TOOLS.facelock.label, cost: TOOLS.facelock.cost, run: () => s.setSheet({ type: "ask", tool: "facelock", item }) },
   ];
