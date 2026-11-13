@@ -589,4 +589,5 @@ export default {
   "Your prompt has speech, music or sound": "프롬프트에 말, 음악 또는 소리가 있습니다",
   "{name} is the best for this prompt. It needs 1 more credit.": "이 프롬프트에는 {name}이(가) 가장 좋습니다. 크레딧 1개가 더 필요합니다.",
   "{name} is the best for this prompt. It needs {n} more credits.": "이 프롬프트에는 {name}이(가) 가장 좋습니다. 크레딧 {n}개가 더 필요합니다.",
+  "Create one like this": "이런 이미지 만들기",
 };
