@@ -1,6 +1,7 @@
 import { runImageTool } from '../../../lib/imagetool';
+import { refusalLog } from '../../../lib/refusals';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
-import { toEnglishPrompt } from '../../../lib/translate';
+import { toEnglish } from '../../../lib/translate';
 import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
 import { runReplicate, firstUrl, TOOLS } from '../../../lib/replicate';
 import { prepareArea, finishArea, swapMask } from '../../../lib/areaEdit';
@@ -26,10 +27,11 @@ async function prepare(body) {
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
   const badOriginal = checkPromptText(prompt);
   if (badOriginal) return { error: blocked(badOriginal) };
-  const english = await toEnglishPrompt(prompt); // the model reads English: any other language is translated first
+  const tr = await toEnglish(prompt); const english = tr.prompt; // the model reads English: any other language is translated first
   const badEnglish = checkPromptText(english);
   if (badEnglish) return { error: blocked(badEnglish) };
   const args = [mask, english];
+  if (tr.untranslated) args.notice = 'untranslated'; // said on the screen
   args.promptLabel = prompt; // the Library shows what was asked for, in the person's own words
   args.startedAt = startedAt;
   return { args };
@@ -73,6 +75,9 @@ async function run({ row, extra }) {
   } finally { await Promise.all(files.map((f) => f.remove())); }
 }
 
-export async function POST(request) {
+async function handlePost(request) {
   return runImageTool(request, { tool: 'repaint', cost: COST, usd: USD, label: 'Edit an area', storeTier: 'repaint', outputPolicy: 'closed' /* repaints any of your images incl. uploaded photos of people: fail closed */, limit: { n: 15, ms: 60 * 60_000 }, prepare, run });
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('repaint', handlePost);

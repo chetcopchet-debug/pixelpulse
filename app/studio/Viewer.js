@@ -59,7 +59,8 @@ export default function Viewer({ s }) {
   const [side, setSide] = useState("after");
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
-  useEffect(() => { setSide("after"); setConfirm(false); }, [item]);
+  const [more, setMore] = useState(false); // the whole prompt, not only its first three lines
+  useEffect(() => { setSide("after"); setConfirm(false); setMore(false); }, [item]);
   useEffect(() => lockScroll(), []);
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape" && !s.sheet && !s.area) s.setViewer(null); };
@@ -79,6 +80,14 @@ export default function Viewer({ s }) {
   const [rw, rh] = String(shown.ratio || "").split(":").map(Number);
   const fit = !shown.video && rw > 0 && rh > 0 ? { aspectRatio: `${rw} / ${rh}` } : null;
   // From the gallery: what a visitor can do with someone else's picture.
+  // A long prompt shows its first three lines, with "More" to open it, so the buttons stay on the screen.
+  const long = String(item.prompt || "").length > 110;
+  const promptText = (style) => (
+    <>
+      <p className={long && !more ? "clamp3" : undefined} style={{ ...style, overflowWrap: "anywhere" }}>{item.prompt}</p>
+      {long ? <button className="link sm" style={{ display: "block", height: 28, marginBottom: 6 }} aria-expanded={more} onClick={() => setMore(!more)}>{more ? t("Less") : t("More")}</button> : null}
+    </>
+  );
   const exploreActions = explore && item.id && !item.video ? next.filter((a) => a.key === "animate" || a.key === "variations") : [];
   const copy = async () => { try { await navigator.clipboard.writeText(item.prompt || ""); s.say(t("Prompt copied")); } catch { s.say(t("Couldn't copy. Select the text instead.")); } };
   const save = async () => { if (saving) return; setSaving(true); await download(shown); setSaving(false); };
@@ -86,7 +95,7 @@ export default function Viewer({ s }) {
   return (
     <div className="viewer" role="dialog" aria-modal="true" aria-label={item.video ? t("Video") : t("Image")}>
       <div className="viewer-in">
-        <header className="top">
+        <header className="top over">
           <button className="ib" aria-label={t("Close")} onClick={() => s.setViewer(null)}><Icon name="x" /></button>
           <div className="r">
             {explore ? null : <button className="ib" aria-label={t("Download")} onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button>}
@@ -109,7 +118,7 @@ export default function Viewer({ s }) {
           ) : null}
         </div>
 
-        <div className="pad" style={{ paddingTop: 16 }}>
+        <div className="pad" style={{ paddingTop: 12 }}>
           {confirm ? (
             <div className="failed" style={{ marginBottom: 16 }}>
               <p>{item.video ? t("Delete this video from your Library? This can't be undone.") : t("Delete this image from your Library? This can't be undone.")}</p>
@@ -140,14 +149,18 @@ export default function Viewer({ s }) {
           {explore ? (
             <>
               {item.model ? <p className="sm" style={{ marginBottom: 6 }}><span className="t2">{t("Made with")}</span> <span className="b">{madeWith(item.model)}</span><span className="t3 num">, {item.ratio}</span></p> : null}
-              <p style={{ margin: "0 0 14px", overflowWrap: "anywhere" }}>{item.prompt}</p>
+              {promptText({ margin: long ? "0" : "0 0 14px" })}
               {exploreActions.length ? (
-                <div className="c" style={{ gap: 8, marginBottom: 8 }}>
-                  {exploreActions.map((a) => (
-                    <button key={a.key} className="btn btn-s btn-split btn-wide" onClick={a.run} aria-label={tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: a.key === "variations" ? t("Create one like this") : a.label, n: a.cost })}>
-                      <span className="r" style={{ gap: 6 }}><Icon name={a.icon} size={18} />{a.key === "variations" ? t("Create one like this") : a.short}</span><Price n={a.cost} />
-                    </button>
-                  ))}
+                <div className="ex2">
+                  {exploreActions.map((a) => {
+                    const name = a.key === "variations" ? t("Create one like this") : a.short;
+                    return (
+                      <button key={a.key} className="nx" onClick={a.run} aria-label={tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name, n: a.cost })}>
+                        <span className="nx-t"><Icon name={a.icon} size={18} /><Price n={a.cost} /></span>
+                        <span className="nx-l clamp1">{name}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : null}
               <div className="r" style={{ gap: 8 }}>
@@ -158,7 +171,7 @@ export default function Viewer({ s }) {
           ) : item.prompt ? (
             <>
               <p className="sm b t3">{t("Prompt")}</p>
-              <p style={{ margin: "4px 0 12px", overflowWrap: "anywhere" }}>{item.prompt}</p>
+              {promptText({ margin: long ? "4px 0 0" : "4px 0 12px" })}
               <div className="r" style={{ gap: 8, flexWrap: "wrap" }}>
                 <button className="btn btn-s" onClick={copy}><Icon name="copy" size={18} />{t("Copy prompt")}</button>
                 <button className={`btn ${readonly ? "btn-p" : "btn-s"}`} onClick={() => s.useAgain(item)}><Icon name="again" size={18} />{readonly ? t("Use this prompt") : t("Use again")}</button>

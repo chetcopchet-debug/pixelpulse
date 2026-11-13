@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { refusalLog } from '../../../lib/refusals';
 import { getSupabase } from '../../../lib/supabase';
 import { getCreatorId, isUuid } from '../../../lib/identity';
 import { accountGate } from '../../../lib/needAccount';
@@ -34,7 +35,7 @@ export async function GET(request) {
 
 // POST { action: 'create', name } | { action: 'rename', id, name } | { action: 'delete', id }
 // Deleting a project keeps its images and videos; they just stop belonging to it.
-export async function POST(request) {
+async function handlePost(request) {
   const gate = accountGate(request); if (gate) return gate;
   const sb = getSupabase();
   if (!sb) return fail('Projects are not available right now.', 503);
@@ -71,3 +72,6 @@ export async function POST(request) {
   }
   return fail('Unknown action.');
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('projects', handlePost);

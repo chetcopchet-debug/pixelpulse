@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { refusalLog } from '../../../lib/refusals';
 import { accountGate } from '../../../lib/needAccount';
 import { reserveSpend } from '../../../lib/usage';
 import { getClientIp } from '../../../lib/credits';
@@ -29,7 +30,7 @@ function parseSuggestions(text) {
   return [...new Set(lines)].slice(0, 3).map((l) => l.slice(0, MAX_PROMPT_LENGTH));
 }
 
-export async function POST(request) {
+async function handlePost(request) {
   // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
   const stop = accountGate(request); if (stop) return stop;
   const body = await request.json().catch(() => ({}));
@@ -71,3 +72,6 @@ export async function POST(request) {
   }
   return NextResponse.json({ suggestions: ruleEnhance(english, intensity), source: 'rules', intensity });
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('amplify', handlePost);

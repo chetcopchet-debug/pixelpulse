@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { refusalLog } from '../../../lib/refusals';
 import { getSupabase } from '../../../lib/supabase';
 import { readAccount } from '../../../lib/account';
 import { isUuid } from '../../../lib/identity';
@@ -20,7 +21,7 @@ export async function GET(request) {
 }
 
 // POST { add: [ids], remove: [ids] } -> { cloud, ids }
-export async function POST(request) {
+async function handlePost(request) {
   const acct = readAccount(request); const sb = getSupabase();
   if (!acct || !sb) return NextResponse.json({ cloud: false });
   const body = await request.json().catch(() => ({}));
@@ -41,3 +42,6 @@ export async function POST(request) {
   }
   return GET(request);
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('favorites', handlePost);

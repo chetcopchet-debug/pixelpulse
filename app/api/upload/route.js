@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { refusalLog } from '../../../lib/refusals';
 import { accountGate } from '../../../lib/needAccount';
 import { getSupabase, BUCKET } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid, creatorTag } from '../../../lib/identity';
@@ -22,7 +23,7 @@ const err = (error, status) => NextResponse.json({ error }, { status });
 //  - JSON { data: "data:image/...;base64,..." }  (client-downscaled; preferred)
 //  - JSON { tmpPath }  (original bytes already PUT to a signed URL from /api/upload/sign)
 //  - raw image body (Content-Type image/* or application/octet-stream), up to Vercel's ~4.5MB body limit
-export async function POST(request) {
+async function handlePost(request) {
   // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
   const stop = accountGate(request); if (stop) return stop;
   const supabase = getSupabase();
@@ -84,3 +85,6 @@ export async function POST(request) {
     if (tmpPath) supabase.storage.from(BUCKET).remove([tmpPath]).catch(() => {});
   }
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('upload', handlePost);

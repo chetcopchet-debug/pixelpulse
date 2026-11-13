@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { isAdmin, adminEnabled } from '../../lib/admin';
 import { setupChecks, googleEnabled, deploymentKind } from '../../lib/setup';
 import { recentJobs } from '../../lib/videoJobs';
-import { bump, DAILY_SPEND_CAP_USD, PAID_SPEND_KEY } from '../../lib/usage';
+import { bump, FREE_SPEND_KEY, DAILY_SPEND_CAP_USD, PAID_SPEND_KEY, HELP_SPEND_CAP_USD, HELP_SPEND_KEY, HELP_FAIL_KEY } from '../../lib/usage';
 import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
 import { billingWarnings, replicateAccount } from '../../lib/replicate';
@@ -58,7 +58,9 @@ export default async function AdminLogin(props) {
     numbers = [['New accounts', a1, a7], ['Images made', i1, i7], ['Videos made', v1, v7], ['Purchases', p1, p7]];
   }
   // What the models cost us so far today (UTC), as counted by the daily limit.
-  const spentToday = admin ? Math.max(0, Number(await bump('spend', 0, 1e9).catch(() => 0)) || 0) : 0; // on free credits: what the limit counts
+  const spentToday = admin ? Math.max(0, Number(await bump(FREE_SPEND_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // on free credits: what the limit counts
+  const helpToday = admin ? Math.max(0, Number(await bump(HELP_SPEND_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // translating and the free improvement
+  const helpFails = admin ? Math.max(0, Number(await bump(HELP_FAIL_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // in a row, without an answer from a model
   const paidToday = admin ? Math.max(0, Number(await bump(PAID_SPEND_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // paid work: counted, never limited
   const bypass = Boolean(process.env.VERCEL_AUTOMATION_BYPASS_SECRET);
   const converter = showSetup ? await converterVersion().catch(() => null) : null;
@@ -138,12 +140,16 @@ export default async function AdminLogin(props) {
           )}
 
           <h2 className="sec">Daily spending limit</h2>
+          {spentToday < DAILY_SPEND_CAP_USD && spentToday >= 0.8 * DAILY_SPEND_CAP_USD && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>Free creations are close to today's limit:</b> ${spentToday.toFixed(2)} of ${DAILY_SPEND_CAP_USD.toFixed(2)}. Past it, creating with free credits pauses until midnight UTC.</p>}
+          {helpToday >= 0.8 * HELP_SPEND_CAP_USD && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>{helpToday >= HELP_SPEND_CAP_USD ? 'Translating and free improving are paused for today.' : "Translating and free improving are close to today's limit:"}</b> ${helpToday.toFixed(2)} of ${HELP_SPEND_CAP_USD.toFixed(2)}. {helpToday >= HELP_SPEND_CAP_USD ? 'Prompts are used as written and people are told so. Paid work is not affected.' : ''}</p>}
+          {helpFails >= 3 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>{helpFails} translations or improvements in a row got no answer from a model.</b> Check the Replicate account (balance, slow-down notices) and the server log (lines that start with "Translate:").</p>}
           {spentToday >= DAILY_SPEND_CAP_USD && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>Today's limit is reached.</b> Creating with free credits is paused until midnight UTC. Bought credits keep working.</p>}
           <div className="ptable">
             <div>
               <span className="grow">
                 <span className="b">${spentToday.toFixed(2)} of ${DAILY_SPEND_CAP_USD.toFixed(2)} today on free credits</span>
                 <span className="sm t2" style={{ display: 'block' }}>Paid work today: ${paidToday.toFixed(2)}. It is not part of the limit.</span>
+                <span className="sm t2" style={{ display: 'block' }}>Translating and free improving today: ${helpToday.toFixed(2)} of ${HELP_SPEND_CAP_USD.toFixed(2)} (a limit of their own).</span>
                 <span className="sm t2" style={{ display: 'block' }}>Everything the models cost today is counted. When it passes the limit, creating with <b>free</b> credits pauses until midnight UTC, so free use can never cost more than this in a day. Creations paid with bought credits are never stopped by it.</span>
                 <span className="sm t2" style={{ display: 'block' }}>To change the limit, set DAILY_SPEND_CAP_USD in Vercel's environment variables and redeploy.</span>
               </span>

@@ -16,7 +16,7 @@ export async function GET(request) {
     const day = new Date().toISOString().slice(0, 10);
     const { data: rows, error: e } = await supabase.from('usage_counters').select('key, amount').eq('day', day).limit(500);
     if (e) return NextResponse.json({ error: e.message }, { status: 500 });
-    const spend = rows.filter((r) => r.key.startsWith('spend')).reduce((a, r) => a + Number(r.amount), 0);
+    const spend = rows.filter((r) => r.key.startsWith('spend') && !r.key.endsWith(':preview')).reduce((a, r) => a + Number(r.amount), 0);
     return NextResponse.json({ day, counters: rows.length, ipKeys: rows.filter((r) => r.key.startsWith('ip:')).length, spendUsd: spend });
   }
   const { data, error } = await supabase.from('images').select('id, prompt, public_url, hidden, report_count, created_at')
