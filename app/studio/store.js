@@ -321,7 +321,11 @@ export function useStudio() {
       if (d.improved && typeof d.prompt === "string") out = d.prompt; else if (d.why) why = d.why;
     } catch {}
     // Never quietly: when the idea was not improved, the person is told why, and that it is made as written.
-    if (!out) say(why === "limit" ? t("Today's free improvements are used. Your prompt is used as written.")
+    // Once a day is enough: after that they know, and every creation would repeat it.
+    const day = new Date().toISOString().slice(0, 10);
+    if (!out && store.read("pp_improve_note", "") !== day) store.write("pp_improve_note", day);
+    else why = "";
+    if (!out && why) say(why === "limit" ? t("Today's free improvements are used. Your prompt is used as written.")
       : why === "budget" ? t("Free improvements are paused for today. Your prompt is used as written.")
       : t("Couldn't improve the prompt right now. It is used as written."));
     patchRun(key, { phase: null, t0: Date.now(), ...(out ? { used: out } : {}) }); // the estimate counts from here
@@ -584,6 +588,7 @@ export function useStudio() {
       if (res.status === 402 || res.status === 401) { refused(d, tl.cost, tl.label, tl.paidOnly); return false; }
       if (!res.ok || !d.item) throw new Error(plain(d.error) || t("{name} didn't finish. Any credits were returned.", { name: tl.label }));
       const made = toItem(d.item);
+      if (d.notice === "untranslated") say(t("We couldn't translate your prompt right now, so it was used as written."));
       addItem(made, { keep: "project_id" in d.item });
       setViewer({ item: made, before: item });
       if (tabRef.current === "create") setRuns((rs) => [...trim(rs), { key: uid(), kind: "image", prompt: made.prompt, label: tl.label, ratio: made.ratio, status: "done", item: made, doneAt: Date.now() }]);

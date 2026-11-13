@@ -1,7 +1,7 @@
 import { runImageTool } from '../../../lib/imagetool';
 import { refusalLog } from '../../../lib/refusals';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
-import { toEnglishPrompt } from '../../../lib/translate';
+import { toEnglish } from '../../../lib/translate';
 import { checkPromptText, checkPersonEditText, blockedMessage } from '../../../lib/moderation';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
@@ -14,10 +14,11 @@ async function prepare(body) {
   if (prompt.length > MAX_PROMPT_LENGTH) return { error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` };
   const personBad = checkPersonEditText(prompt);
   if (personBad) return { error: blockedMessage(personBad) };
-  const english = await toEnglishPrompt(prompt);
+  const tr = await toEnglish(prompt); const english = tr.prompt;
   const bad = checkPromptText(english) || checkPersonEditText(english);
   if (bad) return { error: blockedMessage(bad) };
   const args = [english];
+  if (tr.untranslated) args.notice = 'untranslated'; // said on the screen
   args.promptLabel = prompt;
   return { args };
 }
