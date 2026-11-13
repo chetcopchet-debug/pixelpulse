@@ -7,7 +7,7 @@ import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
 import { MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
-import { toEnglishPrompt, preparePrompt } from '../../../lib/translate';
+import { toEnglishPrompt, preparePrompt, shortIdea, improveAllowed } from '../../../lib/translate';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
@@ -115,7 +115,9 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   if (!q) return NextResponse.json({ error: 'That duration / quality is not available for this model.' }, { status: 400 });
   const ratio = q.ratio;
   const tier = { ...def, cost: q.cost, usd: q.usd };
-  const en = (await preparePrompt(raw, { admin, improve: body?.improve === true ? 'video' : false })).prompt; // a short idea is filled in when the person left that on
+  // A short idea is filled in when the person left that on: what moves, and one camera movement.
+  const prepared = await preparePrompt(raw, { admin, improve: body?.improve === true && shortIdea(raw) && await improveAllowed(creator.id, admin) ? 'video' : false });
+  const en = prepared.prompt;
   const bad = checkPromptText(en);
   if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
@@ -135,7 +137,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   await logGeneration({ userId: creator.id, ip, mode: `t2v:${body.model}`, prompt: raw, outputRef: `pred:${p.id}`, moderation: 'passed:text-only' });
   await recordJob({ ...fields, p: p.id });
   const job = makeJob({ ...fields, p: p.id });
-  const res = NextResponse.json({ job, status: 'processing', ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
+  const res = NextResponse.json({ job, status: 'processing', ...(prepared.improved ? { usedPrompt: en } : {}), ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
   setCreatorCookie(res, creator);
   return res;
 }

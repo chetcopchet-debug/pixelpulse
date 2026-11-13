@@ -51,6 +51,8 @@ export function useStudio() {
   const [imgModel, setImgModelRaw] = useState("fast");
   const [auto, setAutoRaw] = useState(false); // Auto: the model is chosen from the prompt (images only)
   const [improve, setImprove] = useState(true); // a short idea is filled in before it is made (the server does it)
+  const [polish, setPolish] = useState(null); // { original }: the box holds a prompt the improve button wrote; Undo puts the person's own words back
+  const [improving, setImproving] = useState(false);
   const [vidModel, setVidModelRaw] = useState("h3-lite");
   const [compare, setCompare] = useState([]); // image model ids to run side by side; fewer than two means "one model"
   // The three ways to choose are exclusive: one model, Auto, or comparing several.
@@ -411,6 +413,7 @@ export function useStudio() {
         const res = await post("/api/animate", { ...(o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(o.improve ? { improve: true } : {}) }), ...(pid ? { project: pid } : {}) });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
+        if (typeof d.usedPrompt === "string") patchRun(key, { used: d.usedPrompt }); // shown beside the caption when the video is ready
         if (!res.ok || !d.job) throw new Error(plain(d.error) || t("The video couldn't start. Your credits were returned."));
         await pollJob(key, d.job);
       } catch (e) { patchRun(key, { status: "failed", error: e.message || t("The video didn't finish. Your credits were returned.") }); }
@@ -476,6 +479,24 @@ export function useStudio() {
 
   const retry = useCallback((run) => { dropRun(run.key); if (run.again?.kind === "video") startVideo(run.again); else if (run.again) startImage(run.again); }, [dropRun, startVideo, startImage]);
 
+  // The improve button in the prompt box: the idea is filled in right there, so it can be read and changed before
+  // anything is made. Undo puts the person's own words back.
+  const improveNow = useCallback(async () => {
+    if (needAccount({ tab: "create" })) return;
+    const text = prompt.trim();
+    if (!text || improving) return;
+    setImproving(true);
+    try {
+      const d = await json(await post("/api/improve", { prompt: text, kind: mode === "video" ? "video" : "image" }));
+      if (d.error) say(plain(d.error));
+      else if (d.improved && d.prompt) { setPolish({ original: prompt }); setPrompt(d.prompt); }
+      else say(d.why === "long" ? t("This prompt is already detailed. It will be used as you wrote it.") : d.why === "limit" ? t("You've used today's prompt improvements. Your prompt will be used as you write it.") : t("Couldn't improve the prompt right now. Try again in a moment."));
+    } catch { say(t("Couldn't improve the prompt right now. Try again in a moment.")); }
+    finally { setImproving(false); }
+  }, [prompt, mode, improving, needAccount, say]);
+  const undoImprove = useCallback(() => { if (polish) { setPrompt(polish.original); setPolish(null); } }, [polish]);
+  useEffect(() => { if (!prompt.trim()) setPolish(null); }, [prompt]); // an empty box has nothing to take back
+
   // The Generate button.
   const generate = useCallback(() => {
     if (needAccount({ tab: "create" })) return;
@@ -483,14 +504,14 @@ export function useStudio() {
     if (mode === "video") {
       if (ref) { if (startVideo({ source: ref, prompt: text })) { setPrompt(""); setRef(null); } return; }
       if (!text) { say(t("Describe the video first.")); return; }
-      if (startVideo({ model: vidModel, prompt: text, ratio, d: vDur, r: vRes, improve })) setPrompt("");
+      if (startVideo({ model: vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish })) setPrompt("");
       return;
     }
     if (!text) { say(t("Describe the image first.")); return; }
     if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
     const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
-    if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve })) setPrompt("");
-  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, improve, startVideo, startImage, startCompare, say, needAccount]);
+    if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve: improve && !polish })) setPrompt("");
+  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, improve, polish, startVideo, startImage, startCompare, say, needAccount]);
 
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
@@ -838,7 +859,7 @@ export function useStudio() {
   // result that finished while the person was away (it is in the Library).
   const shown = useMemo(() => runs.filter((r) => !r.checking && !(r.status === "done" && r.away)), [runs]);
   return {
-    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, improve, setImprove, compare, setCompare, ratio, setRatio,
+    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, improve, setImprove, polish, improving, improveNow, undoImprove, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs: shown, items, cursor, library, favs,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,
