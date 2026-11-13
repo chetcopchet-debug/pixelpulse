@@ -15,7 +15,7 @@ import { getSupabase } from '../../../lib/supabase';
 import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
 import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
 import { issueCutoutPass } from '../../../lib/cutoutPass';
-import { preparePrompt } from '../../../lib/translate';
+import { preparePrompt, shortIdea, improveAllowed } from '../../../lib/translate';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 
@@ -119,7 +119,7 @@ export async function POST(request) {
     // Transparent translation: any language -> descriptive English (on-image text kept verbatim in Text mode). Fails open.
     // A short idea is also filled in, when the person left "Improve my prompt" on. Not with a reference image: there
     // the words describe a change to that image, and adding to them would change something else.
-    const prepared = await preparePrompt(prompt.trim(), { keepText: TEXT_TIERS.includes(selectedTier) && storedTier === selectedTier, admin, improve: body?.improve === true && !guideParent ? 'image' : false });
+    const prepared = await preparePrompt(prompt.trim(), { keepText: TEXT_TIERS.includes(selectedTier) && storedTier === selectedTier, admin, improve: body?.improve === true && !guideParent && shortIdea(prompt.trim()) && await improveAllowed(creator.id, admin) ? 'image' : false });
     const englishPrompt = prepared.prompt;
 
     const badEnglish = checkPromptText(englishPrompt);

@@ -71,6 +71,14 @@ export function Settings({ s }) {
       </div>
       <p className="sm t3" style={{ margin: "8px 2px 0" }}>{t("Prompts can be written in any language. They are translated for the models by themselves, and text in quotes stays exactly as you wrote it.")}</p>
 
+      <Sec>{t("Creating")}</Sec>
+      <div className="card">
+        <button className="lrow" role="switch" aria-checked={s.improve} onClick={() => s.setImprove(!s.improve)}>
+          <Icon name="wand" style={{ color: "var(--text-3)" }} /><span className="grow" style={{ textAlign: "left" }}>{t("Improve my prompt")}</span><span className={`tg${s.improve ? " on" : ""}`} aria-hidden="true"><i /></span>
+        </button>
+      </div>
+      <p className="sm t3" style={{ margin: "8px 2px 0" }}>{t("Short ideas are filled in before they are made. Text in quotes stays as you wrote it.")}</p>
+
       <Sec>{t("Account")}</Sec>
       {w.account ? (
         <div className="card">

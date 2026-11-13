@@ -7,7 +7,7 @@ import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
 import { MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
-import { toEnglishPrompt, preparePrompt } from '../../../lib/translate';
+import { toEnglishPrompt, preparePrompt, shortIdea, improveAllowed } from '../../../lib/translate';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
@@ -137,8 +137,12 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   if (!q) return NextResponse.json({ error: 'That duration / quality is not available for this model.' }, { status: 400 });
   const ratio = q.ratio;
   const tier = { ...def, cost: q.cost, usd: q.usd };
-  // A short idea is filled in when the person left that on. With a picture and no words, a plain gentle motion.
-  const en = raw ? (await preparePrompt(raw, { admin, improve: body?.improve === true && !fromImage ? 'video' : false })).prompt : DEFAULT_MOTION;
+  // A short idea is filled in when the person left that on: what moves, and one camera movement. Not for a video
+  // that starts from a picture: the words there are only the motion, and with none the model gets a plain gentle one.
+  const prepared = raw
+    ? await preparePrompt(raw, { admin, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin) ? 'video' : false })
+    : { prompt: DEFAULT_MOTION, improved: false };
+  const en = prepared.prompt;
   const bad = checkPromptText(en);
   if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
@@ -170,7 +174,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   await logGeneration({ userId: creator.id, ip, mode: `${fromImage ? 'i2v' : 't2v'}:${body.model}`, prompt: raw, ...(row ? { inputRef: row.id } : {}), outputRef: `pred:${p.id}`, moderation: fromImage ? 'passed:input-only' : 'passed:text-only' });
   await recordJob({ ...fields, p: p.id });
   const job = makeJob({ ...fields, p: p.id });
-  const res = NextResponse.json({ job, status: 'processing', ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
+  const res = NextResponse.json({ job, status: 'processing', ...(prepared.improved ? { usedPrompt: en } : {}), ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
   setCreatorCookie(res, creator);
   return res;
 }

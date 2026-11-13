@@ -394,12 +394,21 @@ export default function Create({ s }) {
   // "Improve my prompt": a short idea is filled in before it is made. Not with a reference image or a start frame
   // (the words there describe a change), and not when comparing models (each model must get the same words).
   const canImprove = !s.ref && !cmp;
-  const toggleImprove = () => { const on = !s.improve; s.setImprove(on); s.say(on ? t("Short ideas are filled in before they are made. Text in quotes stays as you wrote it.") : t("Your prompt is used exactly as you write it.")); };
   const improveRow = canImprove ? (
-    <button className="set set-row" style={{ padding: "10px 12px 10px 14px" }} role="switch" aria-checked={s.improve} onClick={toggleImprove}>
+    <button className="set set-row" style={{ padding: "10px 12px 10px 14px" }} role="switch" aria-checked={s.improve} onClick={() => s.setImprove(!s.improve)}>
       <span className="grow"><span className="b" style={{ display: "block" }}>{t("Improve my prompt")}</span><span className="sm t2" style={{ display: "block" }}>{t("Short ideas are filled in before they are made. Text in quotes stays as you wrote it.")}</span></span>
       <span className={`tg${s.improve ? " on" : ""}`} aria-hidden="true"><i /></span>
     </button>
+  ) : null;
+  // The improve button fills the idea in inside the box, before anything is made. After it, a line under the box
+  // says so and offers Undo.
+  const hasText = Boolean(s.prompt.trim());
+  const canPolish = canImprove && hasText && !s.polish;
+  const polishLine = s.polish ? (
+    <div className="polish" role="status">
+      <Icon name="wand" size={16} /><span className="grow">{t("Improved. You can edit it.")}</span>
+      <button onClick={s.undoImprove}><Icon name="undo" size={16} />{t("Undo")}</button>
+    </div>
   ) : null;
 
   if (wide) {
@@ -411,6 +420,8 @@ export default function Create({ s }) {
           <div className="panel-body">
             {mode}
             <div className="field2">{text}</div>
+            {polishLine}
+            {canPolish ? <button className="set-add" disabled={s.improving} onClick={s.improveNow}>{s.improving ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="wand" size={18} />}{t("Improve this prompt now")}</button> : null}
             {s.ref ? <div className="set">{refcard}</div> : (
               <button className="set-add" disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="plus" size={18} />}{s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")}</button>
             )}
@@ -463,9 +474,10 @@ export default function Create({ s }) {
           <div className="r" style={{ gap: 4, alignItems: "flex-start" }}>
             {text}
             {more && !s.prompt.trim() ? <button className="plus" aria-label={t("Ideas to start from")} onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={22} /></button> : null}
-            {canImprove ? <button className={`plus wandb${s.improve ? " on" : ""}`} aria-pressed={s.improve} aria-label={s.improve ? t("Improve my prompt: on") : t("Improve my prompt: off")} onClick={toggleImprove}><Icon name="wand" size={22} /></button> : null}
+            {canPolish ? <button className="plus wandb on" aria-label={t("Improve this prompt now")} disabled={s.improving} onClick={s.improveNow}>{s.improving ? <i className="spin" /> : <Icon name="wand" size={22} />}</button> : null}
             <button className="plus" aria-label={s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
           </div>
+          {polishLine}
           {autoline}
           <div className="gorow">
             <div className="chips">
