@@ -4,7 +4,7 @@ import { t, N, sm, isLang, pickLang, loadDict, applyDict, langTag, LANG_COOKIE }
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
 import { shortIdea } from "../../lib/promptLanguage.js";
-import { autoPick } from "./auto";
+import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
 import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers } from "./models";
 import { setDownloadMark } from "./download";
@@ -50,7 +50,8 @@ export function useStudio() {
   const [mode, setMode] = useState("image");
   const [prompt, setPrompt] = useState("");
   const [imgModel, setImgModelRaw] = useState("fast");
-  const [auto, setAutoRaw] = useState(false); // Auto: the model is chosen from the prompt (images only)
+  const [auto, setAutoRaw] = useState(false); // Auto: the image model is chosen from the prompt
+  const [vAuto, setVAuto] = useState(false); // the same for video
   const [improve, setImprove] = useState(true); // a short idea is filled in before it is made (the server does it)
   const [polish, setPolish] = useState(null); // { original }: the box holds a prompt the improve button wrote; Undo puts the person's own words back
   const [improving, setImproving] = useState(false);
@@ -516,7 +517,7 @@ export function useStudio() {
     const idea = again ? polish.original : prompt;
     setImproving(pro ? "pro" : "std");
     try {
-      const res = await post("/api/improve", { prompt: idea.trim(), kind: mode === "video" ? "video" : "image", ...(pro ? { level: "pro" } : {}), ...(mode === "video" ? { model: vidModel } : {}), ...(again ? { avoid: polish.seen } : {}) });
+      const res = await post("/api/improve", { prompt: idea.trim(), kind: mode === "video" ? "video" : "image", ...(pro ? { level: "pro" } : {}), ...(mode === "video" ? { model: vAuto ? recommend(idea, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP)?.pick || vidModel : vidModel } : {}), ...(again ? { avoid: polish.seen } : {}) });
       const d = await json(res); if (pro) sync(d);
       if (res.status === 402) refused(d, 1, t("Improve Pro"));
       else if (d.error) say(plain(d.error));
@@ -525,7 +526,7 @@ export function useStudio() {
       else say(pro ? t("Couldn't improve the prompt right now. Your credit was returned.") : t("Couldn't improve the prompt right now. Try again in a moment."));
     } catch { say(t("Couldn't improve the prompt right now. Try again in a moment.")); }
     finally { setImproving(false); }
-  }, [prompt, mode, vidModel, improving, polish, needAccount, afford, refused, sync, say]);
+  }, [prompt, mode, vidModel, vAuto, vDur, vRes, ratio, improving, polish, needAccount, afford, refused, sync, say]);
   const undoImprove = useCallback(() => { if (polish) { setPrompt(polish.original); setPolish(null); } }, [polish]);
   useEffect(() => { if (!prompt.trim()) setPolish(null); }, [prompt]); // an empty box has nothing to take back
 
@@ -542,14 +543,16 @@ export function useStudio() {
     if (mode === "video") {
       if (ref) { if (startVideo({ source: ref, prompt: text, model: vidModel, d: vDur, r: vRes })) { setPrompt(""); setRef(null); } return; }
       if (!text) { say(t("Describe the video first.")); return; }
-      if (startVideo({ model: vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish })) setPrompt("");
+      // Auto: the model the screen showed for this prompt, at the chosen length and quality.
+      const vp = vAuto ? recommend(text, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP) : null;
+      if (startVideo({ model: vp ? vp.pick : vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish })) setPrompt("");
       return;
     }
     if (!text) { say(t("Describe the image first.")); return; }
     if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
     const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
     if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve: improve && !polish })) setPrompt("");
-  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, improve, polish, startVideo, startImage, startCompare, say, needAccount, refreshWallet]);
+  }, [prompt, mode, ref, vidModel, vAuto, ratio, vDur, vRes, imgModel, auto, compare, format, improve, polish, startVideo, startImage, startCompare, say, needAccount, refreshWallet]);
   generateRef.current = generate;
 
   // ---- tools on an existing image ----
@@ -716,11 +719,11 @@ export function useStudio() {
     say(plain(d.error) || t("Checkout isn't available right now."));
   }, [say]);
 
-  const setVidModel = useCallback((id) => { setVidModelRaw(id); setVDur(null); setVRes(null); }, []);
+  const setVidModel = useCallback((id) => { setVAuto(false); setVidModelRaw(id); setVDur(null); setVRes(null); }, []);
   const setTheme = useCallback((t) => { setThemeRaw(t); }, []);
 
   // ---- remember choices ----
-  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project, improve }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, improve, project]);
+  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, vAuto, compare, ratio, theme, project, improve }); }, [ready, mode, imgModel, vidModel, auto, vAuto, compare, ratio, theme, improve, project]);
   // Remembered on this device: the images still being made, so they can be found after the page was closed.
   // (Videos have their own record on the server.) Finished results are not remembered: they are in the Library.
   useEffect(() => {
@@ -794,6 +797,7 @@ export function useStudio() {
     if (p.mode === "video") setMode("video");
     if (imageModels.some((m) => m.id === p.imgModel)) setImgModelRaw(p.imgModel);
     if (videoModels.some((m) => m.id === p.vidModel)) setVidModelRaw(p.vidModel);
+    if (p.vAuto === true) setVAuto(true);
     const cp = comparePlan(p.compare); if (cp) setCompare(cp.models.map((m) => m.id)); else if (p.auto === true) setAutoRaw(true);
     const chosen = Boolean(cp) || p.auto === true; // the visitor chose Auto or a comparison: a format's suggested model doesn't replace that
     if (IMAGE_RATIOS.some((r) => r.id === p.ratio)) setRatio(p.ratio);
@@ -898,7 +902,7 @@ export function useStudio() {
   // result that finished while the person was away (it is in the Library).
   const shown = useMemo(() => runs.filter((r) => !r.checking && !(r.status === "done" && r.away)), [runs]);
   return {
-    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, improve, setImprove, polish, improving, improveNow, undoImprove, compare, setCompare, ratio, setRatio,
+    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, vAuto, setVAuto, improve, setImprove, polish, improving, improveNow, undoImprove, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs: shown, items, cursor, library, favs,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,

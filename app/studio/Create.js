@@ -8,7 +8,7 @@ import { Price, Picture, Full, Poster, Brand, Balance, useNow } from "./bits";
 import { imageModel, videoModel, videoPlan, videoTakesImage, TOOLS, comparePlan, stageOf, stageTime } from "./models";
 import { nextActions } from "./next";
 import { ideaCards } from "./ideas";
-import { autoPick } from "./auto";
+import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
 
@@ -327,7 +327,9 @@ export default function Create({ s }) {
   const wait = making && (!stage || making.t0 >= stageTime(stage)) ? making : null;
   const jobs = s.runs.filter((r) => r !== stage && r !== wait && r.status !== "done");
 
-  const vm = videoModel(s.vidModel);
+  // Auto for video: the model follows the prompt, at the chosen length and quality.
+  const vauto = video && !s.ref && s.vAuto ? recommend(s.prompt, "video", s.wallet, s.off, (id) => videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost, VIDEO_AUTO_CAP) : null;
+  const vm = videoModel(vauto ? vauto.pick : s.vidModel);
   // A video that starts from a picture: on the chosen model when it can do that, otherwise Wan's fixed "Animate".
   const fromImg = Boolean(video && s.ref && videoTakesImage(vm.id));
   const plan = video ? videoPlan(vm.id, s.vDur, s.vRes, fromImg ? s.ref.ratio : s.ratio, fromImg) : null;
@@ -341,8 +343,8 @@ export default function Create({ s }) {
   const lockedRatio = !video && s.format !== "free" ? FORMATS[s.format]?.ratio : null; // a format fixes the shape
   const canGo = Boolean(s.prompt.trim()) || (video && s.ref);
   const project = s.projectsOn ? s.projects.find((p) => p.id === s.project) : null; // new creations are saved into it
-  const modelName = cmp ? t("{n} models", { n: cmp.models.length }) : auto ? t("Auto") : video ? vm.name : im.name;
-  const modelLabel = cmp ? t("Comparing {n} models. Change", { n: cmp.models.length }) : t("Model: {name}. Change", { name: auto ? t("Auto") : video ? vm.name : im.name });
+  const modelName = cmp ? t("{n} models", { n: cmp.models.length }) : auto || vauto ? t("Auto") : video ? vm.name : im.name;
+  const modelLabel = cmp ? t("Comparing {n} models. Change", { n: cmp.models.length }) : t("Model: {name}. Change", { name: auto || vauto ? t("Auto") : video ? vm.name : im.name });
   const pickFile = () => { if (!s.needAccount({ tab: "create" })) fileRef.current?.click(); };
 
   const mode = (
@@ -382,7 +384,33 @@ export default function Create({ s }) {
       ) : null}
     </>
   );
-  const autoline = auto && s.prompt.trim() ? <p className="sm t2 autoline" role="status"><span className="b" style={{ color: "var(--text)" }}>{im.name}.</span> {t(auto.why)}.{auto.fitted ? t(" Fits your balance.") : ""}</p> : null;
+  // After the improve button: which model makes the most of this prompt, said openly with its price and why, and
+  // a cheap one beside it. Nothing changes until the person taps "Use". When the balance does not cover the best
+  // one, the best that it does cover is offered, with a way to add credits for the first.
+  const priceOf = (id) => (video ? videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost : imageModel(id).cost);
+  const rec = s.polish && !s.ref && !cmp && s.prompt.trim() ? recommend(s.prompt, video ? "video" : "image", s.wallet, s.off, priceOf) : null;
+  const nameOf = (id) => (video ? videoModel(id) : imageModel(id)).name;
+  const recRow = (label, id, note) => (
+    <div className="rec-r">
+      <span className="grow"><span className="sm t2">{label}</span><span className="b clamp1">{nameOf(id)}</span>{note ? <span className="sm t2">{note}</span> : null}</span>
+      <Price n={rec.cost(id)} />
+      {id === (video ? vm.id : im.id) ? <span className="rec-on"><Icon name="check" size={14} />{t("Selected")}</span> : <button onClick={() => (video ? s.setVidModel : s.setImgModel)(id)}>{t("Use")}</button>}
+    </div>
+  );
+  const recline = rec ? (
+    <div className="recbox" role="status">
+      {recRow(rec.fitted ? t("Best for your balance") : t("Best for this prompt"), rec.pick, `${t(rec.why)}.`)}
+      {rec.fitted ? (
+        <div className="rec-r">
+          <span className="grow sm t2">{tn(N("{name} is the best for this prompt. It needs 1 more credit."), N("{name} is the best for this prompt. It needs {n} more credits."), { name: nameOf(rec.best), n: rec.short })}</span>
+          <button onClick={() => s.askCredits(rec.cost(rec.best), nameOf(rec.best), video)}>{t("Add credits")}</button>
+        </div>
+      ) : null}
+      {rec.saver !== rec.pick ? recRow(t("Economical"), rec.saver) : null}
+    </div>
+  ) : null;
+  const picked = auto ? { name: im.name, why: auto.why, fitted: auto.fitted } : vauto ? { name: vm.name, why: vauto.why, fitted: vauto.fitted } : null;
+  const autoline = rec ? recline : picked && s.prompt.trim() ? <p className="sm t2 autoline" role="status"><span className="b" style={{ color: "var(--text)" }}>{picked.name}.</span> {t(picked.why)}.{picked.fitted ? t(" Fits your balance.") : ""}</p> : null;
   const go = (
     <button className="btn btn-p btn-wide btn-split" onClick={s.generate} disabled={!canGo}>
       <span>{action}</span>{cost ? <Price n={cost} /> : null}
