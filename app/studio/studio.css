@@ -208,7 +208,7 @@ html:has(.pp) body { background: transparent !important; }
 @keyframes pp-word { 0% { opacity: 0; } 16% { opacity: 1; } 84% { opacity: 1; } 100% { opacity: 0; } }
 .pp .mist-t { position: absolute; left: 9px; bottom: 7px; font-size: 12px; line-height: 18px; font-weight: 600; color: rgba(255, 255, 255, .7); }
 /* The room around the picture: a dark, blurred copy of the same picture. */
-.pp .back { position: absolute; left: -48px; top: -48px; right: -48px; bottom: -48px; background-size: cover; background-position: center; filter: blur(34px) brightness(.5) saturate(1.25); opacity: 0; transition: opacity .5s ease; }
+.pp .back { position: absolute; left: -48px; top: -48px; right: -48px; bottom: -48px; background-size: cover; background-position: center; filter: blur(34px) brightness(.82) saturate(1.3); opacity: 0; transition: opacity .5s ease; }
 .pp .back.in { opacity: 1; }
 .pp .shot3 { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: block; opacity: 0; }
 .pp .shot3 > img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -396,7 +396,7 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .viewer .top { padding: 0 6px; }
 .pp .stage { position: relative; background: #0E0E10; display: flex; justify-content: center; overflow: hidden; isolation: isolate; }
 /* behind the picture: a dark, blurred copy of it, as on the Create screen */
-.pp .vback { position: absolute; left: -48px; top: -48px; right: -48px; bottom: -48px; z-index: -1; background-size: cover; background-position: center; filter: blur(34px) brightness(.5) saturate(1.25); }
+.pp .vback { position: absolute; left: -48px; top: -48px; right: -48px; bottom: -48px; z-index: -1; background-size: cover; background-position: center; filter: blur(34px) brightness(.82) saturate(1.3); }
 .pp .stage > img, .pp .stage > video { position: relative; }
 .pp .stage > img, .pp .stage > video { max-width: 100%; max-height: 68vh; width: auto; height: auto; object-fit: contain; }
 .pp .stage .seg { position: absolute; left: 12px; top: 12px; height: 38px; background: rgba(0, 0, 0, .6); }
