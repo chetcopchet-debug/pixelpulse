@@ -9,7 +9,7 @@ export function generateStaticParams() { return FORMAT_LIST.filter((f) => f.id !
 export async function generateMetadata(props) {
   const params = await props.params;
   const f = isFormat(params.slug) && params.slug !== 'free' ? FORMATS[params.slug] : null;
-  if (!f) return { title: 'Not found · PixelPulse' };
+  if (!f) return { title: 'Not found · Yelvo' };
   const m = FORMAT_SEO[f.id];
   return { title: { absolute: m.title }, description: m.seo, alternates: { canonical: `/formats/${f.id}` },
     openGraph: { title: m.title, description: m.seo, url: `/formats/${f.id}`, type: 'website' }, twitter: { card: 'summary_large_image', title: m.title, description: m.seo } };
@@ -22,7 +22,7 @@ export default async function FormatPage(props) {
   const m = FORMAT_SEO[f.id];
   const related = FORMAT_LIST.filter((o) => o.group === f.group && o.id !== f.id);
   const ld = [
-    { '@context': 'https://schema.org', '@type': 'WebApplication', name: `PixelPulse ${m.h1}`, url: `${SITE_URL}/formats/${f.id}`, applicationCategory: 'DesignApplication', operatingSystem: 'Any (web)', description: m.seo, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } },
+    { '@context': 'https://schema.org', '@type': 'WebApplication', name: `Yelvo ${m.h1}`, url: `${SITE_URL}/formats/${f.id}`, applicationCategory: 'DesignApplication', operatingSystem: 'Any (web)', description: m.seo, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } },
     { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: m.faq.map((x) => ({ '@type': 'Question', name: x.q, acceptedAnswer: { '@type': 'Answer', text: x.a } })) },
     { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Formats', item: `${SITE_URL}/formats` }, { '@type': 'ListItem', position: 2, name: f.label, item: `${SITE_URL}/formats/${f.id}` }] },
   ];

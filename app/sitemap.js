@@ -1,5 +1,5 @@
 import { FORMAT_LIST } from '../lib/formats';
-const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://pixelpulse-omega.vercel.app';
+const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://yelvoai.com';
 export const revalidate = 3600;
 
 export default async function sitemap() {

@@ -6,7 +6,7 @@ import { rich } from '../i18n/rich.js';
 import { getT } from '../i18n/server';
 import { imageModels, videoModels, TOOLS } from '../studio/models';
 import { VIDEO_PRICING } from '../../lib/videoPricing';
-export const metadata = { title: { absolute: 'Models & pricing · PixelPulse' }, description: 'Sign up and get 10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
+export const metadata = { title: { absolute: 'Models & pricing · Yelvo' }, description: 'Sign up and get 10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
 const Coin = ({ n }) => <span className="price"><i className="coin" />{n}</span>;
 const TOOL_ROWS = [

@@ -14,7 +14,7 @@ import { getSupabase } from '../../lib/supabase';
 import { GALLERY_IMAGES, GALLERY_VIDEOS } from '../../lib/galleryPrompts';
 import { IMAGE_MODELS, VIDEO_MODELS } from '../../lib/catalog';
 import Page from '../studio/Page';
-export const metadata = { title: 'Admin · PixelPulse', robots: { index: false, follow: false } };
+export const metadata = { title: 'Admin · Yelvo', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 const GRANT = { rate: 'Too many grants this hour.', amount: 'Enter a whole number from 1 to 2000.', email: 'That email does not look right.', noacct: 'No account with that email. The person has to sign in once first.', db: 'The database did not answer. Try again.' };

@@ -1,4 +1,4 @@
-// Saving a result to the device. Free downloads carry a small "PixelPulse" mark; buyers and admins get clean files.
+// Saving a result to the device. Free downloads carry a small "Yelvo" mark; buyers and admins get clean files.
 let markOn = false;
 export const setDownloadMark = (on) => { markOn = Boolean(on); };
 
@@ -9,7 +9,7 @@ async function addMark(blob) {
   const g = c.getContext("2d"); g.drawImage(bmp, 0, 0); bmp.close?.();
   const fs = Math.max(13, Math.round(Math.min(w, h) * 0.032)), pad = Math.round(fs * 0.9);
   g.font = `700 ${fs}px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif`; g.textBaseline = "middle";
-  const text = "PixelPulse", tw = g.measureText(text).width, r = fs * 0.28;
+  const text = "Yelvo", tw = g.measureText(text).width, r = fs * 0.28;
   const x = w - pad - tw, y = h - pad - fs * 0.5;
   g.shadowColor = "rgba(0,0,0,.45)"; g.shadowBlur = fs * 0.35;
   g.globalAlpha = 0.7; g.fillStyle = "#fff"; g.fillText(text, x, y);
@@ -19,7 +19,7 @@ async function addMark(blob) {
 }
 
 export async function download(item) {
-  const name = `pixelpulse-${(item.id || String(Date.now())).slice(0, 8)}`;
+  const name = `yelvo-${(item.id || String(Date.now())).slice(0, 8)}`;
   try {
     const r = await fetch(item.url, { cache: "no-store" });
     let b = await r.blob();
