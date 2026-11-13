@@ -589,4 +589,5 @@ export default {
   "Your prompt has speech, music or sound": "Seu prompt tem fala, música ou som",
   "{name} is the best for this prompt. It needs 1 more credit.": "{name} é o melhor para este prompt. Falta 1 crédito.",
   "{name} is the best for this prompt. It needs {n} more credits.": "{name} é o melhor para este prompt. Faltam {n} créditos.",
+  "Create one like this": "Criar uma assim",
 };

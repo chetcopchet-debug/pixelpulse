@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { isAdmin, adminEnabled } from '../../lib/admin';
 import { setupChecks, googleEnabled, deploymentKind } from '../../lib/setup';
 import { recentJobs } from '../../lib/videoJobs';
-import { bump, DAILY_SPEND_CAP_USD } from '../../lib/usage';
+import { bump, DAILY_SPEND_CAP_USD, PAID_SPEND_KEY } from '../../lib/usage';
 import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
 import { billingWarnings, replicateAccount } from '../../lib/replicate';
@@ -58,7 +58,8 @@ export default async function AdminLogin(props) {
     numbers = [['New accounts', a1, a7], ['Images made', i1, i7], ['Videos made', v1, v7], ['Purchases', p1, p7]];
   }
   // What the models cost us so far today (UTC), as counted by the daily limit.
-  const spentToday = admin ? Math.max(0, Number(await bump('spend', 0, 1e9).catch(() => 0)) || 0) : 0;
+  const spentToday = admin ? Math.max(0, Number(await bump('spend', 0, 1e9).catch(() => 0)) || 0) : 0; // on free credits: what the limit counts
+  const paidToday = admin ? Math.max(0, Number(await bump(PAID_SPEND_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // paid work: counted, never limited
   const bypass = Boolean(process.env.VERCEL_AUTOMATION_BYPASS_SECRET);
   const converter = showSetup ? await converterVersion().catch(() => null) : null;
   // Replicate: the API does not report the balance, so the page shows what Replicate's own refusals said today.
@@ -141,7 +142,8 @@ export default async function AdminLogin(props) {
           <div className="ptable">
             <div>
               <span className="grow">
-                <span className="b">${spentToday.toFixed(2)} of ${DAILY_SPEND_CAP_USD.toFixed(2)} today</span>
+                <span className="b">${spentToday.toFixed(2)} of ${DAILY_SPEND_CAP_USD.toFixed(2)} today on free credits</span>
+                <span className="sm t2" style={{ display: 'block' }}>Paid work today: ${paidToday.toFixed(2)}. It is not part of the limit.</span>
                 <span className="sm t2" style={{ display: 'block' }}>Everything the models cost today is counted. When it passes the limit, creating with <b>free</b> credits pauses until midnight UTC, so free use can never cost more than this in a day. Creations paid with bought credits are never stopped by it.</span>
                 <span className="sm t2" style={{ display: 'block' }}>To change the limit, set DAILY_SPEND_CAP_USD in Vercel's environment variables and redeploy.</span>
               </span>

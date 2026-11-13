@@ -589,4 +589,5 @@ export default {
   "Your prompt has speech, music or sound": "你的提示词包含语音、音乐或声音",
   "{name} is the best for this prompt. It needs 1 more credit.": "{name} 最适合这个提示词。还差 1 积分。",
   "{name} is the best for this prompt. It needs {n} more credits.": "{name} 最适合这个提示词。还差 {n} 积分。",
+  "Create one like this": "做一张类似的",
 };
