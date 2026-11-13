@@ -8,7 +8,7 @@ import { imageModel, videoModel, videoPlan, TOOLS, comparePlan, stageOf, stageTi
 import { nextActions } from "./next";
 import { IDEAS } from "./ideas";
 import { autoPick } from "./auto";
-import { fitBox, fitGrid, ratioOf } from "./layout";
+import { fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
 
 // A real desktop layout from this width up; below it, the phone layout.
@@ -116,26 +116,52 @@ function Glow({ src }) {
   return <>{layer("a")}{layer("b")}</>;
 }
 
-// One frame for the whole life of a creation. While it is being made the frame, already in the shape the
-// picture will have, is filled with slowly moving color; the finished picture then comes into focus in the very
-// same place. `it` is a run, or one model of a comparison.
-function Shot({ it, box, now, s, small }) {
+// What is happening while a picture is being made, in a few words that take turns.
+const WORDS = {
+  image: ["Mixing colors…", "Adding light…", "Sharpening details…"],
+  video: ["Setting the scene…", "Adding motion…", "Rendering frames…"],
+};
+function Words({ it, now }) {
+  const video = it.kind === "video";
+  const [i, setI] = useState(0);
+  useEffect(() => { const t = setInterval(() => setI((x) => x + 1), 3600); return () => clearInterval(t); }, []);
+  const pct = percent(it, now);
+  const last = pct >= 88;
+  const list = WORDS[video ? "video" : "image"];
+  const text = last ? "Finishing touches…" : list[i % list.length];
+  return (
+    <div className="words" aria-hidden="true">
+      <p key={text} className={last ? "stay" : undefined}>{text}<span className="num">{pct}%</span></p>
+      {video ? <p className="words-n">You can close the site. The video is saved to your Library.</p> : null}
+    </div>
+  );
+}
+
+// One frame for the whole life of a creation. While it is being made, a soft light moves slowly across the
+// frame; the finished picture then develops in the very same place. `it` is a run, or one model of a comparison.
+//  - The big frame of a single creation fills all the room there is, whatever the shape of the picture. The
+//    picture sits whole in the middle of it, and the room around it is a dark, blurred copy of the same picture
+//    (`back`). `foot` is the height at the bottom kept for the prompt line and the actions (`children`).
+//  - The small frames of a comparison have the shape of the picture itself.
+function Shot({ it, box, now, s, small, back, foot = 0, children }) {
   const item = it.status === "done" ? it.item : null;
   const [seen, setSeen] = useState(false); // the picture has loaded
-  const [calm, setCalm] = useState(false); // the reveal is over, so the moving color underneath can stop
+  const [calm, setCalm] = useState(false); // the picture has developed, so the moving light underneath can stop
   useEffect(() => { if (item?.video) setSeen(true); }, [item]);
-  useEffect(() => { if (!seen) return; const t = setTimeout(() => setCalm(true), 1500); return () => clearTimeout(t); }, [seen]);
+  useEffect(() => { if (!seen) return; const t = setTimeout(() => setCalm(true), 700); return () => clearTimeout(t); }, [seen]);
   return (
-    <div className="frame2" style={{ width: box.w, height: box.h }} role={item ? undefined : "status"} aria-label={item ? undefined : it.kind === "video" ? "Rendering" : "Generating"}>
-      {seen && calm ? null : <div className="mist" aria-hidden="true"><i /><i /><i /></div>}
-      {item ? null : <p className="mist-t" aria-hidden="true">{small ? "" : it.kind === "video" ? "Rendering " : "Generating "}<span className="num">{percent(it, now)}%</span></p>}
+    <div className={`frame2${small ? "" : " full"}`} style={{ width: box.w, height: box.h }} role={item ? undefined : "status"} aria-label={item ? undefined : it.kind === "video" ? "Rendering" : "Generating"}>
+      {seen && calm ? null : <div className="breath" aria-hidden="true"><i /></div>}
+      {item && back ? <div className={`back${seen ? " in" : ""}`} style={{ backgroundImage: `url("${back}")` }} aria-hidden="true" /> : null}
+      {item ? null : small ? <p className="mist-t num" aria-hidden="true">{percent(it, now)}%</p> : <Words it={it} now={now} />}
       {item ? (
-        <button className={`shot3${seen ? " in" : ""}`} onClick={() => s.setViewer({ item })} aria-label={item.video ? "Open video" : "Open image"}>
+        <button className={`shot3${seen ? " in" : ""}`} style={small ? undefined : { bottom: foot }} onClick={() => s.setViewer({ item })} aria-label={item.video ? "Open video" : "Open image"}>
           {item.video
             ? <><Poster item={item} version={s.posters[item.id]} /><span className="play"><Icon name="play" size={22} /></span></>
             : <img src={item.url} alt={item.prompt || ""} decoding="async" onLoad={() => setSeen(true)} />}
         </button>
       ) : null}
+      {item && seen && children ? <div className="over">{children}</div> : null}
     </div>
   );
 }
@@ -166,31 +192,42 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
   const item = !wait && run && run.kind !== "compare" ? run.item : null;
   const canAct = Boolean(item && !item.video && item.id);
 
-  // Room for the picture. The line of words under it, and the actions when the screen is tall enough, keep
-  // their place whether or not they have anything in them, so the picture never moves when it arrives.
-  // On a phone the actions of an image are two rows of tiles, all in view: nothing to scroll, nothing cut off.
-  // A short screen gets one row that scrolls sideways, with the edge fading out to show there is more.
-  const side = wide ? 28 : 12;
-  const acts = show && show.kind === "image";
-  const tiles = !wide && acts && size.h >= 500;
-  const under = wide ? (size.h >= 430 ? 100 : 0) : tiles ? 114 : size.h >= 340 ? 52 : 0;
+  // A single creation gets one frame that fills all the room between the top and the prompt box. The picture
+  // sits whole in the upper part of it; the prompt line and the actions lie over the blurred lower part. So the
+  // frame is the same size while waiting and after, nothing is black, and nothing moves when the picture arrives.
+  // On a phone the actions of an image are two rows of tiles, all in view. A short screen gets one row that
+  // scrolls sideways, with the edge fading out to show there is more.
+  const side = wide ? 24 : 10;
+  const single = show && show.kind !== "compare";
   const w = size.w - side * 2;
-  const h = size.h - (wide ? 20 : 4) - 44 - under - (wide ? 20 : 8);
-  const tiny = h < 80;
+  const h = size.h - (wide ? 32 : 8);
+  const acts = single && show.kind === "image";
+  const tiles = !wide && acts && h >= 480;
+  const under = !acts ? 0 : wide ? (h >= 420 ? 100 : 0) : tiles ? 114 : h >= 320 ? 52 : 0;
+  const foot = 46 + (under && canAct ? under + 8 : 0);
+  const tiny = h < 120;
 
   const save = async () => { if (saving || !item) return; setSaving(true); await download(item); setSaving(false); };
   const glowOf = (r) => { const x = r?.kind === "compare" ? r.parts.find((p) => p.item)?.item : r?.item; return x ? (x.video ? posterUrl(x.url) : thumbUrl(x.url)) : null; };
   const glow = wait ? null : run ? glowOf(run) : `/ideas/${IDEAS[video ? "video" : "image"][0].img}.webp`;
+  const fav = item?.id && s.favs.has(item.id);
+  const cap = (
+    <>
+      <p className="grow clamp1">{run?.unsaved && !wait ? "Not saved to your Library. Download it now to keep it." : show?.prompt || ""}</p>
+      {show?.kind === "compare" && show.cost ? <Price n={show.cost} /> : null}
+      {item?.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? "Remove from favorites" : "Add to favorites"} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : undefined} /></button> : null}
+      {item ? <button className="ib" aria-label="Download" onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button> : null}
+    </>
+  );
 
   let main = null;
-  if (show && !tiny) {
-    let pic = null, width = w;
-    if (show.kind === "compare") {
-      const ar = ratioOf(show.ratio);
-      const g = fitGrid(show.parts.length, ar, w, h);
-      if (g) {
-        width = g.cols * g.cw + (g.cols - 1) * 8;
-        pic = (
+  if (show && !tiny && show.kind === "compare") {
+    const ar = ratioOf(show.ratio);
+    const g = fitGrid(show.parts.length, ar, w, h - 44);
+    if (g) {
+      const width = g.cols * g.cw + (g.cols - 1) * 8;
+      main = (
+        <div className="hold">
           <div className="cmp2" style={{ gridTemplateColumns: `repeat(${g.cols}, ${g.cw}px)` }}>
             {show.parts.map((p) => {
               const box = { w: g.cw, h: Math.floor(g.cw / ar) };
@@ -207,46 +244,40 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
               );
             })}
           </div>
-        );
-      }
-    } else {
-      const box = fitBox(ratioOf((show.item && show.item.ratio) || show.ratio), w, h);
-      if (box) { width = box.w; pic = <Shot key={show.key} it={show} box={box} now={now} s={s} />; }
-    }
-    const fav = item?.id && s.favs.has(item.id);
-    main = pic ? (
-      <div className="hold">
-        {pic}
-        <div className="cap2" style={{ width: Math.min(w, Math.max(width, 260)) }}>
-          <p className="grow clamp1 t2">{run?.unsaved && !wait ? "Not saved to your Library. Download it now to keep it." : show.prompt || ""}</p>
-          {show.kind === "compare" && show.cost ? <Price n={show.cost} /> : null}
-          {item?.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? "Remove from favorites" : "Add to favorites"} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : undefined} /></button> : null}
-          {item ? <button className="ib" aria-label="Download" onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button> : null}
+          <div className="cap2 t2" style={{ width: Math.min(w, Math.max(width, 260)) }}>{cap}</div>
         </div>
-        {under ? (
-          <div className="under2" style={{ height: under }}>
-            {canAct && tiles ? (
-              <div className="next4">
-                {nextActions(s, item).map((a) => (
-                  <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(s.busyTool)} aria-label={`${a.label}, ${a.cost} credits`}>
-                    <span className="nx-t">{s.busyTool === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<Price n={a.cost} /></span>
-                    <span className="nx-l clamp1">{a.short}</span>
-                  </button>
-                ))}
-              </div>
-            ) : canAct ? (
-              <Row2>
-                {nextActions(s, item).map((a) => (
-                  <button key={a.key} className="act3" onClick={a.run} disabled={Boolean(s.busyTool)}>
-                    {s.busyTool === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<span>{a.label}</span><Price n={a.cost} />
-                  </button>
-                ))}
-              </Row2>
-            ) : wait && wait.kind === "video" ? <p className="sm t3">You can close the site. The video is saved to your Library.</p> : null}
-          </div>
-        ) : null}
+      );
+    }
+  } else if (show && !tiny) {
+    main = (
+      <div className="hold">
+        <Shot key={show.key} it={show} box={{ w, h }} now={now} s={s} back={glowOf(show)} foot={foot}>
+          <div className="cap2">{cap}</div>
+          {under && canAct ? (
+            <div className="under2" style={{ height: under }}>
+              {tiles ? (
+                <div className="next4">
+                  {nextActions(s, item).map((a) => (
+                    <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(s.busyTool)} aria-label={`${a.label}, ${a.cost} credits`}>
+                      <span className="nx-t">{s.busyTool === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<Price n={a.cost} /></span>
+                      <span className="nx-l clamp1">{a.short}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <Row2>
+                  {nextActions(s, item).map((a) => (
+                    <button key={a.key} className="act3" onClick={a.run} disabled={Boolean(s.busyTool)}>
+                      {s.busyTool === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<span>{a.label}</span><Price n={a.cost} />
+                    </button>
+                  ))}
+                </Row2>
+              )}
+            </div>
+          ) : null}
+        </Shot>
       </div>
-    ) : null;
+    );
   } else if (!show && size.h >= 150) {
     main = (
       <div className="start">

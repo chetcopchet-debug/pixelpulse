@@ -140,25 +140,34 @@ html:has(.pp) body { background: transparent !important; }
 .pp .stage2.scroll { overflow-y: auto; }
 .pp .hold { display: flex; flex-direction: column; align-items: center; padding-top: 4px; }
 /* one frame for a creation: moving color while it is made, then the picture comes into focus in the same place */
-.pp .frame2 { position: relative; flex: none; overflow: hidden; border-radius: 18px; background: #101012; isolation: isolate; }
-.pp .mist { position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; background: #101012; }
-.pp .mist > i { position: absolute; width: 95%; height: 95%; border-radius: 50%; filter: blur(46px); opacity: .6; will-change: transform; }
-.pp .mist > i:nth-child(1) { left: -35%; top: -30%; background: #4C5C82; animation: pp-mist-a 9s ease-in-out infinite alternate; }
-.pp .mist > i:nth-child(2) { right: -40%; top: 5%; background: #84604A; animation: pp-mist-b 12s ease-in-out infinite alternate; }
-.pp .mist > i:nth-child(3) { left: 0; bottom: -50%; background: #3E6F6A; animation: pp-mist-c 15s ease-in-out infinite alternate; }
-.pp .mist::after { content: ''; position: absolute; left: -100px; top: -100px; right: -100px; bottom: -100px; opacity: .2; mix-blend-mode: overlay; animation: pp-grain 1s steps(5) infinite;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-@keyframes pp-mist-a { from { transform: translate(0, 0) scale(1); } to { transform: translate(38%, 30%) scale(1.25); } }
-@keyframes pp-mist-b { from { transform: translate(0, 0) scale(1.1); } to { transform: translate(-42%, 34%) scale(.9); } }
-@keyframes pp-mist-c { from { transform: translate(0, 0) scale(.95); } to { transform: translate(30%, -44%) scale(1.3); } }
-@keyframes pp-grain { 0% { transform: translate(0, 0); } 20% { transform: translate(-38px, 22px); } 40% { transform: translate(26px, -44px); } 60% { transform: translate(-58px, -18px); } 80% { transform: translate(44px, 36px); } 100% { transform: translate(0, 0); } }
-.pp .mist-t { position: absolute; left: 14px; bottom: 12px; font-size: 13px; line-height: 18px; font-weight: 600; color: rgba(255, 255, 255, .85); }
-.pp .cmp2 .mist-t { left: 9px; bottom: 7px; font-size: 12px; }
-.pp .shot3 { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; opacity: 0; }
+.pp .frame2 { position: relative; flex: none; overflow: hidden; border-radius: 18px; background: #0E0E10; isolation: isolate; }
+/* Waiting: a soft light that moves slowly across the frame and breathes. */
+.pp .breath { position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; background: #0E0E10; animation: pp-breathe 4.8s ease-in-out infinite; }
+.pp .breath > i { position: absolute; left: -170%; top: -100%; width: 170%; height: 300%; background: linear-gradient(90deg, rgba(255, 255, 255, 0) 8%, rgba(255, 255, 255, .06) 30%, rgba(255, 255, 255, .18) 50%, rgba(255, 255, 255, .06) 70%, rgba(255, 255, 255, 0) 92%); will-change: transform; animation: pp-drift 6s ease-in-out infinite alternate; }
+@keyframes pp-drift { from { transform: rotate(12deg) translate3d(38%, 0, 0); } to { transform: rotate(12deg) translate3d(118%, 0, 0); } }
+@keyframes pp-breathe { 0%, 100% { background-color: #0E0E10; } 50% { background-color: #18181B; } }
+.pp .words { position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); text-align: center; color: rgba(255, 255, 255, .92); }
+.pp .words > p:first-child { font-family: var(--font-display); font-size: 17px; line-height: 24px; font-weight: 600; animation: pp-word 3.6s ease both; }
+.pp .words > p.stay { animation: pp-fade .7s ease both; }
+.pp .words .num { margin-left: 8px; font-family: var(--font-text); font-size: 13px; font-weight: 500; color: rgba(255, 255, 255, .5); }
+.pp .words-n { margin: 10px auto 0; max-width: 250px; font-size: 13px; line-height: 18px; color: rgba(255, 255, 255, .5); }
+@keyframes pp-word { 0% { opacity: 0; } 16% { opacity: 1; } 84% { opacity: 1; } 100% { opacity: 0; } }
+.pp .mist-t { position: absolute; left: 9px; bottom: 7px; font-size: 12px; line-height: 18px; font-weight: 600; color: rgba(255, 255, 255, .7); }
+/* The room around the picture: a dark, blurred copy of the same picture. */
+.pp .back { position: absolute; left: -48px; top: -48px; right: -48px; bottom: -48px; background-size: cover; background-position: center; filter: blur(34px) brightness(.5) saturate(1.25); opacity: 0; transition: opacity .5s ease; }
+.pp .back.in { opacity: 1; }
+.pp .shot3 { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: block; opacity: 0; }
 .pp .shot3 > img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
-.pp .shot3 > .vph { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
-.pp .shot3.in { opacity: 1; animation: pp-reveal 1.3s cubic-bezier(.2, .7, .2, 1) both; }
-@keyframes pp-reveal { 0% { opacity: 0; filter: blur(30px); transform: scale(1.05); } 45% { opacity: 1; } 100% { opacity: 1; filter: blur(0); transform: scale(1); } }
+.pp .frame2.full .shot3 > img { object-fit: contain; }
+.pp .shot3 > .vph { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: rgba(255, 255, 255, .5); }
+/* The picture develops like a Polaroid: pale and soft, then sharp. Half a second. */
+.pp .shot3.in { opacity: 1; animation: pp-develop .5s ease-out both; }
+@keyframes pp-develop { 0% { opacity: 0; filter: blur(16px) brightness(1.8) saturate(.4); } 30% { opacity: 1; } 100% { opacity: 1; filter: blur(0) brightness(1) saturate(1); } }
+/* The prompt line and the actions lie over the blurred lower part of the frame, so they are always light on dark. */
+.pp .over { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 8px 8px; --text: #FFFFFF; --text-2: rgba(255, 255, 255, .74); --text-3: rgba(255, 255, 255, .5); --fill: rgba(255, 255, 255, .13); --fill-2: rgba(255, 255, 255, .2); color: #FFFFFF; background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, .32)); animation: pp-fade .4s ease .15s both; }
+.pp .over .cap2 { height: 46px; padding-left: 8px; color: rgba(255, 255, 255, .78); }
+.pp .over .under2 { padding: 0; }
+.pp .over .nx:active, .pp .over .act3:active { background: var(--fill-2); }
 .pp .cap2 { display: flex; align-items: center; gap: 4px; height: 44px; max-width: 100%; padding-left: 4px; font-size: 14px; line-height: 20px; }
 .pp .cap2 .ib { color: var(--text-2); }
 .pp .cap2 .ib.on { color: var(--coin); }
