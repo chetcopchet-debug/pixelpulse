@@ -30,6 +30,15 @@ const nextConfig = {
     '/api/video/*': ['./node_modules/ffmpeg-static/ffmpeg'],
     '/admin': ['./node_modules/ffmpeg-static/ffmpeg'],
   },
+  // The site's first address. Pages opened there go to the same page on yelvoai.com. Addresses under /api are
+  // left alone, so a payment or video service that still calls the old address is answered, not sent away.
+  async redirects() {
+    const has = [{ type: 'host', value: 'pixelpulse-omega.vercel.app' }];
+    return [
+      { source: '/', has, destination: 'https://yelvoai.com/', permanent: true },
+      { source: '/:path((?!api/).+)', has, destination: 'https://yelvoai.com/:path', permanent: true },
+    ];
+  },
   async headers() {
     return [{
       source: '/:path*',
