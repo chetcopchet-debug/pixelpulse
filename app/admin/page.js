@@ -181,8 +181,8 @@ export default async function AdminLogin(props) {
           </details>
 
           <h2 className="sec">Models and prices</h2>
-          {gone.length > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>Discontinued by {gone.length === 1 ? 'its' : 'their'} provider: {gone.map((m) => m.name).join(', ')}.</b> Replicate refuses every run. The site already hides {gone.length === 1 ? 'it' : 'them'} and Auto does not pick {gone.length === 1 ? 'it' : 'them'}. Tell Claude so the list can be updated.</p>}
-          <CheckModels models={models.map((m) => ({ slug: m.slug, name: m.name }))} />
+          {gone.length > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>Discontinued by {gone.length === 1 ? 'its' : 'their'} provider: {gone.map((m) => m.name).join(', ')}.</b> Replicate refuses every run. The site shows {gone.length === 1 ? 'it' : 'them'} as "Temporarily unavailable" and Auto does not pick {gone.length === 1 ? 'it' : 'them'}. Replicate is asked again every day, and {gone.length === 1 ? 'it comes' : 'they come'} back by {gone.length === 1 ? 'itself' : 'themselves'} when it answers.</p>}
+          <CheckModels models={models.map((m) => ({ slug: m.slug, name: m.name, kind: m.kind }))} />
           {broken.length > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>{broken.length} {broken.length === 1 ? 'model needs' : 'models need'} attention.</b> Replicate no longer accepts what the site sends, so generations with {broken.length === 1 ? 'it' : 'them'} will fail and be refunded.</p>}
           {unverified.length > 0 && <p className="notice" style={{ marginBottom: 10 }}><b>{unverified.length} prices are not verified.</b> They are the maker's list price, not a price read on Replicate, so they are charged with 15% on top. To verify one, open its Replicate page, find the price, and tell Claude.</p>}
           <div className="ptable">

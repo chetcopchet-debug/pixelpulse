@@ -12,8 +12,10 @@ import { FREE_DAILY } from "./store";
 export function ModelSheet({ s, onClose }) {
   const video = s.mode === "video";
   const [sort, setSort] = useState("best");
-  const all = (video ? videoModels : imageModels).filter((m) => !s.off.has(m.id)); // not the ones their provider switched off
-  const list = sort === "price" ? [...all].sort((a, b) => a.cost - b.cost) : all;
+  // A model that is down right now stays in the list, marked and not selectable, below the ones that work.
+  const every = video ? videoModels : imageModels;
+  const sorted = sort === "price" ? [...every].sort((a, b) => a.cost - b.cost) : every;
+  const list = [...sorted.filter((m) => !s.off.has(m.id)), ...sorted.filter((m) => s.off.has(m.id))];
   const current = video ? s.vidModel : s.imgModel;
   // Images can also be compared: tick two to four models and the same prompt runs on each.
   const canCompare = !video && !s.ref;
@@ -48,6 +50,14 @@ export function ModelSheet({ s, onClose }) {
       ) : null}
       {list.map((m) => {
         const on = multi ? picked.includes(m.id) : m.id === current && !autoOn && !(canCompare && comparePlan(s.compare));
+        if (s.off.has(m.id)) return (
+          <button key={m.id} className="mrow" disabled aria-disabled="true">
+            <span className="grow">
+              <span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span>
+              <span className="sm t3" style={{ display: "block" }}>{t("Temporarily unavailable")}</span>
+            </span>
+          </button>
+        );
         return (
           <button key={m.id} className={`mrow${on ? " on" : ""}`} aria-pressed={on}
             onClick={() => { if (multi) { toggle(m.id); return; } (video ? s.setVidModel : s.setImgModel)(m.id); onClose(); }}>

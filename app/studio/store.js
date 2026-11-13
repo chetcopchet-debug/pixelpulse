@@ -104,7 +104,8 @@ export function useStudio() {
   const [uploading, setUploading] = useState(false);
 
   const walletRef = useRef(wallet); walletRef.current = wallet;
-  // Models their provider has switched off (the server tells us). They are hidden everywhere and never chosen.
+  // Models that are down right now (the server tells us). They stay in the lists, marked "Temporarily unavailable",
+  // and are never chosen: not by a tap, not by Auto, and a saved choice of one moves to a model that works.
   const off = useMemo(() => new Set(wallet.off || []), [wallet.off]);
   useEffect(() => {
     if (!off.size) return;

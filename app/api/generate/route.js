@@ -9,7 +9,7 @@ import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
 import { ownedProject, fileInProject } from '../../../lib/projectOwner';
 import { isDeadSlug } from '../../../lib/modelHealth';
-const MODEL_OFF_MSG = 'This model was discontinued by its maker. Pick another model.';
+const MODEL_OFF_MSG = 'This model is temporarily unavailable. Pick another model.';
 import { MODEL_TIERS, DEFAULT_TIER, guidedTier, TEXT_TIERS } from '../../../lib/models';
 import { getSupabase } from '../../../lib/supabase';
 import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';

@@ -72,3 +72,15 @@ test('comparing: two to four different models, priced as the sum', async () => {
   assert.equal(covers({ free: 3, paid: 20 }, [16, 4]), true);
   assert.equal(covers({ free: 0, paid: 19 }, [16, 4]), false);
 });
+
+test('Ideogram 4.5 is asked for a square by size, and for the other shapes by "source" and a sentence', async () => {
+  const { MODEL_TIERS } = await import('../lib/models.js');
+  const run = MODEL_TIERS.ideogram.input;
+  assert.equal(run('a cat', '1:1').size, '1024x1024');
+  assert.equal(run('a cat', '1:1').prompt, 'a cat');
+  for (const r of ['16:9', '9:16']) {
+    const i = run('a cat', r);
+    assert.equal(i.size, 'source'); // the only other size it takes without a source image
+    assert.ok(i.prompt.startsWith('a cat') && i.prompt.includes(r));
+  }
+});

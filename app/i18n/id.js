@@ -424,7 +424,6 @@ export default {
   "This image wasn't saved, so it can't be changed.": "Gambar ini tidak tersimpan, jadi tidak dapat diubah.",
   "This is already a video.": "Ini sudah berupa video.",
   "This item is added to it.": "Item ini ditambahkan ke dalamnya.",
-  "This model was discontinued by its maker. Pick another model.": "Model ini dihentikan oleh pembuatnya. Pilih model lain.",
   "This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.": "Yang ini tidak kembali. Jika berhasil dibuat, hasilnya ada di Koleksimu. Jika gagal, kreditnya sudah dikembalikan.",
   "This one didn't finish. Its credits were returned.": "Yang ini tidak selesai. Kreditnya sudah dikembalikan.",
   "This page doesn't exist": "Halaman ini tidak ada",
@@ -553,4 +552,6 @@ export default {
   "{name} costs 1 credit.": "{name} butuh 1 kredit.",
   "This costs 1 credit.": "Biayanya 1 kredit.",
   "1 credit. Open the menu": "1 kredit. Buka menu",
+  "Temporarily unavailable": "Sementara tidak tersedia",
+  "This model is temporarily unavailable. Pick another model.": "Model ini sementara tidak tersedia. Pilih model lain.",
 };

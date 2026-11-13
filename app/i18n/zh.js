@@ -424,7 +424,6 @@ export default {
   "This image wasn't saved, so it can't be changed.": "这张图片没有保存，无法修改。",
   "This is already a video.": "这已经是视频了。",
   "This item is added to it.": "此作品会添加到其中。",
-  "This model was discontinued by its maker. Pick another model.": "该模型已被开发方停用。请选择其他模型。",
   "This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.": "这个任务没有返回结果。如果已生成，它在你的作品库中；如果失败，积分已退回。",
   "This one didn't finish. Its credits were returned.": "这个任务未能完成。积分已退回。",
   "This page doesn't exist": "页面不存在",
@@ -553,4 +552,6 @@ export default {
   "{name} costs 1 credit.": "{name} 需要 1 积分。",
   "This costs 1 credit.": "需要 1 积分。",
   "1 credit. Open the menu": "1 积分。打开菜单",
+  "Temporarily unavailable": "暂时不可用",
+  "This model is temporarily unavailable. Pick another model.": "该模型暂时不可用。请选择其他模型。",
 };

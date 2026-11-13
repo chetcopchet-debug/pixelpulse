@@ -16,7 +16,7 @@ export async function GET() {
   const { seen, dead } = await modelHealth();
   const started = Date.now(); const out = [];
   // Oldest check first, so every model gets its turn even when only a few fit in a run.
-  const todo = modelRows().filter((r) => seen[r.slug] !== today && !dead.has(r.slug)).sort((a, b) => String(seen[a.slug] || '').localeCompare(String(seen[b.slug] || '')));
+  const todo = modelRows().filter((r) => seen[r.slug] !== today || dead.has(r.slug)).sort((a, b) => String(seen[a.slug] || '').localeCompare(String(seen[b.slug] || '')));
   for (const r of todo) {
     if (Date.now() - started > 40_000) break;
     const p = await probe(r.slug, r.inputs[0], { tries: 2 });

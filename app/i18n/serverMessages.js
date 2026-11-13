@@ -19,7 +19,7 @@ export const SERVER_MESSAGES = [
   N("Sign in to see your purchases."),
   N("Could not load your purchases."),
   N("Amplify limit reached (20/hour). Try again later."),
-  N("This model was discontinued by its maker. Pick another model."),
+  N("This model is temporarily unavailable. Pick another model."),
   N("Could not start the video, your credits were refunded."),
   N("Image not found."),
   N("This is already a video."),

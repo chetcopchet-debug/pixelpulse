@@ -16,7 +16,7 @@ import { finalizeJob, recordJob, pendingJobs, jobFromRow, webhookFields, repairR
 import { videoQuote, VIDEO_PRICING } from '../../../lib/videoPricing';
 import { ownedProject } from '../../../lib/projectOwner';
 import { isDiscontinued, markDead, isDeadSlug } from '../../../lib/modelHealth';
-const MODEL_OFF_MSG = 'This model was discontinued by its maker. Pick another model.';
+const MODEL_OFF_MSG = 'This model is temporarily unavailable. Pick another model.';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 import { replicateStart, THROTTLED_MSG } from '../../../lib/replicate';
 import sharp from 'sharp';
