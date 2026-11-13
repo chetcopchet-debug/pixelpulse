@@ -566,7 +566,6 @@ export default {
   "The video keeps the shape of your image.": "동영상은 이미지의 비율을 그대로 유지해요.",
   "Improve this prompt now": "지금 이 프롬프트 다듬기",
   "Improved. You can edit it.": "다듬었어요. 수정할 수 있어요.",
-  "This prompt is already detailed. It will be used as you wrote it.": "이 프롬프트는 이미 자세해요. 쓴 그대로 사용돼요.",
   "You've used today's prompt improvements. Your prompt will be used as you write it.": "오늘의 프롬프트 다듬기를 모두 사용했어요. 프롬프트는 쓴 그대로 사용돼요.",
   "Couldn't improve the prompt right now. Try again in a moment.": "지금은 프롬프트를 다듬지 못했어요. 잠시 후 다시 시도해 주세요.",
   "Creating": "만들기",

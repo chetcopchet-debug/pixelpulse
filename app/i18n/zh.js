@@ -566,7 +566,6 @@ export default {
   "The video keeps the shape of your image.": "视频会保持图片的比例。",
   "Improve this prompt now": "立即优化这条提示词",
   "Improved. You can edit it.": "已优化。你可以继续编辑。",
-  "This prompt is already detailed. It will be used as you wrote it.": "这条提示词已经很详细，将按你写的原样使用。",
   "You've used today's prompt improvements. Your prompt will be used as you write it.": "今天的提示词优化次数已用完。提示词将按你写的原样使用。",
   "Couldn't improve the prompt right now. Try again in a moment.": "暂时无法优化提示词，请稍后再试。",
   "Creating": "创作",

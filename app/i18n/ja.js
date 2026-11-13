@@ -566,7 +566,6 @@ export default {
   "The video keeps the shape of your image.": "動画は画像の縦横比を保ちます。",
   "Improve this prompt now": "このプロンプトを今すぐ改善",
   "Improved. You can edit it.": "改善しました。編集できます。",
-  "This prompt is already detailed. It will be used as you wrote it.": "このプロンプトはすでに詳しく書かれています。書いたとおりに使われます。",
   "You've used today's prompt improvements. Your prompt will be used as you write it.": "今日のプロンプト改善は使い切りました。プロンプトは書いたとおりに使われます。",
   "Couldn't improve the prompt right now. Try again in a moment.": "今はプロンプトを改善できませんでした。少ししてからもう一度お試しください。",
   "Creating": "作成",

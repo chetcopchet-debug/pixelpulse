@@ -489,15 +489,19 @@ export function useStudio() {
     if (needAccount({ tab: "create" })) return;
     const text = prompt.trim();
     if (!text || improving) return;
+    // Pressed again on a version it wrote: another take on the person's own idea, different from the ones before.
+    // Pressed after they changed the text: what is in the box now is the idea.
+    const again = polish && text === (polish.last || "").trim();
+    const idea = again ? polish.original : prompt;
     setImproving(true);
     try {
-      const d = await json(await post("/api/improve", { prompt: text, kind: mode === "video" ? "video" : "image" }));
+      const d = await json(await post("/api/improve", { prompt: idea.trim(), kind: mode === "video" ? "video" : "image", ...(again ? { avoid: polish.seen } : {}) }));
       if (d.error) say(plain(d.error));
-      else if (d.improved && d.prompt) { setPolish({ original: prompt }); setPrompt(d.prompt); }
-      else say(d.why === "long" ? t("This prompt is already detailed. It will be used as you wrote it.") : d.why === "limit" ? t("You've used today's prompt improvements. Your prompt will be used as you write it.") : t("Couldn't improve the prompt right now. Try again in a moment."));
+      else if (d.improved && d.prompt) { setPolish({ original: polish ? polish.original : prompt, last: d.prompt, seen: [...(again ? polish.seen : []), d.prompt].slice(-3) }); setPrompt(d.prompt); }
+      else say(d.why === "limit" ? t("You've used today's prompt improvements. Your prompt will be used as you write it.") : t("Couldn't improve the prompt right now. Try again in a moment."));
     } catch { say(t("Couldn't improve the prompt right now. Try again in a moment.")); }
     finally { setImproving(false); }
-  }, [prompt, mode, improving, needAccount, say]);
+  }, [prompt, mode, improving, polish, needAccount, say]);
   const undoImprove = useCallback(() => { if (polish) { setPrompt(polish.original); setPolish(null); } }, [polish]);
   useEffect(() => { if (!prompt.trim()) setPolish(null); }, [prompt]); // an empty box has nothing to take back
 

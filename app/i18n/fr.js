@@ -566,7 +566,6 @@ export default {
   "The video keeps the shape of your image.": "La vidéo garde le format de votre image.",
   "Improve this prompt now": "Améliorer ce prompt maintenant",
   "Improved. You can edit it.": "Amélioré. Vous pouvez le modifier.",
-  "This prompt is already detailed. It will be used as you wrote it.": "Ce prompt est déjà détaillé. Il sera utilisé tel que vous l'avez écrit.",
   "You've used today's prompt improvements. Your prompt will be used as you write it.": "Vous avez utilisé les améliorations de prompt du jour. Votre prompt sera utilisé tel que vous l'écrivez.",
   "Couldn't improve the prompt right now. Try again in a moment.": "Impossible d'améliorer le prompt pour le moment. Réessayez dans un instant.",
   "Creating": "Création",
