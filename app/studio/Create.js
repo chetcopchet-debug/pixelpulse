@@ -404,9 +404,15 @@ export default function Create({ s }) {
   // says so and offers Undo.
   const hasText = Boolean(s.prompt.trim());
   const canPolish = canImprove && hasText; // also after an improvement: another press gives another version
+  const proBtn = (
+    <button className="propill" disabled={Boolean(s.improving)} onClick={() => s.improveNow("pro")} aria-label={t("Improve with Pro, 1 credit")}>
+      {s.improving === "pro" ? <i className="spin" style={{ width: 14, height: 14 }} /> : <Icon name="wand" size={14} />}{t("Pro")}<Price n={1} />
+    </button>
+  );
   const polishLine = s.polish ? (
     <div className="polish" role="status">
-      <Icon name="wand" size={16} /><span className="grow">{t("Improved. You can edit it.")}</span>
+      <Icon name="wand" size={16} /><span className="grow">{s.polish.pro ? t("Improved with Pro. You can edit it.") : t("Improved. You can edit it.")}</span>
+      {canImprove ? proBtn : null}
       <button onClick={s.undoImprove}><Icon name="undo" size={16} />{t("Undo")}</button>
     </div>
   ) : null;
@@ -421,7 +427,12 @@ export default function Create({ s }) {
             {mode}
             <div className="field2">{text}</div>
             {polishLine}
-            {canPolish ? <button className="set-add" disabled={s.improving} onClick={s.improveNow}>{s.improving ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="wand" size={18} />}{t("Improve this prompt now")}</button> : null}
+            {canPolish ? (
+              <div className="r" style={{ gap: 8 }}>
+                <button className="set-add grow" disabled={Boolean(s.improving)} onClick={() => s.improveNow()}>{s.improving === "std" ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="wand" size={18} />}{t("Improve this prompt now")}</button>
+                {s.polish ? null : proBtn}
+              </div>
+            ) : null}
             {s.ref ? <div className="set">{refcard}</div> : (
               <button className="set-add" disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="plus" size={18} />}{s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")}</button>
             )}
@@ -474,7 +485,7 @@ export default function Create({ s }) {
           <div className="r" style={{ gap: 4, alignItems: "flex-start" }}>
             {text}
             {more && !s.prompt.trim() ? <button className="plus" aria-label={t("Ideas to start from")} onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={22} /></button> : null}
-            {canPolish ? <button className="plus wandb on" aria-label={t("Improve this prompt now")} disabled={s.improving} onClick={s.improveNow}>{s.improving ? <i className="spin" /> : <Icon name="wand" size={22} />}</button> : null}
+            {canPolish ? <button className="plus wandb on" aria-label={t("Improve this prompt now")} disabled={Boolean(s.improving)} onClick={() => s.improveNow()}>{s.improving === "std" ? <i className="spin" /> : <Icon name="wand" size={22} />}</button> : null}
             <button className="plus" aria-label={s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
           </div>
           {polishLine}

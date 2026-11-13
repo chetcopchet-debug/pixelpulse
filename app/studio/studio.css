@@ -270,6 +270,8 @@ html:has(.pp) body { background: transparent !important; }
 /* The improve button in the prompt box, and the line that follows it. */
 .pp .polish { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; font-size: 13px; line-height: 18px; color: var(--text-2); }
 .pp .polish > .ic { color: var(--accent); flex: none; }
+.pp .propill { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 10px; background: var(--fill); color: var(--text); font-size: 13px; font-weight: 600; flex: none; }
+.pp .propill > .ic { color: var(--accent); }
 .pp .polish > button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 10px; background: var(--fill); color: var(--text); font-weight: 600; }
 .pp .plus.wandb.on { color: var(--accent); }
 .pp .ib.used { color: var(--accent); }

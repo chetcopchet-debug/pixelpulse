@@ -20,6 +20,7 @@ export const SERVER_MESSAGES = [
   N("Could not load your purchases."),
   N("Amplify limit reached (20/hour). Try again later."),
   N("This model is temporarily unavailable. Pick another model."),
+  N("Improve Pro costs 1 credit."),
   N("Could not start the video, your credits were refunded."),
   N("Image not found."),
   N("This is already a video."),
