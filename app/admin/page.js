@@ -7,6 +7,8 @@ import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
 import { billingWarnings, replicateAccount } from '../../lib/replicate';
 import { liveCheck } from '../../lib/modelCheck';
+import { payInfo } from '../../lib/payInfo';
+import { PLANS } from '../../lib/paid';
 import { modelHealth } from '../../lib/modelHealth';
 import CheckModels from './CheckModels';
 import { summarize } from '../../lib/errorLog';
@@ -61,6 +63,9 @@ export default async function AdminLogin(props) {
   // Replicate: the API does not report the balance, so the page shows what Replicate's own refusals said today.
   const money = admin ? await billingWarnings().catch(() => ({ low: 0, empty: 0 })) : { low: 0, empty: 0 };
   const account = admin ? await replicateAccount() : null;
+  // Payments: what Lemon Squeezy says about the account, the store and the products. Reading only.
+  const pay = admin ? await payInfo(Object.values(PLANS).map((pl) => ({ name: pl.name, variantId: process.env[pl.env] }))).catch(() => ({ configured: true, error: 'could not read Lemon Squeezy' })) : null;
+  const mode = (t) => (t === true ? 'test mode' : t === false ? 'live' : 'mode not reported');
   // Models: the price each one is charged at, whether that price was confirmed on Replicate, and whether Replicate
   // still has the model and accepts the inputs we send (asked live, cached for an hour).
   const models = admin ? await liveCheck().catch(() => []) : [];
@@ -156,6 +161,44 @@ export default async function AdminLogin(props) {
               <span className={`b sm ${money.empty > 0 ? 'bad' : money.low > 0 ? 'bad' : 'ok'}`} style={{ whiteSpace: 'nowrap' }}>{money.empty > 0 ? 'Empty' : money.low > 0 ? 'Under $5' : 'No warnings today'}</span>
             </div>
           </div>
+
+          <h2 className="sec">Payments</h2>
+          {!pay?.configured ? <p className="t2">This deployment has no Lemon Squeezy key, so there is nothing to read here. The key is set for the real site only.</p>
+            : pay.error ? <p className="notice bad" role="alert">Lemon Squeezy could not be read: {pay.error}.</p> : (
+              <>
+                {pay.testMode === true && <p className="notice" role="alert" style={{ marginBottom: 10 }}><b>The site&apos;s key is a test-mode key.</b> Purchases on the site are test purchases: no real money moves. For real sales, the key, the store id and the two variant ids must be the live ones.</p>}
+                {(pay.problems || []).length > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}>Part of the answer is missing: {pay.problems.join('; ')}.</p>}
+                <div className="ptable">
+                  <div>
+                    <span className="grow"><span className="b">Account</span><span className="sm t2" style={{ display: 'block', overflowWrap: 'anywhere' }}>{pay.email || 'No email in the answer'}{pay.name ? ` (${pay.name})` : ''}</span></span>
+                    <span className={`b sm ${pay.testMode === false ? 'ok' : pay.testMode === true ? 'bad' : 't3'}`} style={{ whiteSpace: 'nowrap' }}>{pay.testMode === false ? 'Live key' : pay.testMode === true ? 'Test key' : 'Mode unknown'}</span>
+                  </div>
+                  {pay.stores.length === 0 ? <div><span className="grow t2">No store in the answer.</span></div> : pay.stores.map((st) => (
+                    <div key={st.id}>
+                      <span className="grow"><span className="b">Store: {st.name || st.id}</span><span className="sm t2" style={{ display: 'block', overflowWrap: 'anywhere' }}>{[st.url, st.country, st.currency].filter(Boolean).join(', ')}{st.ours ? '. This is the store the site sells from.' : ''}</span>
+                        <span className="sm t3" style={{ display: 'block' }}>Identity verification: {st.verified === true ? 'completed' : st.verified === false ? 'not completed' : 'Lemon Squeezy does not report it here. Look in its dashboard, under Settings.'}</span></span>
+                      <span className={`b sm ${st.ours ? 'ok' : 't3'}`}>{st.ours ? 'In use' : 'Other'}</span>
+                    </div>
+                  ))}
+                  {pay.sold.map((v) => (
+                    <div key={v.plan}>
+                      <span className="grow"><span className="b">The site sells: {v.plan}</span><span className="sm t2" style={{ display: 'block' }}>{v.found ? `At Lemon Squeezy: "${v.product || 'unknown product'}"${v.variant ? `, variant "${v.variant}"` : ''}, ${v.price || 'no price'}, ${v.status || 'no state'}, ${mode(v.testMode)}.` : `Not found at Lemon Squeezy: ${v.error || 'no answer'}.`}</span></span>
+                      <span className={`b sm ${v.found && v.status === 'published' ? 'ok' : 'bad'}`}>{v.found ? (v.status === 'published' ? 'Ready' : v.status || 'Check') : 'Missing'}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="sm t2" style={{ margin: '10px 0 6px' }}>Every product the key can see ({mode(pay.testMode)}). A key sees one mode only: a live key shows real products, a test key shows test products.</p>
+                <div className="ptable">
+                  {pay.products.length === 0 ? <div><span className="grow t2">No products in the answer.</span></div> : pay.products.map((pr) => (
+                    <div key={pr.id}>
+                      <span className="grow"><span className="b">{pr.name || pr.id}</span><span className="sm t2" style={{ display: 'block' }}>{[pr.price, mode(pr.testMode)].filter(Boolean).join(', ')}</span></span>
+                      <span className={`b sm ${pr.status === 'published' ? 'ok' : 't3'}`}>{pr.status || 'unknown'}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="sm t3" style={{ marginTop: 8 }}>Read from Lemon Squeezy each time this page opens. Nothing is changed there, and the key is not shown.</p>
+              </>
+            )}
 
           <h2 className="sec">Prompts for the Explore gallery</h2>
           <p className="t2" style={{ marginBottom: 10 }}>{GALLERY_IMAGES.length} images and {GALLERY_VIDEOS.length} videos. "Use" opens Create with the prompt, model and shape filled in; you still tap Generate yourself. When a result is good, open it in your Library and tap "Show in Explore". Making all of them once costs about <b>${galleryCost.usd.toFixed(2)}</b> at Replicate ({galleryCost.credits.toLocaleString('en-US')} credits; nothing is charged in admin mode).</p>
