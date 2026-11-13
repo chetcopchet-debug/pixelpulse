@@ -142,9 +142,9 @@ export default function Viewer({ s }) {
               {item.model ? <p className="sm" style={{ marginBottom: 6 }}><span className="t2">{t("Made with")}</span> <span className="b">{madeWith(item.model)}</span><span className="t3 num">, {item.ratio}</span></p> : null}
               <p style={{ margin: "0 0 14px", overflowWrap: "anywhere" }}>{item.prompt}</p>
               {exploreActions.length ? (
-                <div className="r" style={{ gap: 8, marginBottom: 8 }}>
+                <div className="c" style={{ gap: 8, marginBottom: 8 }}>
                   {exploreActions.map((a) => (
-                    <button key={a.key} className="btn btn-s btn-split grow" onClick={a.run} aria-label={tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: a.key === "variations" ? t("Create one like this") : a.label, n: a.cost })}>
+                    <button key={a.key} className="btn btn-s btn-split btn-wide" onClick={a.run} aria-label={tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: a.key === "variations" ? t("Create one like this") : a.label, n: a.cost })}>
                       <span className="r" style={{ gap: 6 }}><Icon name={a.icon} size={18} />{a.key === "variations" ? t("Create one like this") : a.short}</span><Price n={a.cost} />
                     </button>
                   ))}
