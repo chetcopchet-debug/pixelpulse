@@ -67,7 +67,7 @@ export function Tile({ item, onClick, label, poster }) {
 }
 
 export function Brand({ wordmark }) {
-  return <span className="r" style={{ gap: 10 }}><i className="logo" aria-hidden="true" />{wordmark ? <span className="d" style={{ fontSize: 20, lineHeight: "24px" }}>Yelvo</span> : <span className="sr">Yelvo</span>}</span>;
+  return <span className="r" style={{ gap: 10 }}><i className="logo" aria-hidden="true" />{wordmark ? <span className="wm">Yelvo</span> : <span className="sr">Yelvo</span>}</span>;
 }
 
 // Top-bar corner, on every screen: the credit balance with the profile circle. One button; it opens the profile

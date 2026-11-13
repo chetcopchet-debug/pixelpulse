@@ -13,7 +13,7 @@ async function addMark(blob) {
   const x = w - pad - tw, y = h - pad - fs * 0.5;
   g.shadowColor = "rgba(0,0,0,.45)"; g.shadowBlur = fs * 0.35;
   g.globalAlpha = 0.7; g.fillStyle = "#fff"; g.fillText(text, x, y);
-  g.globalAlpha = 0.9; g.fillStyle = "#FFC928"; g.beginPath(); g.arc(x - r * 2.4, y, r, 0, Math.PI * 2); g.fill();
+  g.globalAlpha = 0.9; g.fillStyle = "#C8FF3D"; g.beginPath(); g.arc(x - r * 2.4, y, r, 0, Math.PI * 2); g.fill();
   const png = blob.type === "image/png";
   return await new Promise((res) => c.toBlob((o) => res(o || blob), png ? "image/png" : "image/jpeg", 0.94));
 }
