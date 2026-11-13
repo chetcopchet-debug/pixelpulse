@@ -590,4 +590,6 @@ export default {
   "{name} is the best for this prompt. It needs 1 more credit.": "{name} est le meilleur pour ce prompt. Il manque 1 crédit.",
   "{name} is the best for this prompt. It needs {n} more credits.": "{name} est le meilleur pour ce prompt. Il manque {n} crédits.",
   "Create one like this": "En créer une comme ça",
+  "More": "Plus",
+  "Less": "Moins",
 };

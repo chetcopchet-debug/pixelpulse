@@ -590,4 +590,6 @@ export default {
   "{name} is the best for this prompt. It needs 1 more credit.": "이 프롬프트에는 {name}이(가) 가장 좋습니다. 크레딧 1개가 더 필요합니다.",
   "{name} is the best for this prompt. It needs {n} more credits.": "이 프롬프트에는 {name}이(가) 가장 좋습니다. 크레딧 {n}개가 더 필요합니다.",
   "Create one like this": "이런 이미지 만들기",
+  "More": "더 보기",
+  "Less": "접기",
 };

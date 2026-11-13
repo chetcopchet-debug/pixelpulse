@@ -590,4 +590,6 @@ export default {
   "{name} is the best for this prompt. It needs 1 more credit.": "{name} 最适合这个提示词。还差 1 积分。",
   "{name} is the best for this prompt. It needs {n} more credits.": "{name} 最适合这个提示词。还差 {n} 积分。",
   "Create one like this": "做一张类似的",
+  "More": "展开",
+  "Less": "收起",
 };
