@@ -577,4 +577,5 @@ export default {
   "Pro uses the strongest model to write a fuller prompt: scene, subjects, action, camera, light and expressions.": "O Pro usa o modelo mais forte para escrever um prompt mais completo: cena, sujeitos, ação, câmera, luz e expressões.",
   "Couldn't improve the prompt right now. Your credit was returned.": "Não foi possível melhorar o prompt agora. Seu crédito foi devolvido.",
   "Improve Pro costs 1 credit.": "A melhoria Pro custa 1 crédito.",
+  "Improving your prompt…": "Melhorando seu prompt…",
 };

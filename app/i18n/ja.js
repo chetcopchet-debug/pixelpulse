@@ -577,4 +577,5 @@ export default {
   "Pro uses the strongest model to write a fuller prompt: scene, subjects, action, camera, light and expressions.": "Proは最も高性能なモデルで、シーン・被写体・動き・カメラ・光・表情まで書き込んだプロンプトを作ります。",
   "Couldn't improve the prompt right now. Your credit was returned.": "今はプロンプトを改善できませんでした。クレジットは返却されました。",
   "Improve Pro costs 1 credit.": "Pro改善は1クレジットかかります。",
+  "Improving your prompt…": "プロンプトを改善中…",
 };
