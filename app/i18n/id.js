@@ -566,7 +566,6 @@ export default {
   "The video keeps the shape of your image.": "Video mengikuti bentuk gambarmu.",
   "Improve this prompt now": "Sempurnakan prompt ini sekarang",
   "Improved. You can edit it.": "Sudah disempurnakan. Kamu bisa mengeditnya.",
-  "This prompt is already detailed. It will be used as you wrote it.": "Prompt ini sudah rinci. Akan dipakai seperti yang kamu tulis.",
   "You've used today's prompt improvements. Your prompt will be used as you write it.": "Kamu sudah memakai jatah penyempurnaan prompt hari ini. Prompt akan dipakai seperti yang kamu tulis.",
   "Couldn't improve the prompt right now. Try again in a moment.": "Prompt belum bisa disempurnakan sekarang. Coba lagi sebentar lagi.",
   "Creating": "Pembuatan",
