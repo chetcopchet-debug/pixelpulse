@@ -18,7 +18,8 @@ test('prices agreed with the owner (5 s unless noted)', () => {
   assert.equal(c('kling-4', 5, '720p'), 140);
   assert.equal(c('veo', 4, '720p'), 110);
   assert.equal(c('kling-4-flash', 5, '720p'), 85);
-  assert.equal(c('grok-video', 5, '720p'), 45);
+  assert.equal(c('grok-video', 5, '720p'), 65); // $0.07 a second at 720p
+  assert.equal(c('grok-video', 5, '480p'), 45); // $0.05 a second at 480p, as before
   assert.equal(c('h3-lite', 5, '768p'), 36);
   assert.equal(c('wan', 5, '480p'), 10);
 });
