@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/*.mjs",
     "dev": "next dev",
     "build": "node --no-warnings scripts/model-schemas.mjs; next build",
     "start": "next start",

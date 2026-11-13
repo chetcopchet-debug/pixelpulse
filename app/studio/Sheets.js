@@ -1,5 +1,5 @@
 "use client";
-import { t, sm, num, LANGS } from "../i18n/index.js";
+import { t, tn, N, sm, num, LANGS } from "../i18n/index.js";
 import { rich } from "../i18n/rich.js";
 import { useEffect, useState } from "react";
 import Icon from "./icons";
@@ -120,7 +120,7 @@ export function PricingSheet({ s, need, label, paidOnly, onClose }) {
   const plans = (w.plans || []).filter((p) => p.credits);
   const open = plans.some((p) => p.enabled);
   const sub = need
-    ? `${label ? t("{name} costs {n} credits.", { name: label, n: need }) : t("This costs {n} credits.", { n: need })} ${paidOnly ? t("Video and a few tools use bought credits only; free credits don't cover them.") : t("You have {free} free and {paid} bought; one generation is paid from one of them, not a mix.", { free: w.free, paid: w.paid })}`
+    ? `${label ? tn(N("{name} costs 1 credit."), N("{name} costs {n} credits."), { name: label, n: need }) : tn(N("This costs 1 credit."), N("This costs {n} credits."), { n: need })} ${paidOnly ? t("Video and a few tools use bought credits only; free credits don't cover them.") : t("You have {free} free and {paid} bought; one generation is paid from one of them, not a mix.", { free: w.free, paid: w.paid })}`
     : t("Credits work on every model. Bought credits are used after your free ones.");
   return (
     <Sheet title={t("Add credits")} sub={sub} onClose={onClose}>
