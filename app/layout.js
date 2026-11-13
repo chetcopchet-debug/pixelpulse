@@ -1,7 +1,7 @@
-import { Bricolage_Grotesque, Instrument_Sans } from 'next/font/google';
+import { Sora, Instrument_Sans } from 'next/font/google';
 
 // Display and text faces of the studio. Self-hosted by Next at build time (no request to Google from the browser).
-const display = Bricolage_Grotesque({ subsets: ['latin'], weight: ['700'], variable: '--font-display', display: 'swap' });
+const display = Sora({ subsets: ['latin'], weight: ['600', '700'], variable: '--font-display', display: 'swap' });
 const text = Instrument_Sans({ subsets: ['latin'], weight: ['400', '600'], variable: '--font-text', display: 'swap' });
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://yelvoai.com';
