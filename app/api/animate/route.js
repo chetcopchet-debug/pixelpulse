@@ -22,6 +22,14 @@ import { replicateStart, THROTTLED_MSG } from '../../../lib/replicate';
 import sharp from 'sharp';
 
 // Pulse Effects: center-crop the photo to 9:16 (720x1280) so wan outputs a vertical, share-ready clip.
+// A model's first frame, as a JPEG no larger than 1280 on its long side, inside the request itself. JPEG because
+// some models take only JPG or PNG and many of our pictures are WebP; inside the request so no extra file is
+// left in storage.
+async function firstFrame(url) {
+  const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(`first frame download ${r.status}`);
+  const buf = await sharp(Buffer.from(await r.arrayBuffer())).rotate().resize({ width: 1280, height: 1280, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 90 }).toBuffer();
+  return `data:image/jpeg;base64,${buf.toString('base64')}`;
+}
 async function toVertical(url) {
   try {
     const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) return url;
@@ -54,7 +62,9 @@ export async function POST(request) {
   const ip = getClientIp(request);
   const body = await request.json().catch(() => ({}));
   if (!admin && await isBanned(creator.id)) return NextResponse.json({ error: BANNED_MSG }, { status: 403 });
-  if (typeof body?.model === 'string') return startTextVideo(request, body, { admin, creator, ip });
+  // A model from the picker: text-to-video, or (with an image id) a video that starts from that picture.
+  // Wan with a picture is the fixed "Animate" below: its picker model is text only.
+  if (typeof body?.model === 'string' && !(body.model === 'wan' && body?.id)) return startTextVideo(request, body, { admin, creator, ip });
   if (!isUuid(body?.id)) return NextResponse.json({ error: 'Invalid image id.' }, { status: 400 });
   const raw = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, MAX_PROMPT_LENGTH) : '';
   const sb = getSupabase();
@@ -100,41 +110,68 @@ export async function POST(request) {
   return res;
 }
 
-// Text-to-video from the model picker: { model, prompt, aspectRatio }. Paid credits only.
+// A video on a model from the picker: { model, prompt, aspectRatio, duration, resolution } is text-to-video;
+// with { id } of an image it starts from that picture (the prompt is then optional). Paid credits only.
 async function startTextVideo(request, body, { admin, creator, ip }) {
   const def = Object.prototype.hasOwnProperty.call(VIDEO_TIERS, body.model) ? VIDEO_TIERS[body.model] : null;
   if (!def) return NextResponse.json({ error: 'Invalid video model.' }, { status: 400 });
+  const fromImage = body?.id !== undefined && body?.id !== null;
+  if (fromImage && (!isUuid(body.id) || !def.imageInput)) return NextResponse.json({ error: fromImage && !def.imageInput ? 'This model cannot start from an image.' : 'Invalid image id.' }, { status: 400 });
   if (await isDeadSlug(def.model)) return NextResponse.json({ error: MODEL_OFF_MSG, modelOff: body.model }, { status: 410 });
   const raw = typeof body?.prompt === 'string' ? body.prompt.trim() : '';
-  if (!raw) return NextResponse.json({ error: 'Describe the video you want.' }, { status: 400 });
+  if (!raw && !fromImage) return NextResponse.json({ error: 'Describe the video you want.' }, { status: 400 });
   if (raw.length > MAX_PROMPT_LENGTH) return NextResponse.json({ error: `Prompt is too long (max ${MAX_PROMPT_LENGTH}).` }, { status: 400 });
-  if (!process.env.REPLICATE_API_TOKEN || !getSupabase()) return NextResponse.json({ error: 'Service temporarily unavailable.' }, { status: 503 });
+  const sb = getSupabase();
+  if (!process.env.REPLICATE_API_TOKEN || !sb) return NextResponse.json({ error: 'Service temporarily unavailable.' }, { status: 503 });
+  // The picture to start from: the person's own, or a public one. Never a video.
+  let row = null;
+  if (fromImage) {
+    ({ data: row } = await sb.from('images').select('id, public_url, aspect_ratio, is_public, creator_id, storage_path').eq('id', body.id).maybeSingle());
+    if (!row || (!row.is_public && (creator.isNew || row.creator_id !== creator.id))) return NextResponse.json({ error: 'Image not found.' }, { status: 404 });
+    if (/\.mp4$/i.test(row.storage_path || '')) return NextResponse.json({ error: 'This is already a video.' }, { status: 400 });
+  }
   // Price is computed here from the chosen duration/resolution (never trusted from the client).
   const pd = VIDEO_PRICING[body.model].def;
-  const q = videoQuote(body.model, body?.duration ?? pd.d, body?.resolution ?? pd.r, VALID_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : '16:9');
+  const wanted = fromImage ? row.aspect_ratio : body?.aspectRatio; // a video from a picture has the picture's shape
+  const q = videoQuote(body.model, body?.duration ?? pd.d, body?.resolution ?? pd.r, VALID_RATIOS.includes(wanted) ? wanted : '16:9', fromImage);
   if (!q) return NextResponse.json({ error: 'That duration / quality is not available for this model.' }, { status: 400 });
   const ratio = q.ratio;
   const tier = { ...def, cost: q.cost, usd: q.usd };
-  // A short idea is filled in when the person left that on: what moves, and one camera movement.
-  const prepared = await preparePrompt(raw, { admin, improve: body?.improve === true && shortIdea(raw) && await improveAllowed(creator.id, admin) ? 'video' : false });
+  // A short idea is filled in when the person left that on: what moves, and one camera movement. Not for a video
+  // that starts from a picture: the words there are only the motion, and with none the model gets a plain gentle one.
+  const prepared = raw
+    ? await preparePrompt(raw, { admin, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin) ? 'video' : false })
+    : { prompt: DEFAULT_MOTION, improved: false };
   const en = prepared.prompt;
   const bad = checkPromptText(en);
   if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
+  let frame = null;
+  if (fromImage) {
+    // A finished video cannot be checked here, so the picture it starts from is checked before anything is charged.
+    // Fails CLOSED (it is often a photo of a person).
+    const inGate = await checkOutputImage(row.public_url, 'closed');
+    if (inGate) {
+      await logGeneration({ userId: creator.id, ip, mode: `i2v:${body.model}`, prompt: raw, inputRef: row.id, moderation: inGate.status === 422 ? 'blocked:input' : 'blocked:unavailable' });
+      return NextResponse.json({ error: inGate.status === 503 ? inGate.error.replace(/ Your credits were refunded\.| הקרדיטים הוחזרו\./g, '') : inGate.error }, { status: inGate.status });
+    }
+    try { frame = await firstFrame(row.public_url); } catch (e) { console.error('i2v first frame', e?.message || e); return NextResponse.json({ error: 'That image could not be read. Try another one.' }, { status: 400 }); }
+  }
   const charge = await chargePaidCredits({ admin, creator, cost: tier.cost });
   if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost} credits).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(tier.usd, { admin: true });
   const pj = await ownedProject(creator.id, body?.project); // the project being worked in, if it is really theirs
-  const fields = { u: creator.id, s: null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio, ...(pj ? { j: pj } : {}) };
-  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio, q.d, q.r), ...hookFor(request, fields) }) }).catch(() => null);
+  const fields = { u: creator.id, s: row ? row.id : null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, ...(raw ? { pr: raw.slice(0, 600) } : {}), r: ratio, ...(pj ? { j: pj } : {}) };
+  const input = { ...def.input(en, ratio, q.d, q.r), ...(frame ? { [def.imageInput]: frame } : {}) };
+  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input, ...hookFor(request, fields) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
-    console.error('t2v start', body.model, r?.status, p?.detail || p?.error || '');
+    console.error(fromImage ? 'i2v start' : 't2v start', body.model, r?.status, p?.detail || p?.error || '');
     await spend.release(); await charge.refund();
     if (r && isDiscontinued(r.status, p)) { await markDead(def.model); return NextResponse.json({ error: `${MODEL_OFF_MSG} Your credits were returned.`, modelOff: body.model, paid: await paidFor(creator) }, { status: 410 }); }
     return NextResponse.json({ error: startFailed(r), paid: await paidFor(creator) }, { status: r?.status === 429 ? 429 : 502 });
   }
-  await logGeneration({ userId: creator.id, ip, mode: `t2v:${body.model}`, prompt: raw, outputRef: `pred:${p.id}`, moderation: 'passed:text-only' });
+  await logGeneration({ userId: creator.id, ip, mode: `${fromImage ? 'i2v' : 't2v'}:${body.model}`, prompt: raw, ...(row ? { inputRef: row.id } : {}), outputRef: `pred:${p.id}`, moderation: fromImage ? 'passed:input-only' : 'passed:text-only' });
   await recordJob({ ...fields, p: p.id });
   const job = makeJob({ ...fields, p: p.id });
   const res = NextResponse.json({ job, status: 'processing', ...(prepared.improved ? { usedPrompt: en } : {}), ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
