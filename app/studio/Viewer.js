@@ -2,7 +2,7 @@
 import { t, tn, N } from "../i18n/index.js";
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
-import { Price, lockScroll } from "./bits";
+import { Price, Full, lockScroll } from "./bits";
 import { thumbUrl } from "../../lib/thumbs";
 import { madeWith } from "./models";
 import { nextActions } from "./next";
@@ -93,7 +93,7 @@ export default function Viewer({ s }) {
           {shown.video ? null : <div className="vback" style={{ backgroundImage: `url("${thumbUrl(shown.url)}")` }} aria-hidden="true" />}
           {shown.video
             ? <Player key={shown.url} item={shown} own={!readonly} s={s} />
-            : <img key={shown.url} className="fadein" src={shown.url} alt={shown.prompt || ""} />}
+            : <Full key={shown.url} className="fadein" src={shown.url} alt={shown.prompt || ""} />}
           {before ? (
             <div className="seg" role="tablist" aria-label={t("Compare with the original")}>
               <button role="tab" aria-selected={side === "before"} className={side === "before" ? "on" : ""} onClick={() => setSide("before")}>{t("Before")}</button>

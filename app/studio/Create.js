@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import Icon from "./icons";
-import { Price, Picture, Poster, Brand, Balance, useNow } from "./bits";
+import { Price, Picture, Full, Poster, Brand, Balance, useNow } from "./bits";
 import { imageModel, videoModel, videoPlan, TOOLS, comparePlan, stageOf, stageTime } from "./models";
 import { nextActions } from "./next";
 import { ideaCards } from "./ideas";
@@ -159,7 +159,7 @@ function Shot({ it, box, now, s, small, back, foot = 0, children }) {
         <button className={`shot3${seen ? " in" : ""}`} style={small ? undefined : { bottom: foot }} onClick={() => s.setViewer({ item })} aria-label={item.video ? t("Open video") : t("Open image")}>
           {item.video
             ? <><Poster item={item} version={s.posters[item.id]} /><span className="play"><Icon name="play" size={22} /></span></>
-            : <img src={item.url} alt={item.prompt || ""} decoding="async" onLoad={() => setSeen(true)} />}
+            : <Full src={item.url} alt={item.prompt || ""} onLoad={() => setSeen(true)} />}
         </button>
       ) : null}
       {item && seen && children ? <div className="over">{children}</div> : null}
