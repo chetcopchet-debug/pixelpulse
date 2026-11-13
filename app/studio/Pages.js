@@ -1,5 +1,5 @@
 "use client";
-import { t, N, tm, num, langTag, LANGS } from "../i18n/index.js";
+import { t, tn, N, tm, num, langTag, LANGS } from "../i18n/index.js";
 import { rich } from "../i18n/rich.js";
 import { useEffect, useState } from "react";
 import Icon from "./icons";
@@ -161,7 +161,7 @@ export function Pricing({ s }) {
         <>
           <div className="mlist">
             {list.map((m) => (
-              <button key={m.id} onClick={() => pick(m)} style={{ width: "100%", textAlign: "left" }} aria-label={t("{name}, {n} credits. Create with this model", { name: m.name, n: m.cost })}>
+              <button key={m.id} onClick={() => pick(m)} style={{ width: "100%", textAlign: "left" }} aria-label={tn(N("{name}, 1 credit. Create with this model"), N("{name}, {n} credits. Create with this model"), { name: m.name, n: m.cost })}>
                 <span className="grow"><span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span><span className="sm t2" style={{ display: "block" }}>{m.by}. {t(m.desc)}</span></span>
                 <Price n={m.cost} />
               </button>

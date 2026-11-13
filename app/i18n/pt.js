@@ -548,4 +548,9 @@ export default {
   "This sign-in link is no longer valid. Ask for a new one.": "Este link de acesso não é mais válido. Peça um novo.",
   "Sign-in didn't work. Try again.": "Não foi possível entrar. Tente de novo.",
   "Sign-in didn't work. Check your connection and try again.": "Não foi possível entrar. Verifique sua conexão e tente de novo.",
+  "{name}, 1 credit": "{name}, 1 crédito",
+  "{name}, 1 credit. Create with this model": "{name}, 1 crédito. Criar com este modelo",
+  "{name} costs 1 credit.": "{name} custa 1 crédito.",
+  "This costs 1 credit.": "Isto custa 1 crédito.",
+  "1 credit. Open the menu": "1 crédito. Abrir o menu",
 };

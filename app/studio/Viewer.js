@@ -1,5 +1,5 @@
 "use client";
-import { t } from "../i18n/index.js";
+import { t, tn, N } from "../i18n/index.js";
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
@@ -120,7 +120,7 @@ export default function Viewer({ s }) {
               <h2 className="d h2" style={{ marginBottom: 10 }}>{t("What next?")}</h2>
               <div className="next4 wide4">
                 {next.map((a) => (
-                  <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(busy)} aria-label={t("{name}, {n} credits", { name: a.label, n: a.cost })}>
+                  <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(busy)} aria-label={tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: a.label, n: a.cost })}>
                     <span className="nx-t">{busy === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<Price n={a.cost} /></span>
                     <span className="nx-l clamp1">{a.short}</span>
                   </button>
