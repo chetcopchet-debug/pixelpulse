@@ -424,7 +424,6 @@ export default {
   "This image wasn't saved, so it can't be changed.": "この画像は保存されていないため、変更できません。",
   "This is already a video.": "これはすでに動画です。",
   "This item is added to it.": "この作品が追加されます。",
-  "This model was discontinued by its maker. Pick another model.": "このモデルは提供元により終了しました。別のモデルを選んでください。",
   "This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.": "結果が戻ってきませんでした。作成されていればライブラリにあります。失敗した場合、クレジットは返還されています。",
   "This one didn't finish. Its credits were returned.": "完成しませんでした。クレジットは返還されました。",
   "This page doesn't exist": "このページは存在しません",
@@ -553,4 +552,6 @@ export default {
   "{name} costs 1 credit.": "{name}は1クレジットかかります。",
   "This costs 1 credit.": "1クレジットかかります。",
   "1 credit. Open the menu": "1クレジット。メニューを開く",
+  "Temporarily unavailable": "一時的に利用できません",
+  "This model is temporarily unavailable. Pick another model.": "このモデルは一時的に利用できません。別のモデルを選んでください。",
 };
