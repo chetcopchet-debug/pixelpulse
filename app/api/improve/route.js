@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { refusalLog } from '../../../lib/refusals';
 import { accountGate } from '../../../lib/needAccount';
 import { getCreatorId } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
-import { readAccount } from '../../../lib/account';
+import { readAccount, isTestAccount } from '../../../lib/account';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
 import { preparePrompt, improveAllowed, shortIdea, IMPROVE_DAILY, IMPROVE_DAILY_PRO } from '../../../lib/translate';
 import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
@@ -25,7 +26,7 @@ const PRO = TOOLS.improvePro;
 // auto: asked for by the screen just before a creation ("Improve my prompt" is on). Short ideas only, in a neutral
 // style: the person's own style if they gave one, otherwise realistic. When today's free ones are used it simply
 // answers improved: false, and the creation goes on with the words as written.
-export async function POST(request) {
+async function handlePost(request) {
   const stop = accountGate(request); if (stop) return stop; // creating needs an account, and so does this
   const body = await request.json().catch(() => ({}));
   const prompt = typeof body?.prompt === 'string' ? body.prompt.trim().slice(0, MAX_PROMPT_LENGTH) : '';
@@ -45,13 +46,15 @@ export async function POST(request) {
   if (!pro) {
     const subscriber = admin ? false : await hasPro(creator.id);
     if (!await improveAllowed(creator.id, admin, subscriber)) {
+      console.warn(`Improve: refused, today's ${subscriber ? IMPROVE_DAILY_PRO : IMPROVE_DAILY} free improvements of this account are used`);
       if (auto) return NextResponse.json({ prompt, improved: false, why: 'limit' });
       return NextResponse.json({ prompt, improved: false, why: 'limit', limit: subscriber ? IMPROVE_DAILY_PRO : IMPROVE_DAILY, pro: { cost: PRO.cost } }, { status: 429 });
     }
-    const out = await preparePrompt(prompt, { admin, improve: kind, press });
+    const out = await preparePrompt(prompt, { admin: admin || isTestAccount(request), improve: kind, press });
     const badOut = checkPromptText(out.prompt);
     if (badOut) return NextResponse.json({ error: blocked(badOut) }, { status: 400 });
-    return NextResponse.json({ prompt: out.prompt, improved: out.improved, ...(out.improved ? {} : { why: 'busy' }) });
+    if (!out.improved) console.warn(`Improve: not improved (${out.why || 'busy'})`);
+    return NextResponse.json({ prompt: out.prompt, improved: out.improved, ...(out.improved ? {} : { why: out.why || 'busy' }) });
   }
 
   // Pro: one credit, from the free ones or the bought ones, taken before the model is asked and returned if it
@@ -63,9 +66,13 @@ export async function POST(request) {
   const wallet = async () => (admin ? { admin: true } : { credits: state.remaining, paid: await paidFor(creator) });
   const answer = async (data, status = 200) => { const res = NextResponse.json({ ...data, ...(await wallet()) }, { status }); if (!admin) setCreditsCookie(res, state); return res; };
   if (!charge.ok) return answer({ error: 'Improve Pro costs 1 credit.', needCredits: { cost: PRO.cost, label: 'Improve Pro' } }, charge.block === 'minute' ? 429 : 402);
-  const out = await preparePrompt(prompt, { admin, improve: kind, press });
+  const out = await preparePrompt(prompt, { admin: true, improve: kind, press }); // paid for with a credit: not from the free budget
   const badOut = checkPromptText(out.prompt);
+  if (!badOut && !out.improved) console.warn('Improve Pro: not improved (busy); the credit was returned');
   if (badOut || !out.improved) await charge.refund();
   if (badOut) return answer({ error: blocked(badOut) }, 400);
   return answer({ prompt: out.prompt, improved: out.improved, level: 'pro', ...(out.improved ? {} : { why: 'busy' }) });
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('improve', handlePost);

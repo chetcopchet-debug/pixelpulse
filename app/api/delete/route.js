@@ -1,4 +1,5 @@
 import { thumbPath, viewPath } from '../../../lib/thumbs';
+import { refusalLog } from '../../../lib/refusals';
 import { NextResponse } from 'next/server';
 import { getSupabase, BUCKET } from '../../../lib/supabase';
 import { getCreatorId, isUuid } from '../../../lib/identity';
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 // POST /api/delete { ids: [uuid, ...] } — deletes the visitor's own rows + storage objects.
-export async function POST(request) {
+async function handlePost(request) {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ error: 'Cloud storage is not available.' }, { status: 503 });
   const creator = getCreatorId(request);
@@ -29,3 +30,6 @@ export async function POST(request) {
   if (paths.length) await supabase.storage.from(BUCKET).remove(paths).catch((e) => console.error('Storage remove:', e));
   return NextResponse.json({ success: true, deleted: own });
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('delete', handlePost);
