@@ -7,6 +7,8 @@ import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
 import { billingWarnings, replicateAccount } from '../../lib/replicate';
 import { liveCheck } from '../../lib/modelCheck';
+import { modelHealth } from '../../lib/modelHealth';
+import CheckModels from './CheckModels';
 import Page from '../studio/Page';
 export const metadata = { title: 'Admin · PixelPulse', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -39,6 +41,9 @@ export default async function AdminLogin(props) {
   const models = admin ? await liveCheck().catch(() => []) : [];
   const unverified = models.filter((m) => m.approx);
   const broken = models.filter((m) => m.ok === false);
+  // Whether each model still runs: learned from real refusals, from the daily check and from the button below.
+  const health = admin ? await modelHealth().catch(() => ({ dead: new Set(), seen: {} })) : { dead: new Set(), seen: {} };
+  const gone = models.filter((m) => health.dead.has(m.slug));
   const when = (t) => new Date(t).toLocaleString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   return (
     <Page bare>
@@ -86,6 +91,8 @@ export default async function AdminLogin(props) {
           </div>
 
           <h2 className="sec">Models and prices</h2>
+          {gone.length > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>Discontinued by {gone.length === 1 ? 'its' : 'their'} provider: {gone.map((m) => m.name).join(', ')}.</b> Replicate refuses every run. The site already hides {gone.length === 1 ? 'it' : 'them'} and Auto does not pick {gone.length === 1 ? 'it' : 'them'}. Tell Claude so the list can be updated.</p>}
+          <CheckModels models={models.map((m) => ({ slug: m.slug, name: m.name }))} />
           {broken.length > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>{broken.length} {broken.length === 1 ? 'model needs' : 'models need'} attention.</b> Replicate no longer accepts what the site sends, so generations with {broken.length === 1 ? 'it' : 'them'} will fail and be refunded.</p>}
           {unverified.length > 0 && <p className="notice" style={{ marginBottom: 10 }}><b>{unverified.length} prices are not verified.</b> They are the maker's list price, not a price read on Replicate, so they are charged with 15% on top. To verify one, open its Replicate page, find the price, and tell Claude.</p>}
           <div className="ptable">
@@ -97,11 +104,13 @@ export default async function AdminLogin(props) {
                   <span className="sm t2" style={{ display: 'block' }}>
                     <a className="link" href={`https://replicate.com/${m.slug}`} target="_blank" rel="noreferrer">{m.slug}</a>
                   </span>
+                  {m.tool ? <span className="sm t2" style={{ display: 'block' }}>Used by a tool</span> : <>
                   <span className="sm t2" style={{ display: 'block' }}>${m.usd < 1 ? m.usd.toFixed(3) : m.usd.toFixed(2)} for {m.unit}. Source: {m.src}</span>
-                  <span className={`sm ${m.approx ? 'bad' : 'ok'}`} style={{ display: 'block' }}>{m.approx ? `Price not verified: list price $${m.listUsd} plus 15%` : 'Price verified'}</span>
-                  <span className={`sm ${m.ok === true ? 'ok' : m.ok === false ? 'bad' : 't3'}`} style={{ display: 'block' }}>{m.ok === true ? 'Replicate accepts our inputs' : m.ok === false ? `Problem: ${m.problems.join('; ')}` : `Not checked: ${m.problems.join('; ')}`}</span>
+                  <span className={`sm ${m.approx ? 'bad' : 'ok'}`} style={{ display: 'block' }}>{m.approx ? `Price not verified: list price $${m.listUsd} plus 15%` : 'Price verified'}</span></>}
+                  <span className={`sm ${health.dead.has(m.slug) ? 'bad' : health.seen[m.slug] ? 'ok' : 't3'}`} style={{ display: 'block' }}>{health.dead.has(m.slug) ? 'Discontinued by its provider: Replicate refuses every run' : health.seen[m.slug] ? `Running. Last checked ${health.seen[m.slug]}` : 'Not checked yet whether it still runs'}</span>
+                  <span className={`sm ${m.ok === true ? 'ok' : m.ok === false ? 'bad' : 't3'}`} style={{ display: 'block' }}>{m.ok === true ? (m.tool ? 'Replicate has this model' : 'Replicate accepts our inputs') : m.ok === false ? `Problem: ${m.problems.join('; ')}` : `Not checked: ${m.problems.join('; ')}`}</span>
                 </span>
-                <span className="price"><i className="coin" />{m.cost}</span>
+                {m.tool ? null : <span className="price"><i className="coin" />{m.cost}</span>}
               </div>
             ))}
           </div>

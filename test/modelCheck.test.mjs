@@ -16,7 +16,7 @@ test('every model in the list can be run, and nothing else can', () => {
 
 test('image credits are the ones agreed with the owner, and never below cost', () => {
   const cost = Object.fromEntries(IMAGE_MODELS.map((m) => [m.id, m.cost]));
-  assert.deepEqual(cost, { 'gpt-image': 16, 'imagen-ultra': 11, ideogram: 13, 'flux-3': 10, 'nano-banana': 7, 'seedream-5': 7, 'recraft-41': 8, 'flux-2-pro': 7, grok: 4, fast: 1 });
+  assert.deepEqual(cost, { 'gpt-image': 16, ideogram: 13, 'flux-3': 10, 'nano-banana': 7, 'seedream-5': 7, 'recraft-41': 8, 'flux-2-pro': 7, grok: 4, fast: 1 });
   for (const m of IMAGE_MODELS) assert.ok(m.cost * CREDIT_USD >= m.usd - 1e-9, m.id);
 });
 
@@ -25,9 +25,11 @@ test('the six prices that were not verified are marked, and charged 15% above th
   assert.deepEqual(approx, ['ideogram', 'flux-3', 'nano-banana', 'recraft-41', 'flux-2-pro', 'omni']);
   for (const m of IMAGE_MODELS) assert.equal(m.usd, Math.round(m.listUsd * (m.approx ? 1.15 : 1) * 10000) / 10000, m.id);
   const rows = modelRows();
-  assert.equal(rows.length, 19);
+  assert.equal(rows.filter((r) => !r.tool).length, 17);
+  assert.equal(rows.filter((r) => r.tool).length, 7); // the models behind the tools are watched too
   assert.equal(rows.filter((r) => r.approx).length, 6);
-  for (const r of rows) assert.ok(r.src && r.slug && r.inputs.length >= 1, r.id);
+  for (const r of rows.filter((x) => !x.tool)) assert.ok(r.src && r.slug && r.inputs.length >= 1, r.id);
+  assert.equal(new Set(rows.map((r) => r.slug)).size, 24);
 });
 
 test('GPT Image always runs at medium quality, whatever is asked', () => {
@@ -55,7 +57,6 @@ const PUBLISHED = {
   'kwaivgi/kling-v4.0': { required: ['prompt'], properties: { prompt: { type: 'string' }, resolution: en('720p', '1080p'), aspect_ratio: en('16:9', '9:16', '1:1', '21:9'), duration: { type: 'integer', minimum: 3, maximum: 30 } } },
   'kwaivgi/kling-v4-flash': { required: ['prompt'], properties: { prompt: { type: 'string' }, aspect_ratio: en('16:9', '9:16', '1:1', '21:9'), duration: { type: 'integer', minimum: 3, maximum: 20 } } },
   'google/gemini-omni-1.2-flash': { required: ['prompt'], properties: { prompt: { type: 'string' }, duration: { type: 'integer', minimum: 3, maximum: 15 }, aspect_ratio: en('16:9', '9:16'), resolution: en('360p', '720p', '1080p', '4k') } },
-  'google/veo-3.1-lite': { required: ['prompt'], properties: { prompt: { type: 'string' }, aspect_ratio: en('16:9', '9:16'), duration: { type: 'integer', enum: [4, 6, 8] }, resolution: en('720p', '1080p') } },
   'minimax/h3-lite': { required: ['prompt'], properties: { prompt: { type: 'string' }, duration: { type: 'integer', enum: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] }, resolution: en('480P', '768P'), ratio: en('21:9', '16:9', '4:3', '1:1', '3:4', '9:16') } },
 };
 

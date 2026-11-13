@@ -1,6 +1,6 @@
 "use client";
 // All state and server calls for the studio. The screens only read from here and call these actions.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
 import { autoPick } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
@@ -31,7 +31,7 @@ export function useStudio() {
   const [prompt, setPrompt] = useState("");
   const [imgModel, setImgModelRaw] = useState("fast");
   const [auto, setAutoRaw] = useState(false); // Auto: the model is chosen from the prompt (images only)
-  const [vidModel, setVidModelRaw] = useState("veo-lite");
+  const [vidModel, setVidModelRaw] = useState("h3-lite");
   const [compare, setCompare] = useState([]); // image model ids to run side by side; fewer than two means "one model"
   // The three ways to choose are exclusive: one model, Auto, or comparing several.
   const setImgModel = useCallback((id) => { setAutoRaw(false); setCompare([]); setImgModelRaw(id); }, []);
@@ -62,6 +62,14 @@ export function useStudio() {
   const [uploading, setUploading] = useState(false);
 
   const walletRef = useRef(wallet); walletRef.current = wallet;
+  // Models their provider has switched off (the server tells us). They are hidden everywhere and never chosen.
+  const off = useMemo(() => new Set(wallet.off || []), [wallet.off]);
+  useEffect(() => {
+    if (!off.size) return;
+    if (off.has(imgModel)) setImgModelRaw((imageModels.find((m) => m.id === "fast" && !off.has(m.id)) || imageModels.find((m) => !off.has(m.id)) || { id: "fast" }).id);
+    if (off.has(vidModel)) setVidModelRaw((videoModels.find((m) => m.id === "h3-lite" && !off.has(m.id)) || videoModels.find((m) => !off.has(m.id)) || { id: "h3-lite" }).id);
+    if (compare.some((id) => off.has(id))) setCompare(compare.filter((id) => !off.has(id)));
+  }, [off, imgModel, vidModel, compare]);
   const runsRef = useRef(runs); runsRef.current = runs;
   const toastTimer = useRef(null);
   const say = useCallback((msg) => { setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(""), 3200); }, []);
@@ -69,6 +77,7 @@ export function useStudio() {
   // ---- wallet ----
   const sync = useCallback((d) => {
     if (!d) return;
+    if (d.modelOff) setWallet((w) => ({ ...w, off: [...new Set([...(w.off || []), d.modelOff])] })); // the server just learned this model is gone
     setWallet((w) => ({ ...w, ...(d.admin ? { admin: true } : typeof d.credits === "number" ? { free: d.credits } : {}), ...(typeof d.paid === "number" ? { paid: d.paid } : {}) }));
   }, []);
   const refreshWallet = useCallback(async () => {
@@ -81,6 +90,7 @@ export function useStudio() {
       guest: d.admin ? false : "guest" in d ? Boolean(d.guest) : !d.account,
       paid: typeof d.paid === "number" ? d.paid : w.paid,
       plans: Array.isArray(d.plans) ? d.plans : w.plans, payments: Boolean(d.payments), purchased: Boolean(d.purchased),
+      off: Array.isArray(d.off) ? d.off : w.off,
     }));
     return d;
   }, []);
@@ -221,6 +231,10 @@ export function useStudio() {
     });
   }, []);
 
+  // The project that is open now, as a field for a request. The server files the result there itself, so it is
+  // in the right project even if the page is closed before the result comes back.
+  const inProject = () => (projectRef.current ? { project: projectRef.current } : {});
+
   // ---- runs (what the Create screen shows) ----
   const patchRun = useCallback((key, patch) => setRuns((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r))), []);
   const dropRun = useCallback((key) => setRuns((rs) => rs.filter((r) => r.key !== key)), []);
@@ -233,16 +247,16 @@ export function useStudio() {
     const label = o.ref ? TOOLS.reference.label : o.auto ? `${m.name}, picked by Auto` : m.name;
     if (!afford(cost, { label: o.ref ? TOOLS.reference.label : m.name })) return false;
     const key = uid();
-    setRuns((rs) => [...rs, { key, kind: "image", prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url, again: { ...o, kind: "image" } }]);
+    setRuns((rs) => [...rs, { key, kind: "image", model: o.ref ? "guided" : m.id, prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url, again: { ...o, kind: "image" } }]);
     markSeen();
     (async () => {
       try {
-        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}) });
+        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...inProject() });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label); return; }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "The image didn't finish. Any credits were returned.");
-        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id });
-        if (d.stored) addItem(item);
+        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id, project_id: d.project });
+        if (d.stored) addItem(item, { keep: "project" in d });
         patchRun(key, { status: "done", item, unsaved: !d.stored });
       } catch (e) { patchRun(key, { status: "failed", error: e.message || "Something went wrong. Any credits were returned." }); }
     })();
@@ -259,14 +273,14 @@ export function useStudio() {
     try {
       if (delay) await sleep(delay);
       for (let attempt = 1; ; attempt++) {
-        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free" });
+        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.project ? { project: o.project } : {}) });
         const d = await json(res); sync(d);
         // The provider limits how many generations can start at once. Wait and try again instead of failing.
         if (res.status === 429 && attempt < 3) { await sleep(10_000); continue; }
         if (res.status === 402 || res.status === 401) { refused(d, m.cost, m.name); throw new Error(d.needSignIn ? "Sign in to create." : "Not enough credits for this one."); }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "This one didn't finish. Its credits were returned.");
-        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: d.tier || m.id });
-        if (d.stored) addItem(item);
+        const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: d.tier || m.id, project_id: d.project });
+        if (d.stored) addItem(item, { keep: "project" in d });
         patchPart(key, m.id, { status: "done", item, unsaved: !d.stored });
         return;
       }
@@ -281,10 +295,10 @@ export function useStudio() {
       return false;
     }
     const key = uid(); const t0 = Date.now();
-    setRuns((rs) => [...rs, { key, kind: "compare", prompt: o.prompt, label: `Comparing ${plan.models.length} models`, ratio: o.ratio, cost: plan.cost, status: "running", t0, again: { prompt: o.prompt, ratio: o.ratio, format: o.format },
+    setRuns((rs) => [...rs, { key, kind: "compare", prompt: o.prompt, label: `Comparing ${plan.models.length} models`, ratio: o.ratio, cost: plan.cost, status: "running", t0, again: { prompt: o.prompt, ratio: o.ratio, format: o.format, project: projectRef.current },
       parts: plan.models.map((m) => ({ id: m.id, name: m.name, cost: m.cost, status: "running", t0, eta: m.id === "fast" ? 6 : 25 })) }]);
     markSeen();
-    plan.models.forEach((m, i) => runPart(key, m, o, i * 700)); // a small gap between starts is kinder to the provider's limits
+    plan.models.forEach((m, i) => runPart(key, m, { ...o, project: projectRef.current }, i * 700)); // a small gap between starts is kinder to the provider's limits
     return true;
   }, [askSignIn, askCredits, runPart]);
   const retryPart = useCallback((run, id) => {
@@ -331,6 +345,29 @@ export function useStudio() {
     return true;
   }, [afford, refused, sync, patchRun, dropRun, pollJob, say]);
 
+  // ---- images that were still being made when the page was closed ----
+  // The server finishes them and saves them anyway. What was waiting is remembered on the device, so on the way
+  // back the Create screen shows them as still running and fills them in from the Library as they arrive.
+  const recoverRuns = useCallback(async (list) => {
+    const open = new Map(list.map((r) => [r.key, r])); const used = new Set();
+    for (let round = 0; open.size && round < 40; round++) {
+      if (round) await sleep(4000);
+      const d = await get("/api/history?limit=24").then(json).catch(() => null);
+      const found = (d?.items || []).map(toItem).filter((x) => !x.video);
+      for (const r of [...open.values()].sort((a, b) => a.t0 - b.t0)) {
+        const item = found.find((x) => !used.has(x.id) && x.prompt === r.prompt.trim() && x.model === r.model && Date.parse(x.at) >= r.t0 - 60_000);
+        if (item) {
+          used.add(item.id); open.delete(r.key);
+          addItem(item, { keep: true });
+          setRuns((rs) => rs.filter((x) => x.key !== `h${item.id}`).map((x) => (x.key === r.key ? { ...x, status: "done", item } : x)));
+        } else if (Date.now() - r.t0 > 130_000) {
+          open.delete(r.key);
+          patchRun(r.key, { status: "failed", error: "We couldn't find this image after you came back. If it failed, its credits were returned. If it was made, it is in your Library." });
+        }
+      }
+    }
+  }, [addItem, patchRun]);
+
   const retry = useCallback((run) => { dropRun(run.key); if (run.again?.kind === "video") startVideo(run.again); else if (run.again) startImage(run.again); }, [dropRun, startVideo, startImage]);
 
   // The Generate button.
@@ -345,7 +382,7 @@ export function useStudio() {
     }
     if (!text) { say("Describe the image first."); return; }
     if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
-    const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current) : null;
+    const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
     if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick) })) setPrompt("");
   }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, startVideo, startImage, startCompare, say, needAccount]);
 
@@ -358,12 +395,12 @@ export function useStudio() {
     if (!afford(t.cost, { paidOnly: t.paidOnly, label: t.label })) return;
     setBusyTool(tool);
     try {
-      const res = await post(`/api/${tool}`, { id: item.id, ...extra });
+      const res = await post(`/api/${tool}`, { id: item.id, ...extra, ...inProject() });
       const d = await json(res); sync(d);
       if (res.status === 402 || res.status === 401) { refused(d, t.cost, t.label, t.paidOnly); return; }
       if (!res.ok || !d.item) throw new Error(plain(d.error) || `${t.label} didn't finish. Any credits were returned.`);
       const made = toItem(d.item);
-      addItem(made);
+      addItem(made, { keep: "project_id" in d.item });
       setViewer({ item: made, before: item });
       say(t.done);
     } catch (e) { say(e.message); }
@@ -482,7 +519,7 @@ export function useStudio() {
     store.write("pp_draft", null);
     await refreshWallet(); loadLibrary(); loadProjects(); say("You're signed in");
   }, [refreshWallet, loadLibrary, loadProjects, say]);
-  const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); window.location.href = "/"; }, []);
+  const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); store.write("pp_pending", []); window.location.href = "/"; }, []);
   const buy = useCallback(async (planId) => {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
     const d = res ? await json(res) : {};
@@ -495,6 +532,16 @@ export function useStudio() {
 
   // ---- remember choices ----
   useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project]);
+  // Remember which images are still being made (see recoverRuns). Videos have their own record on the server.
+  useEffect(() => {
+    if (!ready) return;
+    const waiting = [];
+    for (const r of runs) {
+      if (r.kind === "image" && r.status === "running" && r.model) waiting.push({ model: r.model, prompt: r.prompt, ratio: r.ratio, label: r.label, cost: r.cost, t0: r.t0, eta: r.eta });
+      if (r.kind === "compare") for (const p of r.parts) if (p.status === "running") waiting.push({ model: p.id, prompt: r.prompt, ratio: r.ratio, label: p.name, cost: p.cost, t0: p.t0, eta: p.eta });
+    }
+    store.write("pp_pending", waiting);
+  }, [ready, runs]);
 
   // ---- videos that were still rendering when the page was last closed ----
   const checkPending = useCallback(async () => {
@@ -572,6 +619,11 @@ export function useStudio() {
       setTimeout(async () => { const d = await refreshWallet(); if (d && !d.account && !d.admin) askSignIn("Purchase complete. Sign in so your credits are safe on every device."); }, 2500);
     }
     if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
+    // Images that were being made when the page was last closed, if that was moments ago.
+    const back = (Array.isArray(store.read("pp_pending", [])) ? store.read("pp_pending", []) : [])
+      .filter((r) => r && typeof r.prompt === "string" && typeof r.model === "string" && Date.now() - r.t0 < 150_000).slice(0, 8)
+      .map((r) => ({ key: uid(), kind: "image", model: r.model, prompt: r.prompt, label: String(r.label || "Image"), ratio: IMAGE_RATIOS.some((x) => x.id === r.ratio) ? r.ratio : "1:1", cost: Number(r.cost) || 0, status: "running", t0: Number(r.t0), eta: Number(r.eta) || 20, back: true }));
+    if (back.length) { setRuns(back); start = "create"; }
     setTab(start); setReady(true);
 
     refreshWallet().then((d) => {
@@ -594,13 +646,14 @@ export function useStudio() {
       }));
       const past = got.slice(0, 6).reverse().map((item) => ({ key: `h${item.id}`, kind: item.video ? "video" : "image", prompt: item.prompt, label: madeWith(item.model), ratio: item.ratio, status: "done", item, past: true }));
       setRuns((rs) => [...past, ...ended, ...waiting, ...rs]);
+      if (back.length) recoverRuns(back);
     })();
   }, []);
 
   return {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
-    projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
+    off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,

@@ -51,3 +51,18 @@ test('a video job remembers the project it was started in', async () => {
   const owner = readFileSync(new URL('../lib/projectOwner.js', import.meta.url), 'utf8');
   assert.match(owner, /eq\('id', id\)\.eq\('creator_id', creatorId\)/);
 });
+
+test('images and edited images are filed in their project by the server, not by the page', () => {
+  const gen = readFileSync(new URL('../app/api/generate/route.js', import.meta.url), 'utf8');
+  const tool = readFileSync(new URL('../lib/imagetool.js', import.meta.url), 'utf8');
+  for (const src of [gen, tool]) {
+    assert.match(src, /ownedProject\(creator\.id, body\?\.project\)/); // only a project the caller owns
+    assert.match(src, /fileInProject\(stored\.id, creator\.id, pj\)/);
+  }
+  const owner = readFileSync(new URL('../lib/projectOwner.js', import.meta.url), 'utf8');
+  assert.match(owner, /update\(\{ project_id: projectId \}\)\.eq\('id', imageId\)\.eq\('creator_id', creatorId\)/);
+  // The page sends the open project with every creation and lets the server's answer decide.
+  const store = readFileSync(new URL('../app/studio/store.js', import.meta.url), 'utf8');
+  assert.ok(store.split('...inProject()').length - 1 >= 2);
+  assert.match(store, /addItem\(item, \{ keep: "project" in d \}\)/);
+});

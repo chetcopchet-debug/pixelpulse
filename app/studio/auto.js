@@ -43,11 +43,15 @@ export function promptKind(prompt) {
 // Returns { id, kind, why, fitted } where `fitted` means a cheaper model was chosen because the balance doesn't
 // cover the first choice. If the balance covers nothing, the first choice is returned and the usual
 // "sign in" or "add credits" step follows.
-export function autoPick(prompt, wallet) {
+// `off`: ids of models their provider has switched off. Auto never picks one of those.
+export function autoPick(prompt, wallet, off) {
   const kind = promptKind(prompt);
   const cost = (id) => imageModels.find((m) => m.id === id)?.cost ?? Infinity;
   const can = (id) => !wallet || !wallet.loaded || wallet.admin || (wallet.paid || 0) >= cost(id) || (wallet.free || 0) >= cost(id);
-  const picks = kind.picks.filter((id) => Number.isFinite(cost(id)));
+  const gone = off instanceof Set ? off : new Set(off || []);
+  let picks = kind.picks.filter((id) => Number.isFinite(cost(id)) && !gone.has(id));
+  // Every model for this kind of prompt is off: fall back to anything that still runs, cheapest last resort first.
+  if (!picks.length) picks = imageModels.filter((m) => !gone.has(m.id)).map((m) => m.id).reverse();
   const id = picks.find(can) || picks[0];
   return { id, kind: kind.id, why: kind.why, fitted: id !== picks[0] };
 }

@@ -1,5 +1,6 @@
 // Preview builds only: ask Replicate whether every model we offer exists and accepts the inputs we send
 // (lib/modelCheck.js), and print the result in the build log. Nothing is generated, nothing is charged.
+// Whether a model still RUNS is a separate question (lib/modelHealth.js): /admin and a daily job ask that.
 // Never fails the build.
 if (process.env.VERCEL_ENV === 'preview' && process.env.REPLICATE_API_TOKEN) {
   try {
