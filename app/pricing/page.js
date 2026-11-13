@@ -6,7 +6,7 @@ import { rich } from '../i18n/rich.js';
 import { getT } from '../i18n/server';
 import { imageModels, videoModels, TOOLS } from '../studio/models';
 import { VIDEO_PRICING } from '../../lib/videoPricing';
-export const metadata = { title: { absolute: 'Models & pricing · Yelvo' }, description: 'Sign up and get 10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
+export const metadata = { title: { absolute: 'Models & pricing · Yelvo' }, description: 'Sign up and get 10 free credits every day. Yelvo Pack: 500 credits for $9.90 that never expire. Yelvo Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
 const Coin = ({ n }) => <span className="price"><i className="coin" />{n}</span>;
 const TOOL_ROWS = [
@@ -19,8 +19,8 @@ const TOOL_ROWS = [
 ];
 const FAQ = [
   [N('Which credits are used first?'), N('Free credits are always used first: 10 every day once you have an account. Bought credits are only used after the free ones run out.')],
-  [N('Do bought credits expire?'), N('Creator Pack credits never expire. Pulse Pro adds 1,200 credits each billing month; unused credits stay in your balance.')],
-  [N('How do I cancel Pulse Pro?'), N('Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.')],
+  [N('Do bought credits expire?'), N('Yelvo Pack credits never expire. Yelvo Pro adds 1,200 credits each billing month; unused credits stay in your balance.')],
+  [N('How do I cancel Yelvo Pro?'), N('Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.')],
   [N('Can I get a refund?'), N('Yes. Unused bought credits can be refunded within 14 days.'), ['/refund-policy', N('Refund Policy')]],
   [N('Who processes payments?'), N('Lemon Squeezy, our Merchant of Record. They handle the payment, VAT or sales tax and your receipt. We never see your card details.')],
   [N('I changed phone or cleared my browser. Where are my credits?'), N('Sign in with Google or email from the profile menu and your credits follow your account on any device. If you bought without signing in, contact us with your order email.'), ['/contact', N('Contact')]],

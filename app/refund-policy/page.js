@@ -5,12 +5,12 @@ export default function Refunds() {
   return (
     <LegalPage title="Refund Policy" noRemoval>
       <p>We want you to be happy with what you buy. Yelvo sells digital credits that are delivered instantly, so this policy explains when refunds apply.</p>
-      <h2>Creator Pack (one-time)</h2>
+      <h2>Yelvo Pack (one-time)</h2>
       <ul>
         <li>Unused purchased credits can be refunded in full within <b>14 days</b> of purchase.</li>
         <li>If you used part of a pack, we refund the unused part proportionally within the same 14 days.</li>
       </ul>
-      <h2>Pulse Pro (monthly)</h2>
+      <h2>Yelvo Pro (monthly)</h2>
       <ul>
         <li>You can cancel anytime; the subscription stops at the end of the current billing month.</li>
         <li>Within 14 days of a monthly charge, we refund that month if its credits weren't used, or the unused part proportionally.</li>
