@@ -8,6 +8,9 @@ export const dynamic = 'force-dynamic';
 
 const notFound = () => new NextResponse(null, { status: 404 });
 
+// Asking any other way gets the same "not found", so the address never looks like one that exists.
+export { notFound as GET, notFound as HEAD, notFound as PUT, notFound as PATCH, notFound as DELETE, notFound as OPTIONS };
+
 // Signs this browser in as the test account. See lib/testDoor.js for when this exists at all.
 export async function POST(request) {
   if (!doorExists(process.env)) return notFound();
