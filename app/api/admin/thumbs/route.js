@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isAdmin } from '../../../../lib/admin';
 import { getSupabase, BUCKET } from '../../../../lib/supabase';
-import { makeThumb } from '../../../../lib/generation';
+import { makeThumb, makeView } from '../../../../lib/generation';
 import { CACHE_SECONDS } from '../../../../lib/thumbs';
 
 export const maxDuration = 60;
@@ -28,6 +28,7 @@ export async function POST(request) {
     if (dErr || !blob) { out.failed.push(`${r.id}:download`); continue; }
     const bytes = Buffer.from(await blob.arrayBuffer());
     if (await makeThumb(supabase, r.storage_path, bytes)) out.done++; else out.failed.push(`${r.id}:thumb`);
+    await makeView(supabase, r.storage_path, bytes); // the light picture for the screen, for images saved before it existed
     if (body.recache) {
       const { error: uErr } = await supabase.storage.from(BUCKET).update(r.storage_path, bytes, { contentType: blob.type || undefined, cacheControl: CACHE_SECONDS, upsert: true });
       if (!uErr) out.recached++; else out.failed.push(`${r.id}:recache`);

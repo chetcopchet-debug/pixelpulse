@@ -1,7 +1,7 @@
 "use client";
 import { t, tn, N, num, langTag } from "../i18n/index.js";
 import { useEffect, useState } from "react";
-import { thumbUrl, posterUrl } from "../../lib/thumbs";
+import { thumbUrl, posterUrl, viewUrl } from "../../lib/thumbs";
 import Icon from "./icons";
 
 // Stops the page behind a sheet or the viewer from scrolling. Safe to nest.
@@ -32,6 +32,16 @@ export function Picture({ src, alt = "", eager }) {
   if (!src || stage === 2) return null;
   const cur = stage === 0 ? small : src;
   return <img key={cur} src={cur} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" onError={() => setStage(stage === 0 && small !== src ? 1 : 2)} />;
+}
+
+// A picture at full size on screen: the light WebP when there is one, the original when there is not (an image
+// saved before the light one existed, or one that did not need it). "Download" always gives the original.
+export function Full({ src, alt = "", className, onLoad }) {
+  const light = viewUrl(src);
+  const [orig, setOrig] = useState(false);
+  useEffect(() => { setOrig(false); }, [src]);
+  const cur = orig ? src : light;
+  return <img key={cur} className={className} src={cur} alt={alt} decoding="async" onLoad={onLoad} onError={() => { if (!orig && light !== src) setOrig(true); }} />;
 }
 
 // A video in a list is shown as one still picture, never as a <video>: a phone can only decode a few videos
