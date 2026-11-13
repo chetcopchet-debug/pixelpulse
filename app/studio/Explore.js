@@ -1,5 +1,5 @@
 "use client";
-import { t, LANGS } from "../i18n";
+import { t, LANGS } from "../i18n/index.js";
 import { useEffect, useMemo, useState } from "react";
 import Icon from "./icons";
 import { Brand, Balance, Picture, Poster } from "./bits";

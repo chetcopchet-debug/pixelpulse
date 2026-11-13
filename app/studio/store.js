@@ -1,5 +1,5 @@
 "use client";
-import { t, N, sm, isLang, pickLang, loadDict, applyDict, langTag, LANG_COOKIE } from "../i18n";
+import { t, N, sm, isLang, pickLang, loadDict, applyDict, langTag, LANG_COOKIE } from "../i18n/index.js";
 // All state and server calls for the studio. The screens only read from here and call these actions.
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";

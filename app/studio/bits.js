@@ -1,5 +1,5 @@
 "use client";
-import { t, num, langTag } from "../i18n";
+import { t, num, langTag } from "../i18n/index.js";
 import { useEffect, useState } from "react";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import Icon from "./icons";

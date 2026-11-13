@@ -1,7 +1,8 @@
 import Page from '../studio/Page';
 import { PLANS } from '../../lib/paid';
 import BuyButton from './BuyButton';
-import { N, rich } from '../i18n';
+import { N } from '../i18n/index.js';
+import { rich } from '../i18n/rich.js';
 import { getT } from '../i18n/server';
 import { imageModels, videoModels, TOOLS } from '../studio/models';
 import { VIDEO_PRICING } from '../../lib/videoPricing';

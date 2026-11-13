@@ -1,5 +1,5 @@
 "use client";
-import { t, N } from "../i18n";
+import { t, N } from "../i18n/index.js";
 import { useEffect } from "react";
 import "./studio.css";
 import Icon from "./icons";

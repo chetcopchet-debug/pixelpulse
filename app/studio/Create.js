@@ -1,5 +1,5 @@
 "use client";
-import { t, N } from "../i18n";
+import { t, N } from "../i18n/index.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";

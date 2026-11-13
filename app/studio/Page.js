@@ -1,6 +1,6 @@
 import "./studio.css";
 import ThemeRoot from "./ThemeRoot";
-import { N } from "../i18n";
+import { N } from "../i18n/index.js";
 import { getT } from "../i18n/server";
 import LangPicker from "../i18n/LangPicker";
 

@@ -1,7 +1,7 @@
 // For pages the server draws (prices, contact, not found): the visitor's language comes from the cookie the
 // language picker sets, or from what the browser asks for. Each request gets its own translator.
 import { cookies, headers } from "next/headers";
-import { LANGS, LANG_COOKIE, isLang, pickLang, makeT } from "./index";
+import { LANGS, LANG_COOKIE, isLang, pickLang, makeT } from "./index.js";
 import es from "./es.js"; import pt from "./pt.js"; import fr from "./fr.js"; import de from "./de.js"; import it from "./it.js";
 import ja from "./ja.js"; import ko from "./ko.js"; import zh from "./zh.js"; import id from "./id.js";
 

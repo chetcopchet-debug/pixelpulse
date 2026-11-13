@@ -1,5 +1,5 @@
 "use client";
-import { t, N } from "../i18n";
+import { t, N } from "../i18n/index.js";
 import { useMemo, useState } from "react";
 import Icon from "./icons";
 import { Tile, Brand, Balance, Picture, useNow, dayLabel } from "./bits";

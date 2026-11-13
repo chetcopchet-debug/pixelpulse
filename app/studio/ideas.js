@@ -1,4 +1,4 @@
-import { t, N } from "../i18n";
+import { t, N } from "../i18n/index.js";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
 
 // Starting points for someone who has not made anything yet. The card shows a short title; a tap fills the

@@ -1,5 +1,6 @@
 "use client";
-import { t, N, tm, num, rich, langTag, LANGS } from "../i18n";
+import { t, N, tm, num, langTag, LANGS } from "../i18n/index.js";
+import { rich } from "../i18n/rich.js";
 import { useEffect, useState } from "react";
 import Icon from "./icons";
 import { Price, lockScroll } from "./bits";

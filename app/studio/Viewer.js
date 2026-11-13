@@ -1,5 +1,5 @@
 "use client";
-import { t } from "../i18n";
+import { t } from "../i18n/index.js";
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, lockScroll } from "./bits";

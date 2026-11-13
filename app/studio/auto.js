@@ -1,7 +1,7 @@
 // Auto: picks the image model that fits what the prompt asks for.
 // It runs on the device while the prompt is typed, so the button always shows which model will run and what it
 // costs before anything is charged. The server then gets an ordinary request for that model.
-import { N } from "../i18n";
+import { N } from "../i18n/index.js";
 import { imageModels } from "./models.js";
 
 const QUOTED = /["“”„«»״]([^"“”„«»״\n]{2,80})["“”„«»״]|(^|\s)'([^'\n]{2,80})'(?=\s|$|[.,!?;:])/;

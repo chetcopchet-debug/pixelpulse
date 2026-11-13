@@ -1,7 +1,7 @@
 // "What next": everything that can be done with a finished image, with its price. One list, used by the
 // Create screen and by the full-screen viewer, so the two never disagree. `short` is the label for the small
 // tiles on a phone.
-import { t } from "../i18n";
+import { t } from "../i18n/index.js";
 import { imageModel, imageModels, TOOLS } from "./models";
 
 export function nextActions(s, item) {

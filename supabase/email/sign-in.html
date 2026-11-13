@@ -1,14 +1,14 @@
-<!doctype html>
-<html lang="en">
+{{ $l := printf "%v" .Data.lang }}<!doctype html>
+<html lang="{{ if eq $l "es" }}es{{ else if eq $l "pt" }}pt-BR{{ else if eq $l "fr" }}fr{{ else if eq $l "de" }}de{{ else if eq $l "it" }}it{{ else if eq $l "ja" }}ja{{ else if eq $l "ko" }}ko{{ else if eq $l "zh" }}zh-CN{{ else if eq $l "id" }}id{{ else }}en{{ end }}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="supported-color-schemes" content="dark">
-<title>Sign in to PixelPulse</title>
+<title>{{ if eq $l "es" }}Inicia sesión en PixelPulse{{ else if eq $l "pt" }}Entre no PixelPulse{{ else if eq $l "fr" }}Connexion à PixelPulse{{ else if eq $l "de" }}Bei PixelPulse anmelden{{ else if eq $l "it" }}Accedi a PixelPulse{{ else if eq $l "ja" }}PixelPulseにログイン{{ else if eq $l "ko" }}PixelPulse에 로그인{{ else if eq $l "zh" }}登录 PixelPulse{{ else if eq $l "id" }}Masuk ke PixelPulse{{ else }}Sign in to PixelPulse{{ end }}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#000000;">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#000000;">Your sign-in link and code for PixelPulse.</div>
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#000000;">{{ if eq $l "es" }}Tu enlace y tu código de acceso a PixelPulse.{{ else if eq $l "pt" }}Seu link e código de acesso ao PixelPulse.{{ else if eq $l "fr" }}Votre lien et votre code de connexion à PixelPulse.{{ else if eq $l "de" }}Dein Anmeldelink und Code für PixelPulse.{{ else if eq $l "it" }}Il tuo link e il codice di accesso a PixelPulse.{{ else if eq $l "ja" }}PixelPulseのログインリンクとコードです。{{ else if eq $l "ko" }}PixelPulse 로그인 링크와 코드입니다.{{ else if eq $l "zh" }}你的 PixelPulse 登录链接和验证码。{{ else if eq $l "id" }}Tautan dan kode masukmu untuk PixelPulse.{{ else }}Your sign-in link and code for PixelPulse.{{ end }}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="background-color:#000000;">
 <tr><td align="center" style="padding:32px 20px 40px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:440px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -20,24 +20,24 @@
 </tr></table>
 </td></tr>
 
-<tr><td style="font-size:30px;line-height:36px;font-weight:700;color:#ffffff;letter-spacing:-0.6px;padding-bottom:12px;">Sign in to PixelPulse</td></tr>
-<tr><td style="font-size:16px;line-height:24px;color:#a3a3a3;padding-bottom:28px;">Tap the button on the device where you want to create.</td></tr>
+<tr><td style="font-size:30px;line-height:36px;font-weight:700;color:#ffffff;letter-spacing:-0.6px;padding-bottom:12px;">{{ if eq $l "es" }}Inicia sesión en PixelPulse{{ else if eq $l "pt" }}Entre no PixelPulse{{ else if eq $l "fr" }}Connexion à PixelPulse{{ else if eq $l "de" }}Bei PixelPulse anmelden{{ else if eq $l "it" }}Accedi a PixelPulse{{ else if eq $l "ja" }}PixelPulseにログイン{{ else if eq $l "ko" }}PixelPulse에 로그인{{ else if eq $l "zh" }}登录 PixelPulse{{ else if eq $l "id" }}Masuk ke PixelPulse{{ else }}Sign in to PixelPulse{{ end }}</td></tr>
+<tr><td style="font-size:16px;line-height:24px;color:#a3a3a3;padding-bottom:28px;">{{ if eq $l "es" }}Toca el botón en el dispositivo donde quieres crear.{{ else if eq $l "pt" }}Toque no botão no dispositivo em que você quer criar.{{ else if eq $l "fr" }}Touchez le bouton sur l'appareil où vous voulez créer.{{ else if eq $l "de" }}Tippe auf den Button auf dem Gerät, auf dem du erstellen möchtest.{{ else if eq $l "it" }}Tocca il pulsante sul dispositivo su cui vuoi creare.{{ else if eq $l "ja" }}作成したいデバイスでボタンをタップしてください。{{ else if eq $l "ko" }}작업하려는 기기에서 버튼을 누르세요.{{ else if eq $l "zh" }}请在你想用来创作的设备上点击按钮。{{ else if eq $l "id" }}Ketuk tombol di perangkat tempat kamu ingin berkreasi.{{ else }}Tap the button on the device where you want to create.{{ end }}</td></tr>
 
 <tr><td style="padding-bottom:36px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td align="center" bgcolor="#ffffff" style="background-color:#ffffff;border-radius:14px;">
-<a href="{{ .ConfirmationURL }}" style="display:block;padding:16px 24px;font-size:16px;line-height:24px;font-weight:600;color:#000000;text-decoration:none;">Sign in</a>
+<a href="{{ .ConfirmationURL }}" style="display:block;padding:16px 24px;font-size:16px;line-height:24px;font-weight:600;color:#000000;text-decoration:none;">{{ if eq $l "es" }}Iniciar sesión{{ else if eq $l "pt" }}Entrar{{ else if eq $l "fr" }}Connexion{{ else if eq $l "de" }}Anmelden{{ else if eq $l "it" }}Accedi{{ else if eq $l "ja" }}ログイン{{ else if eq $l "ko" }}로그인{{ else if eq $l "zh" }}登录{{ else if eq $l "id" }}Masuk{{ else }}Sign in{{ end }}</a>
 </td></tr></table>
 </td></tr>
 
-<tr><td style="font-size:14px;line-height:20px;color:#a3a3a3;padding-bottom:10px;">Did the button open in the wrong place? Choose "The email has a code" on the sign-in screen and type this:</td></tr>
+<tr><td style="font-size:14px;line-height:20px;color:#a3a3a3;padding-bottom:10px;">{{ if eq $l "es" }}¿El botón se abrió en otro lugar? Elige «El correo trae un código» en la pantalla de inicio de sesión y escribe esto:{{ else if eq $l "pt" }}O botão abriu no lugar errado? Escolha "O e-mail traz um código" na tela de login e digite isto:{{ else if eq $l "fr" }}Le bouton s'est ouvert au mauvais endroit ? Choisissez « L'e-mail contient un code » sur l'écran de connexion et saisissez ceci :{{ else if eq $l "de" }}Hat sich der Button an der falschen Stelle geöffnet? Wähle auf dem Anmeldebildschirm „In der E-Mail steht ein Code“ und gib das hier ein:{{ else if eq $l "it" }}Il pulsante si è aperto nel posto sbagliato? Scegli «L'email contiene un codice» nella schermata di accesso e scrivi questo:{{ else if eq $l "ja" }}ボタンが別の場所で開きましたか？ログイン画面で「メールにコードがある場合」を選び、次のコードを入力してください。{{ else if eq $l "ko" }}버튼이 다른 곳에서 열렸나요? 로그인 화면에서 "이메일에 코드가 있어요"을(를) 선택하고 아래 코드를 입력하세요.{{ else if eq $l "zh" }}按钮在别处打开了？请在登录页面选择“邮件里有验证码”，然后输入：{{ else if eq $l "id" }}Tombolnya terbuka di tempat yang salah? Pilih "Email berisi kode" di layar masuk, lalu ketik ini:{{ else }}Did the button open in the wrong place? Choose "The email has a code" on the sign-in screen and type this:{{ end }}</td></tr>
 <tr><td style="padding-bottom:36px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
 <td align="center" bgcolor="#141414" style="background-color:#141414;border:1px solid #2a2a2a;border-radius:14px;padding:18px 4px 18px 12px;font-family:'SF Mono',Menlo,Consolas,'Roboto Mono',monospace;font-size:32px;line-height:40px;font-weight:700;color:#ffffff;letter-spacing:8px;">{{ .Token }}</td>
 </tr></table>
 </td></tr>
 
-<tr><td style="border-top:1px solid #1f1f1f;padding-top:20px;font-size:13px;line-height:20px;color:#737373;">The link and the code work once and stop working after a short time. If you didn't ask to sign in, ignore this email. Nobody gets into your account without it.</td></tr>
+<tr><td style="border-top:1px solid #1f1f1f;padding-top:20px;font-size:13px;line-height:20px;color:#737373;">{{ if eq $l "es" }}El enlace y el código funcionan una sola vez y caducan al poco tiempo. Si no pediste iniciar sesión, ignora este correo. Nadie entra en tu cuenta sin él.{{ else if eq $l "pt" }}O link e o código funcionam uma única vez e expiram em pouco tempo. Se você não pediu para entrar, ignore este e-mail. Ninguém entra na sua conta sem ele.{{ else if eq $l "fr" }}Le lien et le code ne fonctionnent qu'une fois et expirent rapidement. Si vous n'avez pas demandé à vous connecter, ignorez cet e-mail. Personne n'accède à votre compte sans lui.{{ else if eq $l "de" }}Link und Code funktionieren nur einmal und laufen nach kurzer Zeit ab. Wenn du keine Anmeldung angefordert hast, ignoriere diese E-Mail. Ohne sie kommt niemand in dein Konto.{{ else if eq $l "it" }}Il link e il codice funzionano una sola volta e scadono dopo poco. Se non hai chiesto di accedere, ignora questa email. Senza di essa nessuno entra nel tuo account.{{ else if eq $l "ja" }}リンクとコードは1回だけ使え、短時間で無効になります。ログインをリクエストしていない場合は、このメールを無視してください。このメールがなければ、誰もあなたのアカウントに入れません。{{ else if eq $l "ko" }}링크와 코드는 한 번만 사용할 수 있고 곧 만료돼요. 로그인을 요청하지 않았다면 이 이메일을 무시하세요. 이 이메일 없이는 누구도 계정에 들어올 수 없어요.{{ else if eq $l "zh" }}链接和验证码只能使用一次，并会在短时间后失效。如果你没有请求登录，请忽略这封邮件。没有它，任何人都无法进入你的账户。{{ else if eq $l "id" }}Tautan dan kode hanya bisa dipakai sekali dan segera kedaluwarsa. Jika kamu tidak meminta untuk masuk, abaikan email ini. Tanpa email ini, tidak ada yang bisa masuk ke akunmu.{{ else }}The link and the code work once and stop working after a short time. If you didn't ask to sign in, ignore this email. Nobody gets into your account without it.{{ end }}</td></tr>
 
 </table>
 </td></tr>

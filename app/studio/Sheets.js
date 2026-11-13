@@ -1,5 +1,6 @@
 "use client";
-import { t, sm, num, rich, LANGS } from "../i18n";
+import { t, sm, num, LANGS } from "../i18n/index.js";
+import { rich } from "../i18n/rich.js";
 import { useEffect, useState } from "react";
 import Icon from "./icons";
 import { Price } from "./bits";
@@ -252,7 +253,7 @@ export function SignInSheet({ s, reason, onClose }) {
   const post = async (url, body) => { const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); return { ok: r.ok, d: await r.json().catch(() => ({})) }; };
   const send = async (e) => {
     e?.preventDefault(); if (busy || !email.includes("@")) return; setBusy(true); setErr("");
-    const { ok, d } = await post("/api/auth/start", { email }).catch(() => ({ ok: false, d: {} }));
+    const { ok, d } = await post("/api/auth/start", { email, lang: s.lang }).catch(() => ({ ok: false, d: {} }));
     setBusy(false); if (ok) { setStep("code"); setCode(""); } else setErr(sm(d.error) || t("The email couldn't be sent. Try again."));
   };
   const verify = async (e) => {

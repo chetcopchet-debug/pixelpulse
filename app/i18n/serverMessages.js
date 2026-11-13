@@ -6,7 +6,7 @@
 // "Something went wrong. Try again." in the visitor's language.
 //
 // When the server gets a new message for visitors, add its English text here and run `node scripts/i18n.mjs`.
-import { N } from "./index";
+import { N } from "./index.js";
 
 export const SERVER_MESSAGES = [
   N("Something went wrong. Try again."),

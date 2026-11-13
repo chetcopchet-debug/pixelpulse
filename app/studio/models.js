@@ -1,5 +1,5 @@
 // What the interface shows for each model and tool. Prices come from the same tables the server charges from.
-import { t, N } from "../i18n";
+import { t, N } from "../i18n/index.js";
 import { IMAGE_MODELS, VIDEO_MODELS, RETIRED } from "../../lib/catalog.js";
 import { VIDEO_PRICING, videoQuote, videoFrom } from "../../lib/videoPricing.js";
 

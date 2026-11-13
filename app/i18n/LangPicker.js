@@ -1,5 +1,5 @@
 "use client";
-import { LANGS, LANG_COOKIE } from "./index";
+import { LANGS, LANG_COOKIE } from "./index.js";
 
 // The language picker for pages the server draws: choosing a language saves it and loads the page again in it.
 export default function LangPicker({ lang, label }) {
