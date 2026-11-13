@@ -1,9 +1,9 @@
 import { LegalPage } from '../_legal/Legal';
-export const metadata = { title: 'Privacy · PixelPulse', description: 'PixelPulse privacy.', alternates: { canonical: '/privacy' } };
+export const metadata = { title: 'Privacy · Yelvo', description: 'Yelvo privacy.', alternates: { canonical: '/privacy' } };
 export default function Privacy() {
   return (
     <LegalPage title="Privacy Policy">
-      <p>You can look around PixelPulse without an account; creating needs one. Here is what we store and why.</p>
+      <p>You can look around Yelvo without an account; creating needs one. Here is what we store and why.</p>
       <h2>What we collect</h2>
       <ul>
         <li><b>Anonymous identity cookie</b> (signed, random): links your images to your browser so you can see your history. It is never shown publicly.</li>

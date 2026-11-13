@@ -1,11 +1,11 @@
 import { LegalPage } from '../_legal/Legal';
-export const metadata = { title: 'Terms · PixelPulse', description: 'PixelPulse terms.', alternates: { canonical: '/terms' } };
+export const metadata = { title: 'Terms · Yelvo', description: 'Yelvo terms.', alternates: { canonical: '/terms' } };
 export default function Terms() {
   return (
     <LegalPage title="Terms of Use">
-      <p>By using PixelPulse you agree to these terms. If you don't agree, please don't use the service.</p>
+      <p>By using Yelvo you agree to these terms. If you don't agree, please don't use the service.</p>
       <h2>The service</h2>
-      <p>PixelPulse lets you create and edit images with AI models run by third-party providers. Free daily credits are offered as-is and may change or end at any time. Features may be added, changed or removed.</p>
+      <p>Yelvo lets you create and edit images with AI models run by third-party providers. Free daily credits are offered as-is and may change or end at any time. Features may be added, changed or removed.</p>
       <h2>Purchases</h2>
       <p>Paid credits and the Pulse Pro subscription are sold through our reseller and Merchant of Record, <b>Lemon Squeezy</b> (Lemon Squeezy LLC), which processes payments, handles sales tax/VAT and issues your receipt. Lemon Squeezy's own terms apply to the payment. Prices are shown on the <a href="/pricing">Pricing</a> page. Purchased Creator Pack credits don't expire; Pulse Pro credits are added each billing month and you can cancel anytime from your receipt email. Refunds follow our <a href="/refund-policy">Refund Policy</a>. Credits have no cash value and can't be transferred or resold.</p>
       <h2>Your content</h2>
@@ -19,7 +19,7 @@ export default function Terms() {
       <ul>
         <li><b>Consent for real people.</b> Don't upload, edit, Face Lock, animate or otherwise create images or videos of a real, identifiable person unless you have their permission. Never use the service to make intimate, sexual, humiliating or deceptive content of a real person.</li>
         <li><b>Prohibited content.</b> Don't create, upload or share sexual or nude content, content that sexualizes or depicts minors in any way that is sexual or revealing, graphic violence or gore, or content that harasses, threatens or promotes harm. Any content sexualizing minors is reported to the relevant authorities.</li>
-        <li><b>You are responsible.</b> You are solely responsible for your prompts, uploads and results and for how you use them, and you confirm you have every right and consent needed. You agree to indemnify PixelPulse against claims arising from content you create or upload in breach of these terms.</li>
+        <li><b>You are responsible.</b> You are solely responsible for your prompts, uploads and results and for how you use them, and you confirm you have every right and consent needed. You agree to indemnify Yelvo against claims arising from content you create or upload in breach of these terms.</li>
         <li><b>Removal and bans.</b> We may, at our discretion and without notice, hide, remove or delete any content and suspend or ban any account or device, including through automated systems. Repeated violations lead to an automatic ban.</li>
         <li><b>Reporting.</b> Anyone can report content by email, no account needed; the address is on the <a href="/contact">Contact</a> page. Reports about minors or about real people shown without consent are handled first, and we aim to act on every valid removal request within 48 hours.</li>
         <li><b>Records.</b> To prevent abuse and to cooperate with lawful requests, we keep a log of generation activity (account or device id, a hashed IP address, prompts, input and output references, safety-check results and time). See the <a href="/privacy">Privacy Policy</a>.</li>

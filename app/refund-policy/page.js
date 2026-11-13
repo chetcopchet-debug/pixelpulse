@@ -1,10 +1,10 @@
 import { LegalPage } from '../_legal/Legal';
 import { CONTACT_EMAIL } from '../../lib/site';
-export const metadata = { title: { absolute: 'Refund Policy · PixelPulse' }, description: 'Refunds for unused purchased credits within 14 days.', alternates: { canonical: '/refund-policy' } };
+export const metadata = { title: { absolute: 'Refund Policy · Yelvo' }, description: 'Refunds for unused purchased credits within 14 days.', alternates: { canonical: '/refund-policy' } };
 export default function Refunds() {
   return (
     <LegalPage title="Refund Policy" noRemoval>
-      <p>We want you to be happy with what you buy. PixelPulse sells digital credits that are delivered instantly, so this policy explains when refunds apply.</p>
+      <p>We want you to be happy with what you buy. Yelvo sells digital credits that are delivered instantly, so this policy explains when refunds apply.</p>
       <h2>Creator Pack (one-time)</h2>
       <ul>
         <li>Unused purchased credits can be refunded in full within <b>14 days</b> of purchase.</li>

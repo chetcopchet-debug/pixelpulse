@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: 'PixelPulse — AI image and video studio',
-    short_name: 'PixelPulse',
+    name: 'Yelvo — AI image and video studio',
+    short_name: 'Yelvo',
     description: 'The best AI image and video models in one place, with one credit wallet.',
     start_url: '/',
     display: 'standalone',

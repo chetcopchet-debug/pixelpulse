@@ -4,7 +4,7 @@ import { SITE_URL } from '../../lib/site';
 import Page from '../studio/Page';
 
 export const metadata = {
-  title: { absolute: 'Free AI Image Makers — 30 Formats | PixelPulse' },
+  title: { absolute: 'Free AI Image Makers — 30 Formats | Yelvo' },
   description: 'Free AI makers for logos, YouTube thumbnails, headshots, stickers, wallpapers, tattoos, product photos and more. Sign up and get 10 free credits every day.',
   alternates: { canonical: '/formats' },
 };
