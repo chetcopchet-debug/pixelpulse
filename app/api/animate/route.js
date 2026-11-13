@@ -140,8 +140,10 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const tier = { ...def, cost: q.cost, usd: q.usd };
   // A short idea is filled in when the person left that on: what moves, and one camera movement. Not for a video
   // that starts from a picture: the words there are only the motion, and with none the model gets a plain gentle one.
-  const prepared = raw
-    ? await preparePrompt(raw, { admin, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'video' : false, sound: VIDEO_WITH_SOUND.includes(body.model) })
+  // `improved`: the screen already improved the idea (/api/improve); the video is made from that text.
+  const given = typeof body?.improved === 'string' && raw && !fromImage ? body.improved.trim().slice(0, 2000) : '';
+  const prepared = given ? { ...(await preparePrompt(given, { admin, budgetMs: 25_000 })), improved: true } : raw
+    ? await preparePrompt(raw, { admin, budgetMs: 25_000, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'video' : false, sound: VIDEO_WITH_SOUND.includes(body.model) })
     : { prompt: DEFAULT_MOTION, improved: false };
   const en = prepared.prompt;
   const bad = checkPromptText(en);
@@ -172,7 +174,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
     if (r && isDiscontinued(r.status, p)) { await markDead(def.model); return NextResponse.json({ error: `${MODEL_OFF_MSG} Your credits were returned.`, modelOff: body.model, paid: await paidFor(creator) }, { status: 410 }); }
     return NextResponse.json({ error: startFailed(r), paid: await paidFor(creator) }, { status: r?.status === 429 ? 429 : 502 });
   }
-  await logGeneration({ userId: creator.id, ip, mode: `${fromImage ? 'i2v' : 't2v'}:${body.model}`, prompt: raw, ...(row ? { inputRef: row.id } : {}), outputRef: `pred:${p.id}`, moderation: fromImage ? 'passed:input-only' : 'passed:text-only' });
+  await logGeneration({ userId: creator.id, ip, mode: `${fromImage ? 'i2v' : 't2v'}:${body.model}`, prompt: given ? `${raw} [made from: ${given}]` : raw, ...(row ? { inputRef: row.id } : {}), outputRef: `pred:${p.id}`, moderation: fromImage ? 'passed:input-only' : 'passed:text-only' });
   await recordJob({ ...fields, p: p.id });
   const job = makeJob({ ...fields, p: p.id });
   const res = NextResponse.json({ job, status: 'processing', ...(prepared.improved ? { usedPrompt: en } : {}), ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });

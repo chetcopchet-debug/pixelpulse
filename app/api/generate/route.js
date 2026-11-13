@@ -92,7 +92,7 @@ export async function POST(request) {
   }
 
   // Prompt safety check on the original text, before any charge or spend.
-  const glog = (moderation, outputRef) => logGeneration({ userId: creator.id, ip, mode: guideParent ? 'generate:guided' : 'generate', prompt, inputRef: guideParent, outputRef, moderation });
+  const glog = (moderation, outputRef) => logGeneration({ userId: creator.id, ip, mode: guideParent ? 'generate:guided' : 'generate', prompt: typeof body?.improved === 'string' && body.improved.trim() && !guideParent ? `${prompt} [made from: ${body.improved.trim().slice(0, 2000)}]` : prompt, inputRef: guideParent, outputRef, moderation });
   if (!admin && await isBanned(creator.id)) return jsonError(BANNED_MSG, 403);
   const badOriginal = checkPromptText(prompt);
   if (badOriginal) { await glog('blocked:text'); return jsonError(blockedMessage(badOriginal), 400); }
@@ -120,7 +120,15 @@ export async function POST(request) {
     // Transparent translation: any language -> descriptive English (on-image text kept verbatim in Text mode). Fails open.
     // A short idea is also filled in, when the person left "Improve my prompt" on. Not with a reference image: there
     // the words describe a change to that image, and adding to them would change something else.
-    const prepared = await preparePrompt(prompt.trim(), { keepText: TEXT_TIERS.includes(selectedTier) && storedTier === selectedTier, admin, improve: body?.improve === true && !guideParent && shortIdea(prompt.trim()) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'image' : false });
+    // The screen improves the idea first, in a request of its own (/api/improve), and sends the result here as
+    // `improved`: that is what the picture is made from, while the person's own words are what is saved. It is
+    // checked like any prompt. `improve: true` is the older way (improve inside this request), kept for pages
+    // that were open before the change.
+    const given = typeof body?.improved === 'string' && !guideParent ? body.improved.trim().slice(0, 2000) : '';
+    const keepText = TEXT_TIERS.includes(selectedTier) && storedTier === selectedTier;
+    const prepared = given
+      ? { ...(await preparePrompt(given, { keepText, admin, budgetMs: 25_000 })), improved: true }
+      : await preparePrompt(prompt.trim(), { keepText, admin, budgetMs: 25_000, improve: body?.improve === true && !guideParent && shortIdea(prompt.trim()) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'image' : false });
     const englishPrompt = prepared.prompt;
 
     const badEnglish = checkPromptText(englishPrompt);

@@ -577,4 +577,5 @@ export default {
   "Pro uses the strongest model to write a fuller prompt: scene, subjects, action, camera, light and expressions.": "Pro는 가장 뛰어난 모델로 장면, 피사체, 동작, 카메라, 조명, 표정까지 담은 프롬프트를 써요.",
   "Couldn't improve the prompt right now. Your credit was returned.": "지금은 프롬프트를 다듬지 못했어요. 크레딧은 돌려드렸어요.",
   "Improve Pro costs 1 credit.": "Pro 다듬기에는 크레딧 1개가 필요해요.",
+  "Improving your prompt…": "프롬프트를 개선하는 중…",
 };

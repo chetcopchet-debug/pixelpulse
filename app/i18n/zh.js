@@ -577,4 +577,5 @@ export default {
   "Pro uses the strongest model to write a fuller prompt: scene, subjects, action, camera, light and expressions.": "Pro 使用最强的模型，写出更完整的提示词：场景、主体、动作、镜头、光线和表情。",
   "Couldn't improve the prompt right now. Your credit was returned.": "暂时无法优化提示词。积分已退还。",
   "Improve Pro costs 1 credit.": "Pro 优化需要 1 积分。",
+  "Improving your prompt…": "正在优化你的提示词…",
 };

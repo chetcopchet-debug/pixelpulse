@@ -3,6 +3,7 @@ import { t, N, sm, isLang, pickLang, loadDict, applyDict, langTag, LANG_COOKIE }
 // All state and server calls for the studio. The screens only read from here and call these actions.
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
+import { shortIdea } from "../../lib/promptLanguage.js";
 import { autoPick } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
 import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers } from "./models";
@@ -300,6 +301,21 @@ export function useStudio() {
     tell(k === "video" ? t("Your video is ready in your Library") : k === "compare" ? t("Your comparison is ready in your Library") : t("Your image is ready in your Library"));
   }, [runs, tell]);
 
+  // "Improve my prompt" is on and the prompt is a short idea: it is filled in first, in a request of its own, and
+  // the run says "Improving your prompt" meanwhile. Answers the improved prompt, or "" (not improved: today's free
+  // ones are used, the model is busy, the network dropped), and then the creation goes on with the words as written.
+  const improveFirst = useCallback(async (key, o, kind) => {
+    if (!o.improve || !o.prompt || !shortIdea(o.prompt)) return "";
+    patchRun(key, { phase: "improving" });
+    let out = "";
+    try {
+      const d = await json(await post("/api/improve", { prompt: o.prompt, kind, auto: true, ...(kind === "video" ? { model: o.model } : {}) }));
+      if (d.improved && typeof d.prompt === "string") out = d.prompt;
+    } catch {}
+    patchRun(key, { phase: null, t0: Date.now(), ...(out ? { used: out } : {}) }); // the estimate counts from here
+    return out;
+  }, [patchRun]);
+
   // Returns true once the run is on screen; the request itself continues in the background.
   const startImage = useCallback((o) => {
     const m = imageModel(o.model);
@@ -311,10 +327,11 @@ export function useStudio() {
       skip: itemsRef.current.slice(0, 12).map((x) => x.id), again: { ...o, kind: "image" } }]);
     markSeen();
     (async () => {
+      const better = o.ref ? "" : await improveFirst(key, o, "image");
       let res;
       // No answer at all (the phone put the browser to sleep, the network dropped, the page was closed): the
       // server usually finished anyway, so look for the result in the Library instead of calling it a failure.
-      try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...(o.improve && !o.ref ? { improve: true } : {}), ...inProject() }); }
+      try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...(better ? { improved: better } : {}), ...inProject() }); }
       catch { patchRun(key, { lost: true }); watchRef.current(); return; }
       try {
         const d = await json(res); sync(d);
@@ -326,7 +343,7 @@ export function useStudio() {
       } catch (e) { patchRun(key, { status: "failed", error: e.message || t("Something went wrong. Any credits were returned.") }); }
     })();
     return true;
-  }, [afford, refused, sync, addItem, patchRun, dropRun, awaySince]);
+  }, [afford, refused, sync, addItem, patchRun, dropRun, awaySince, improveFirst]);
 
   // ---- comparing models: one prompt, one image from each ----
   const patchPart = useCallback((key, id, patch) => setRuns((rs) => rs.map((r) => {
@@ -414,7 +431,8 @@ export function useStudio() {
     (async () => {
       try {
         const pid = projectRef.current; // the video is filed in the project that is open when it starts
-        const res = await post("/api/animate", { ...(fixed ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : picked ? { model: m.id, id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}), duration: plan.d, resolution: plan.r } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(o.improve ? { improve: true } : {}) }), ...(pid ? { project: pid } : {}) });
+        const better = o.source ? "" : await improveFirst(key, o, "video");
+        const res = await post("/api/animate", { ...(fixed ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : picked ? { model: m.id, id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}), duration: plan.d, resolution: plan.r } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(better ? { improved: better } : {}) }), ...(pid ? { project: pid } : {}) });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
         if (typeof d.usedPrompt === "string") patchRun(key, { used: d.usedPrompt }); // shown beside the caption when the video is ready
@@ -423,7 +441,7 @@ export function useStudio() {
       } catch (e) { patchRun(key, { status: "failed", error: e.message || t("The video didn't finish. Your credits were returned.") }); }
     })();
     return true;
-  }, [afford, refused, sync, patchRun, dropRun, pollJob, say]);
+  }, [afford, refused, sync, patchRun, dropRun, pollJob, say, improveFirst]);
 
   // ---- images whose answer never arrived ----
   // The page was closed, the phone put the browser to sleep, or the network dropped. The server finishes and

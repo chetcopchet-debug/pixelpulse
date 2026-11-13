@@ -51,9 +51,10 @@ function useKeyboard() {
 
 const busyRun = (r) => r.status === "running" || r.status === "late";
 const elapsed = (run, now) => (now - run.t0) / 1000;
-const percent = (run, now) => Math.round(Math.min(96, Math.max(4, (elapsed(run, now) / (run.eta || 25)) * 100)));
+const percent = (run, now) => run.phase === "improving" ? 4 : Math.round(Math.min(96, Math.max(4, (elapsed(run, now) / (run.eta || 25)) * 100)));
 // An estimate, said as one: how long is left.
 function leftText(run, now) {
+  if (run.phase === "improving") return t("Improving your prompt…");
   if (run.status === "late") return t("Still rendering");
   const left = (run.eta || 25) - elapsed(run, now);
   if (left > 90) return t("About {n} minutes left", { n: Math.round(left / 60) });
@@ -129,10 +130,11 @@ function Words({ it, now }) {
   const pct = percent(it, now);
   const last = pct >= 88;
   const list = WORDS[video ? "video" : "image"];
-  const text = last ? t("Finishing touches…") : t(list[i % list.length]);
+  const fixing = it.phase === "improving";
+  const text = fixing ? t("Improving your prompt…") : last ? t("Finishing touches…") : t(list[i % list.length]);
   return (
     <div className="words" aria-hidden="true">
-      <p key={text} className={last ? "stay" : undefined}>{text}<span className="num">{pct}%</span></p>
+      <p key={text} className={last || fixing ? "stay" : undefined}>{text}{fixing ? null : <span className="num">{pct}%</span>}</p>
       {video ? <p className="words-n">{t("You can close the site. The video is saved to your Library.")}</p> : null}
     </div>
   );
@@ -415,6 +417,8 @@ export default function Create({ s }) {
       {canImprove ? proBtn : null}
       <button onClick={s.undoImprove}><Icon name="undo" size={16} />{t("Undo")}</button>
     </div>
+  ) : s.improving ? (
+    <div className="polish" role="status"><i className="spin" style={{ width: 16, height: 16, flex: "none" }} /><span className="grow">{t("Improving your prompt…")}</span></div>
   ) : null;
 
   if (wide) {
