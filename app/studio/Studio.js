@@ -17,6 +17,18 @@ const TABS = [["explore", "compass", "Explore"], ["create", "plus", "Create"], [
 export default function Studio() {
   const s = useStudio();
   const close = () => s.setSheet(null);
+  // Errors that happen in the browser are reported to the server, a few per visit at most (see /admin).
+  useEffect(() => {
+    let left = 5;
+    const send = (message, where) => {
+      if (left-- <= 0 || !message) return;
+      try { fetch("/api/client-error", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: String(message).slice(0, 300), where }) }).catch(() => {}); } catch { /* reporting must never break the page */ }
+    };
+    const onError = (e) => send(e?.message || "Script error", "error");
+    const onReject = (e) => send(e?.reason?.message || String(e?.reason || "Unhandled rejection"), "promise");
+    window.addEventListener("error", onError); window.addEventListener("unhandledrejection", onReject);
+    return () => { window.removeEventListener("error", onError); window.removeEventListener("unhandledrejection", onReject); };
+  }, []);
   // Every screen opens at its top; Create scrolls itself to the newest result.
   useEffect(() => { if (s.tab !== "create") window.scrollTo(0, 0); }, [s.tab]);
   const sh = s.sheet;

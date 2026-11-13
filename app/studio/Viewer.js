@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
+import { thumbUrl } from "../../lib/thumbs";
 import { madeWith } from "./models";
 import { nextActions } from "./next";
 import { download } from "./download";
@@ -88,6 +89,7 @@ export default function Viewer({ s }) {
         </header>
 
         <div className="stage">
+          {shown.video ? null : <div className="vback" style={{ backgroundImage: `url("${thumbUrl(shown.url)}")` }} aria-hidden="true" />}
           {shown.video
             ? <Player key={shown.url} item={shown} own={!readonly} s={s} />
             : <img key={shown.url} className="fadein" src={shown.url} alt={shown.prompt || ""} />}
@@ -115,11 +117,11 @@ export default function Viewer({ s }) {
           {canEdit ? (
             <>
               <h2 className="d h2" style={{ marginBottom: 10 }}>What next?</h2>
-              <div className="next">
+              <div className="next4 wide4">
                 {next.map((a) => (
-                  <button key={a.key} onClick={a.run} disabled={Boolean(busy)}>
-                    <span className="c" style={{ gap: 6 }}>{busy === a.key ? <i className="spin" /> : <Icon name={a.icon} />}<span>{busy === a.key ? "Working" : a.label}</span></span>
-                    <Price n={a.cost} />
+                  <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(busy)} aria-label={`${a.label}, ${a.cost} credits`}>
+                    <span className="nx-t">{busy === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<Price n={a.cost} /></span>
+                    <span className="nx-l clamp1">{a.short}</span>
                   </button>
                 ))}
               </div>

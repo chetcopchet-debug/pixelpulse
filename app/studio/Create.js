@@ -6,7 +6,7 @@ import Icon from "./icons";
 import { Price, Picture, Poster, Brand, Balance, useNow } from "./bits";
 import { imageModel, videoModel, videoPlan, TOOLS, comparePlan, stageOf, stageTime } from "./models";
 import { nextActions } from "./next";
-import { IDEAS } from "./ideas";
+import { ideaCards } from "./ideas";
 import { autoPick } from "./auto";
 import { fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
@@ -209,7 +209,8 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
 
   const save = async () => { if (saving || !item) return; setSaving(true); await download(item); setSaving(false); };
   const glowOf = (r) => { const x = r?.kind === "compare" ? r.parts.find((p) => p.item)?.item : r?.item; return x ? (x.video ? posterUrl(x.url) : thumbUrl(x.url)) : null; };
-  const glow = wait ? null : run ? glowOf(run) : `/ideas/${IDEAS[video ? "video" : "image"][0].img}.webp`;
+  const cards = ideaCards(s.explore.items, video);
+  const glow = wait ? null : run ? glowOf(run) : cards[0].src;
   const fav = item?.id && s.favs.has(item.id);
   const cap = (
     <>
@@ -286,10 +287,10 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
           <p className="t2">Write it {wide ? "on the left" : "below"}, or start from one of these.</p>
         </div>
         <div className="ideas">
-          {IDEAS[video ? "video" : "image"].map((x) => (
-            <button key={x.img} className="idea2" onClick={() => onIdea(x.prompt)} aria-label={`Use this idea: ${x.title}`}>
-              <img src={`/ideas/${x.img}.webp`} alt="" loading="lazy" decoding="async" />
-              <span>{x.title}</span>
+          {cards.map((x) => (
+            <button key={x.key} className="idea2" onClick={() => onIdea(x.prompt)} aria-label={`Use this idea: ${x.title.slice(0, 80)}`}>
+              <img src={x.src} alt="" loading="lazy" decoding="async" />
+              <span><b className="clamp2">{x.title}</b></span>
             </button>
           ))}
         </div>

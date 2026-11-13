@@ -41,3 +41,26 @@ test('Auto never picks a model that was switched off', () => {
   assert.equal(autoPick('poster that says "Hi"', rich, all).id, 'fast'); // only one model left
   for (const p of ['"x y"', 'diagram', 'vector icon', 'photo', 'anime', 'apple']) assert.ok(!['ideogram', 'grok'].includes(autoPick(p, rich, ['ideogram', 'grok']).id), p);
 });
+
+// ---- a model that keeps failing rests for a while ----
+import { restingModels, restSlot, blamesRequest, REST_SLOT_MS } from '../lib/modelHealthCore.js';
+
+test('three failed runs in a row and no success put a model to rest; it returns when the slots pass', () => {
+  const now = 1_800_000_000_000, slot = restSlot(now);
+  const rows = [{ key: `model:fail:acme/broken:${slot}`, amount: 2 }, { key: `model:fail:acme/broken:${slot - 1}`, amount: 1 }, { key: `model:fail:acme/once:${slot}`, amount: 2 }];
+  const h = restingModels(rows, now);
+  assert.deepEqual(h.resting, { 'acme/broken': 3 });
+  assert.ok(h.failing.has('acme/once') && h.failing.has('acme/broken'));
+  assert.deepEqual(restingModels(rows, now + 2 * REST_SLOT_MS).resting, {}); // an hour later nothing is counted any more
+});
+
+test('one success among the failures keeps the model on offer', () => {
+  const now = 1_800_000_000_000, slot = restSlot(now);
+  const rows = [{ key: `model:fail:acme/flaky:${slot}`, amount: 5 }, { key: `model:ok:acme/flaky:${slot}`, amount: 1 }];
+  assert.deepEqual(restingModels(rows, now).resting, {});
+});
+
+test('a run blocked for its content is not counted against the model', () => {
+  for (const why of ['The input was flagged as sensitive', 'NSFW content detected', 'Blocked by our content policy', 'Prompt violates safety rules']) assert.equal(blamesRequest(why), true, why);
+  for (const why of ['CUDA out of memory', 'Server side error', 'no answer in time', 'Replicate answered 500', '']) assert.equal(blamesRequest(why), false, why);
+});

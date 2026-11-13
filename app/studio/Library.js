@@ -27,7 +27,7 @@ export default function Library({ s }) {
   const emptyText = { all: active ? "This project is empty. What you make now is saved into it." : "Nothing here yet. What you make is saved here automatically.", images: "No images yet.", videos: "No videos yet.", favorites: "No favorites yet. Tap the heart on a result to keep it here." }[filter];
 
   return (
-    <div className="screen">
+    <div className="screen library">
       <header className="top"><Brand /><Balance s={s} /></header>
       <h1 className="d h1 pad" style={{ margin: "4px 0 8px" }}>Library</h1>
       {s.projectsOn ? (

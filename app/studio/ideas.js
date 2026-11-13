@@ -1,3 +1,5 @@
+import { thumbUrl, posterUrl } from "../../lib/thumbs";
+
 // Starting points for someone who has not made anything yet. The card shows a short title; a tap fills the
 // prompt box with the full text. The pictures are in public/ideas.
 export const IDEAS = {
@@ -18,3 +20,12 @@ export const IDEAS = {
     { img: "sneaker", title: "A sneaker turning on a table", prompt: "A white sneaker slowly rotating on a wooden table, shallow depth of field, soft daylight" },
   ],
 };
+
+// The six cards to show. Real results chosen for the Explore gallery come first (an image made on this site says
+// more than an illustration); the drawn starting ideas fill whatever is missing.
+export function ideaCards(chosen, video) {
+  const real = (chosen || []).filter((x) => Boolean(x.video) === Boolean(video) && x.prompt && (video ? posterUrl(x.url) : x.url)).slice(0, 6)
+    .map((x) => ({ key: x.id, src: video ? posterUrl(x.url) : thumbUrl(x.url), title: x.prompt, prompt: x.prompt }));
+  const drawn = IDEAS[video ? "video" : "image"].map((x) => ({ key: x.img, src: `/ideas/${x.img}.webp`, title: x.title, prompt: x.prompt }));
+  return [...real, ...drawn].slice(0, 6);
+}
