@@ -6,7 +6,7 @@ import { PLANS } from '../../../../lib/paid';
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
-const NAMES = { pack: PLANS.pack.name, pro: PLANS.pro.name, admin_grant: 'Added by PixelPulse', referral: 'Referral bonus' };
+const NAMES = { pack: PLANS.pack.name, pro: PLANS.pro.name, admin_grant: 'Added by Yelvo', referral: 'Referral bonus' };
 
 // GET: what this account bought, newest first. Receipts themselves are emailed by the payment provider.
 export async function GET(request) {

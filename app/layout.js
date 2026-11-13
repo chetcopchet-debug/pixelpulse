@@ -4,18 +4,18 @@ import { Bricolage_Grotesque, Instrument_Sans } from 'next/font/google';
 const display = Bricolage_Grotesque({ subsets: ['latin'], weight: ['700'], variable: '--font-display', display: 'swap' });
 const text = Instrument_Sans({ subsets: ['latin'], weight: ['400', '600'], variable: '--font-text', display: 'swap' });
 
-const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://pixelpulse-omega.vercel.app';
+const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://yelvoai.com';
 const DESC = 'The best AI image and video models in one place, with one credit wallet. Veo, Kling, FLUX, Imagen, Ideogram and more. See the price before every generation.';
 
 export const metadata = {
   metadataBase: new URL(BASE),
-  title: { default: 'PixelPulse — the best AI image and video models, one wallet', template: '%s' },
+  title: { default: 'Yelvo — the best AI image and video models, one wallet', template: '%s' },
   description: DESC,
-  applicationName: 'PixelPulse',
+  applicationName: 'Yelvo',
   alternates: { canonical: '/' },
-  openGraph: { type: 'website', siteName: 'PixelPulse', title: 'PixelPulse — the best AI image and video models, one wallet', description: DESC, url: '/' },
-  twitter: { card: 'summary_large_image', title: 'PixelPulse — the best AI image and video models, one wallet', description: DESC },
-  appleWebApp: { capable: true, title: 'PixelPulse', statusBarStyle: 'black-translucent' },
+  openGraph: { type: 'website', siteName: 'Yelvo', title: 'Yelvo — the best AI image and video models, one wallet', description: DESC, url: '/' },
+  twitter: { card: 'summary_large_image', title: 'Yelvo — the best AI image and video models, one wallet', description: DESC },
+  appleWebApp: { capable: true, title: 'Yelvo', statusBarStyle: 'black-translucent' },
 };
 export const viewport = { themeColor: '#000000', width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 

@@ -53,8 +53,8 @@ export async function build() {
 
 <tr><td style="padding-bottom:36px;">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-<td style="vertical-align:middle;"><img src="https://pixelpulse-omega.vercel.app/icon-192.png" width="36" height="36" alt="" style="display:block;border:0;border-radius:9px;"></td>
-<td style="vertical-align:middle;padding-left:10px;font-size:20px;line-height:24px;font-weight:700;color:#ffffff;letter-spacing:-0.2px;">PixelPulse</td>
+<td style="vertical-align:middle;"><img src="https://yelvoai.com/icon-192.png" width="36" height="36" alt="" style="display:block;border:0;border-radius:9px;"></td>
+<td style="vertical-align:middle;padding-left:10px;font-size:20px;line-height:24px;font-weight:700;color:#ffffff;letter-spacing:-0.2px;">Yelvo</td>
 </tr></table>
 </td></tr>
 

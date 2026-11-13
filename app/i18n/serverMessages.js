@@ -85,7 +85,7 @@ export const SERVER_MESSAGES = [
   N("This image looks explicit, so it can’t be published to the feed. It stays in your private gallery."),
   N("Safety check is busy — please try publishing again in a minute."),
   N("This account was suspended for breaking the Content Policy. Contact us if you think this is a mistake."),
-  N("PixelPulse is taking a breather — today's free creation budget is used up. Please come back tomorrow!"),
+  N("Yelvo is taking a breather — today's free creation budget is used up. Please come back tomorrow!"),
   N("The model service is limiting how fast we can start runs right now. Wait a few seconds and try again."),
   N("Sign up or sign in to create. You get 10 free credits every day."),
   N("{name} uses purchased credits ({n} credits)."),
@@ -100,6 +100,6 @@ export const SERVER_MESSAGES = [
   N("Could not save the upload ({why})."),
   N("The finished video is no longer available from the model provider (download {n})."),
   N("Your credits were refunded."),
-  N("Added by PixelPulse"),
+  N("Added by Yelvo"),
   N("Referral bonus"),
 ];

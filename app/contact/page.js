@@ -2,7 +2,7 @@ import { LegalPage } from '../_legal/Legal';
 import { CONTACT_EMAIL } from '../../lib/site';
 import { getT } from '../i18n/server';
 import { rich } from '../i18n/rich.js';
-export const metadata = { title: { absolute: 'Contact · PixelPulse' }, description: 'Contact PixelPulse for support, billing, refunds and removal requests.', alternates: { canonical: '/contact' } };
+export const metadata = { title: { absolute: 'Contact · Yelvo' }, description: 'Contact Yelvo for support, billing, refunds and removal requests.', alternates: { canonical: '/contact' } };
 export default async function Contact() {
   const { t } = await getT();
   const b = (c) => <b>{c}</b>;
