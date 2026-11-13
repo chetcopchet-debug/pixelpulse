@@ -104,6 +104,53 @@ html:has(.pp) body { background: transparent !important; }
 .pp .nav > button { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; line-height: 14px; font-weight: 600; color: var(--text-3); }
 .pp .nav > button.on { color: var(--text); }
 .pp .screen { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 24px); max-width: 760px; margin: 0 auto; }
+.pp .screen.explore { max-width: none; }
+/* profile button: credits and the profile circle in one */
+.pp .me { display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 5px 0 12px; border-radius: 22px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-size: 14px; line-height: 20px; font-weight: 600; flex: none; }
+.pp .av { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--fill-2); color: var(--text); font-size: 15px; line-height: 1; font-weight: 600; flex: none; }
+.pp .me .av { margin-left: 2px; }
+.pp .av.big { width: 44px; height: 44px; font-size: 19px; }
+.pp .wal { padding: 14px 16px; border-radius: 16px; background: var(--fill); }
+.pp .card.flat { background: var(--fill); box-shadow: none; }
+/* bottom bar: Create stands out in the middle */
+.pp .nav > button.mid { color: var(--text); }
+.pp .plusb { display: flex; align-items: center; justify-content: center; width: 52px; height: 30px; border-radius: 12px; background: var(--primary); color: var(--on-primary); }
+/* Explore: the gallery */
+.pp .strip { padding-top: 6px; padding-bottom: 18px; }
+.pp .strip h1 { font-size: 28px; line-height: 32px; max-width: 560px; }
+.pp .fl { display: flex; gap: 6px; padding-top: 2px; padding-bottom: 10px; }
+.pp .chip2 { display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 14px; background: var(--fill); font-size: 14px; line-height: 20px; font-weight: 600; }
+.pp .chip2.on { background: var(--primary); color: var(--on-primary); }
+.pp .gal { display: flex; align-items: flex-start; gap: 6px; padding-left: 12px; padding-right: 12px; }
+.pp .gal > div { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pp .gt { position: relative; display: block; width: 100%; overflow: hidden; border-radius: 14px; background: var(--fill); }
+.pp .gt > img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.pp .gt > .vph { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
+.pp .gt.ghost { animation: pp-pulse 1.6s ease-in-out infinite; }
+@keyframes pp-pulse { 50% { opacity: .5; } }
+/* full pages over the tabs: Settings, Models & pricing, Help */
+.pp .page { position: fixed; left: 0; top: 0; right: 0; bottom: 0; z-index: 40; background: var(--bg); overflow-y: auto; -webkit-overflow-scrolling: touch; animation: pp-fade .16s ease both; }
+.pp .page-in { max-width: 640px; margin: 0 auto; }
+.pp .page .top { padding: 0 6px; }
+.pp .sec { margin: 22px 2px 8px; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--text-2); }
+.pp .page .pad > .sec:first-child { margin-top: 6px; }
+.pp .lrow.two { padding-top: 11px; padding-bottom: 11px; }
+.pp .lrow.bad { color: var(--neg); }
+.pp .tg { position: relative; width: 50px; height: 30px; border-radius: 15px; background: var(--fill-2); flex: none; transition: background .15s ease; }
+.pp .tg > i { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--text-3); transition: left .15s ease, background .15s ease; }
+.pp .tg.on { background: var(--primary); }
+.pp .tg.on > i { left: 23px; background: var(--on-primary); }
+.pp input.sr:focus-visible + .tg { outline: 2px solid var(--text); outline-offset: 2px; }
+.pp .delbox { padding: 14px 16px 16px; border-top: 1px solid var(--line); }
+.pp .btn-danger { background: var(--neg); color: #000000; }
+.pp .btn-danger:disabled { opacity: .45; }
+.pp .packs { display: flex; gap: 8px; margin-top: 6px; }
+.pp .pack { flex: 1 1 0; min-width: 0; padding: 14px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+.pp .qa + .qa { border-top: 1px solid var(--line); }
+.pp .qa > summary { display: flex; align-items: center; gap: 12px; min-height: 54px; padding: 8px 16px; font-weight: 600; cursor: pointer; list-style: none; }
+.pp .qa > summary::-webkit-details-marker { display: none; }
+.pp .qa[open] > summary .ic { transform: rotate(180deg); }
+.pp .qa > p { padding: 0 16px 16px; }
 .pp .pad { padding-left: 16px; padding-right: 16px; }
 .pp .h1 { font-size: 30px; line-height: 34px; }
 .pp .h2 { font-size: 19px; line-height: 24px; }
@@ -389,6 +436,10 @@ html:has(.pp) body { background: transparent !important; }
   .pp { --nav-h: 0px; padding-left: 88px; }
   .pp .nav { left: 0; top: 0; bottom: 0; right: auto; width: 88px; height: auto; flex-direction: column; justify-content: center; gap: 8px; padding: 0; border-top: 0; border-right: 1px solid var(--line); }
   .pp .nav > button { flex: none; height: 64px; }
+  .pp .page { left: 88px; }
+  .pp .gal { gap: 8px; padding-left: 24px; padding-right: 24px; }
+  .pp .gal > div { gap: 8px; }
+  .pp .explore > .top, .pp .explore > .strip, .pp .explore > .fl { padding-left: 24px; padding-right: 24px; }
   .pp .scrim { align-items: center; }
   .pp .sheet { border-radius: 24px; max-height: 80vh; }
   .pp .grab { visibility: hidden; }

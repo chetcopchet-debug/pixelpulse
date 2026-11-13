@@ -1,71 +1,82 @@
 "use client";
-import { useState } from "react";
-import { Price, Brand, Balance } from "./bits";
-import { imageModels, videoModels } from "./models";
+import { useEffect, useMemo, useState } from "react";
+import Icon from "./icons";
+import { Brand, Balance, Picture, Poster } from "./bits";
+import { IDEAS } from "./ideas";
 import { FREE_DAILY } from "./store";
 
-const LINKS = [["Pricing", "/pricing"], ["Terms", "/terms"], ["Privacy", "/privacy"], ["Refunds", "/refund-policy"], ["Content policy", "/content-policy"], ["Contact", "/contact"]];
+// How many columns fit: two on a phone, more as the window grows.
+function useColumns() {
+  const pick = () => (typeof window === "undefined" ? 2 : window.innerWidth >= 1500 ? 5 : window.innerWidth >= 1100 ? 4 : window.innerWidth >= 700 ? 3 : 2);
+  const [n, setN] = useState(2);
+  useEffect(() => { const on = () => setN(pick()); on(); window.addEventListener("resize", on); return () => window.removeEventListener("resize", on); }, []);
+  return n;
+}
+const tall = (ratio) => { const [a, b] = String(ratio || "1:1").split(":").map(Number); return a > 0 && b > 0 ? b / a : 1; };
 
-// The shop window: what PixelPulse is, the models and what they cost, how credits work, and one clear way in.
-// Nothing is created here; creating has its own screen. There are no sample pictures on purpose: until there
-// is a set of our own, checked examples, an empty window is better than a generic one.
+// The gallery: pictures and videos made on this site, chosen by its owner. Nothing is created here and nothing
+// is sold here. A tap opens a picture with its prompt and model, and "Use this prompt" takes them to Create.
+// A visitor without an account also gets one line saying what the site is and one way in.
 export default function Explore({ s }) {
-  const [kind, setKind] = useState("image");
+  const [kind, setKind] = useState("all");
+  const cols = useColumns();
   const w = s.wallet;
   const guest = w.loaded && !w.account && !w.admin;
-  const list = (kind === "video" ? videoModels : imageModels).filter((m) => !s.off.has(m.id));
-  // Guests are asked to sign in first and land on Create afterwards.
+  // Until pictures have been chosen, the gallery shows the six starting ideas, so it is never an empty page.
+  const chosen = s.explore.items;
+  const all = useMemo(() => (chosen.length ? chosen : IDEAS.image.map((x) => ({ id: null, url: `/ideas/${x.img}.webp`, prompt: x.prompt, ratio: "1:1", model: null, video: false, idea: x.img }))), [chosen]);
+  const hasVideo = all.some((x) => x.video);
+  const list = all.filter((x) => kind === "all" || (kind === "video") === x.video);
+  // Each picture goes to the column that is shortest so far, so the columns end at about the same height.
+  const columns = useMemo(() => {
+    const out = Array.from({ length: cols }, () => ({ h: 0, items: [] }));
+    for (const it of list) { const c = out.reduce((a, b) => (b.h < a.h ? b : a)); c.items.push(it); c.h += tall(it.ratio) + 0.03; }
+    return out;
+  }, [list, cols]);
   const start = () => { if (s.needAccount({ tab: "create" })) return; s.setTab("create"); };
-  const pick = (m) => {
-    if (kind === "video") { s.setMode("video"); s.setVidModel(m.id); } else { s.setMode("image"); s.setImgModel(m.id); }
-    start();
-  };
 
   return (
-    <div className="screen">
+    <div className="screen explore">
       <header className="top">
         <Brand wordmark />
         <Balance s={s} />
       </header>
 
-      <section className="hero">
-        <h1 className="d">The best image and video models. One wallet.</h1>
-        <p>Veo, Kling, FLUX, Imagen, Ideogram and more. Buy credits once, spend them on any model, and see the price before every generation.</p>
-        <button className="btn btn-p cta" onClick={start}>Start creating</button>
-        <p className="sm t2" style={{ marginTop: 12 }}>{guest || !w.loaded ? `Sign up and get ${FREE_DAILY} free credits every day.` : `You get ${FREE_DAILY} free credits every day.`}</p>
-      </section>
+      {guest ? (
+        <section className="strip pad">
+          <h1 className="d">The best image and video models. One wallet.</h1>
+          <div className="r" style={{ gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+            <button className="btn btn-p" onClick={start}>Start free</button>
+            <span className="sm t2">{FREE_DAILY} free credits every day</span>
+          </div>
+        </section>
+      ) : null}
 
-      <section className="section pad">
-        <h2 className="d" style={{ fontSize: 28, lineHeight: "32px" }}>{imageModels.length + videoModels.length} models. Pick the one that fits the job.</h2>
-        <div className="seg" role="tablist" aria-label="Kind of model" style={{ marginTop: 14 }}>
-          <button role="tab" aria-selected={kind === "image"} className={kind === "image" ? "on" : ""} onClick={() => setKind("image")}>Images<span className="t3 num">{imageModels.length}</span></button>
-          <button role="tab" aria-selected={kind === "video"} className={kind === "video" ? "on" : ""} onClick={() => setKind("video")}>Video<span className="t3 num">{videoModels.length}</span></button>
-        </div>
-        <div className="mlist">
-          {list.map((m) => (
-            <button key={m.id} onClick={() => pick(m)} style={{ width: "100%" }} aria-label={`${m.name}, ${m.cost} credits. Create with this model`}>
-              <span className="grow">
-                <span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span>
-                <span className="sm t2" style={{ display: "block" }}>{m.by}. {m.desc}</span>
-              </span>
-              <Price n={m.cost} />
-            </button>
+      {hasVideo ? (
+        <div className="fl pad" role="tablist" aria-label="Show">
+          {[["all", "All"], ["image", "Images"], ["video", "Video"]].map(([id, label]) => (
+            <button key={id} role="tab" aria-selected={kind === id} className={`chip2${kind === id ? " on" : ""}`} onClick={() => setKind(id)}>{label}</button>
           ))}
         </div>
-        <p className="sm t3" style={{ marginTop: 8 }}>{kind === "video" ? "Prices are for the shortest clip. Video uses bought credits." : "Price for one image."}</p>
-      </section>
+      ) : null}
 
-      <section className="section pad">
-        <h2 className="d" style={{ fontSize: 28, lineHeight: "32px" }}>How credits work</h2>
-        <div className="steps">
-          <div className="step"><p className="b">One wallet for every model</p><p className="sm t2" style={{ marginTop: 4 }}>The same credits pay for images, video and editing. No separate plan for each model.</p></div>
-          <div className="step"><p className="b r" style={{ gap: 6 }}>The price is on the button <i className="coin" /></p><p className="sm t2" style={{ marginTop: 4 }}>You always see what a generation costs before you tap.</p></div>
-          <div className="step"><p className="b">Failed runs cost nothing</p><p className="sm t2" style={{ marginTop: 4 }}>If an image or video doesn't finish, the credits go back to your wallet.</p></div>
+      {w.admin && !chosen.length && s.explore.status === "ready" ? <p className="sm t2 pad" style={{ marginBottom: 12 }}>Nothing is chosen for the gallery yet, so the starting ideas are shown. Open one of your creations in the Library and tap "Show in Explore".</p> : null}
+
+      {s.explore.status === "loading" ? (
+        <div className="gal pad" aria-hidden="true">{Array.from({ length: cols }, (_, c) => <div key={c}>{[1.3, 1, 0.75].map((h, i) => <div key={i} className="gt ghost" style={{ aspectRatio: `1 / ${c % 2 ? h : 2 - h + 0.3}` }} />)}</div>)}</div>
+      ) : (
+        <div className="gal pad">
+          {columns.map((c, i) => (
+            <div key={i}>
+              {c.items.map((it) => (
+                <button key={it.id || it.idea} className="gt" style={{ aspectRatio: `1 / ${tall(it.ratio)}` }} onClick={() => s.setViewer({ item: it, readonly: true, explore: true })} aria-label={it.prompt ? `Open: ${it.prompt.slice(0, 80)}` : it.video ? "Open video" : "Open image"}>
+                  {it.video ? <><Poster item={it} /><span className="badge"><Icon name="play" size={10} />Video</span></> : <Picture src={it.url} />}
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
-        <button className="btn btn-p cta" style={{ marginTop: 24 }} onClick={start}>Start creating</button>
-      </section>
-
-      <nav className="foot pad" aria-label="About">{LINKS.map(([t, h]) => <a key={h} href={h}>{t}</a>)}</nav>
+      )}
     </div>
   );
 }

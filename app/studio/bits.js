@@ -59,15 +59,20 @@ export function Brand({ wordmark }) {
   return <span className="r" style={{ gap: 10 }}><i className="logo" aria-hidden="true" />{wordmark ? <span className="d" style={{ fontSize: 20, lineHeight: "24px" }}>PixelPulse</span> : <span className="sr">PixelPulse</span>}</span>;
 }
 
-// Top-bar corner: the credit balance (opens the account screen), or the way in for a visitor without an account.
-export function Balance({ s }) {
+// Top-bar corner, on every screen: the credit balance with the profile circle. One button; it opens the profile
+// menu (credits, Models & pricing, Settings, Help, Sign out). A visitor without an account gets "Sign in" and the
+// same menu, with the way in at its top. `small` leaves out the words where the bar is crowded.
+export function Balance({ s, small }) {
   const w = s.wallet;
+  const open = () => s.setSheet({ type: "me" });
   if (w.loaded && !w.account && !w.admin) {
-    return <button className="pill-tap" onClick={() => s.askSignIn()}><span className="pill" style={{ padding: "0 14px" }}>Sign up</span></button>;
+    return <button className="me" onClick={open} aria-label="Sign in, prices and settings">{small ? null : <span>Sign in</span>}<span className="av"><Icon name="person" size={16} /></span></button>;
   }
+  const letter = (w.account?.email || "").trim().charAt(0).toUpperCase();
   return (
-    <button className="pill-tap" onClick={() => s.setTab("account")} aria-label={w.admin ? "Admin mode" : `${w.free + w.paid} credits. Open account`}>
-      <span className="pill"><i className="coin" />{w.admin ? "Admin" : w.loaded ? (w.free + w.paid).toLocaleString("en-US") : "…"}</span>
+    <button className="me" onClick={open} aria-label={w.admin ? "Admin mode. Open the menu" : `${w.free + w.paid} credits. Open the menu`}>
+      <i className="coin" /><span className="num">{w.admin ? "Admin" : w.loaded ? (w.free + w.paid).toLocaleString("en-US") : "…"}</span>
+      <span className="av">{letter || <Icon name="person" size={16} />}</span>
     </button>
   );
 }

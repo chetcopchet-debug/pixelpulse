@@ -3,7 +3,7 @@ import { PLANS } from '../../lib/paid';
 import BuyButton from './BuyButton';
 import { imageModels, videoModels, TOOLS } from '../studio/models';
 import { VIDEO_PRICING } from '../../lib/videoPricing';
-export const metadata = { title: { absolute: 'Pricing · PixelPulse' }, description: 'Sign up and get 10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
+export const metadata = { title: { absolute: 'Models & pricing · PixelPulse' }, description: 'Sign up and get 10 free credits every day. Creator Pack: 500 credits for $9.90 that never expire. Pulse Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
 const Coin = ({ n }) => <span className="price"><i className="coin" />{n}</span>;
 const TOOL_ROWS = [
@@ -20,13 +20,13 @@ const FAQ = [
   ['How do I cancel Pulse Pro?', 'Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.'],
   ['Can I get a refund?', 'Yes. Unused bought credits can be refunded within 14 days.', ['/refund-policy', 'Refund Policy']],
   ['Who processes payments?', 'Lemon Squeezy, our Merchant of Record. They handle the payment, VAT or sales tax and your receipt. We never see your card details.'],
-  ['I changed phone or cleared my browser. Where are my credits?', 'Sign in with Google or email from the Account screen and your credits follow your account on any device. If you bought without signing in, contact us with your order email.', ['/contact', 'Contact']],
+  ['I changed phone or cleared my browser. Where are my credits?', 'Sign in with Google or email from the profile menu and your credits follow your account on any device. If you bought without signing in, contact us with your order email.', ['/contact', 'Contact']],
 ];
 
 export default function Pricing() {
   return (
     <Page wide>
-      <h1>Prices</h1>
+      <h1>Models &amp; pricing</h1>
       <p className="lead">One wallet for every model. Start free, and buy credits only if you need more.</p>
 
       <div className="cards" style={{ marginTop: 24 }}>

@@ -90,4 +90,5 @@ export const toItem = (r) => ({
   at: r.created_at || new Date().toISOString(),
   video: isVideoUrl(r.public_url),
   project: r.project_id || null,
+  featured: Boolean(r.featured_at), // shown in the Explore gallery (only the site's owner can set it)
 });

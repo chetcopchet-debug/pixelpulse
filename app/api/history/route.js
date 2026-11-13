@@ -37,7 +37,7 @@ export async function GET(request) {
     if (withModel && filter === 'created') q = q.or('remix_of.is.null,storage_path.not.like.*.png').or('model.is.null,model.not.in.(upload,guided)');
     return q;
   };
-  const base = 'id, created_at, prompt, style, aspect_ratio, public_url, likes, remix_of, is_public, storage_path';
+  const base = 'id, created_at, prompt, style, aspect_ratio, public_url, likes, remix_of, is_public, storage_path, featured_at';
   let { data, error } = await run(base + ', model, format, project_id', true);
   if (error && /project_id/i.test(error.message || '')) {
     // Migration 011 isn't installed: there are no projects, so a project has no items and the rest loads as before.

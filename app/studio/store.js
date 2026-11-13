@@ -9,7 +9,10 @@ import { setDownloadMark } from "./download";
 import { posterUrl as posterUrlOf } from "../../lib/thumbs";
 
 const json = (r) => r.json().catch(() => ({}));
-const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+// Settings: "Translate prompts to English". When it is off every request says so, and the server sends the
+// words to the model as written.
+let TRANSLATE = true;
+const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(TRANSLATE ? body || {} : { ...(body || {}), translate: false }) });
 const get = (url) => fetch(url, { cache: "no-store" });
 const uid = () => Math.random().toString(36).slice(2, 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -78,6 +81,16 @@ export function useStudio() {
   const [toast, setToast] = useState("");
   const [newer, setNewer] = useState(false); // the site has a newer build than the page on screen
   const [theme, setThemeRaw] = useState("dark");
+  const [translate, setTranslateRaw] = useState(true);
+  const setTranslate = useCallback((on) => { TRANSLATE = Boolean(on); setTranslateRaw(Boolean(on)); }, []);
+  // A full page over the tabs: "settings", "pricing", "help". null = none.
+  const [page, setPage] = useState(null);
+  // The Explore gallery: the pictures the site's owner chose to show.
+  const [explore, setExplore] = useState({ status: "loading", items: [] });
+  const loadExplore = useCallback(async () => {
+    const d = await get("/api/explore").then(json).catch(() => null);
+    setExplore({ status: "ready", items: Array.isArray(d?.items) ? d.items.map(toItem).filter((x) => x.id && x.url) : [] });
+  }, []);
   const [busyTool, setBusyTool] = useState("");
   const [uploading, setUploading] = useState(false);
 
@@ -603,6 +616,27 @@ export function useStudio() {
     store.write("pp_draft", null);
     await refreshWallet(); loadLibrary(); loadProjects(); say("You're signed in");
   }, [refreshWallet, loadLibrary, loadProjects, say]);
+  // Admin only: put one of your own creations in the Explore gallery, or take it out.
+  const feature = useCallback(async (item, on) => {
+    const res = await post("/api/admin/feature", { id: item.id, on }).catch(() => null);
+    const d = res ? await json(res) : {};
+    if (!res || !res.ok) { say(plain(d.error) || "Could not save. Try again."); return false; }
+    setItems((xs) => xs.map((x) => (x.id === item.id ? { ...x, featured: on } : x)));
+    setViewer((v) => (v && v.item.id === item.id ? { ...v, item: { ...v.item, featured: on } } : v));
+    say(on ? "Showing in Explore" : "Removed from Explore");
+    loadExplore();
+    return true;
+  }, [say, loadExplore]);
+  // Deletes the account and everything it made. Returns an error message, or nothing when it worked (the page
+  // then starts over as a visitor).
+  const deleteAccount = useCallback(async () => {
+    const res = await post("/api/account/delete", { confirm: "DELETE" }).catch(() => null);
+    const d = res ? await json(res) : {};
+    if (!res || !res.ok) return plain(d.error) || "Your account could not be deleted. Try again.";
+    ["pp_pending", "pp_last", "pp_favs", "pp_draft", "pp_seen"].forEach((k) => store.write(k, null));
+    window.location.href = "/";
+    return "";
+  }, []);
   const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); store.write("pp_pending", []); store.write("pp_last", null); window.location.href = "/"; }, []);
   const buy = useCallback(async (planId) => {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
@@ -615,7 +649,7 @@ export function useStudio() {
   const setTheme = useCallback((t) => { setThemeRaw(t); }, []);
 
   // ---- remember choices ----
-  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project]);
+  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project, translate }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project, translate]);
   // Remembered on this device: the images still being made, so they can be found after the page was closed.
   // (Videos have their own record on the server.) Finished results are not remembered: they are in the Library.
   useEffect(() => {
@@ -694,6 +728,8 @@ export function useStudio() {
     if (IMAGE_RATIOS.some((r) => r.id === p.ratio)) setRatio(p.ratio);
     if (typeof p.project === "string" && /^[0-9a-f-]{36}$/i.test(p.project)) { projectRef.current = p.project; setProjectRaw(p.project); }
     if (["dark", "light", "auto"].includes(p.theme)) setThemeRaw(p.theme);
+    if (p.translate === false) setTranslate(false);
+    loadExplore();
     setFavs(new Set(store.read("pp_favs", [])));
 
     let start = store.read("pp_seen", 0) ? "create" : "explore";
@@ -706,6 +742,10 @@ export function useStudio() {
       if (!chosen && FORMATS[f].engine && imageModels.some((m) => m.id === FORMATS[f].engine)) setImgModelRaw(FORMATS[f].engine);
     }
     if (q.get("p")) { setPrompt(q.get("p").slice(0, 1500)); setMode("image"); start = "create"; }
+    if (videoModels.some((m) => m.id === q.get("video"))) { // a link that opens Create ready for one video (the prompt list on /admin)
+      setMode("video"); setVidModelRaw(q.get("video")); start = "create";
+      if (IMAGE_RATIOS.some((r) => r.id === q.get("ratio"))) setRatio(q.get("ratio"));
+    }
     if (q.get("vibe")) {
       start = "create";
       if (IMAGE_RATIOS.some((r) => r.id === q.get("ratio"))) setRatio(q.get("ratio"));
@@ -716,7 +756,7 @@ export function useStudio() {
       // Back from Google or from the emailed link: put the person where they were, with what they wrote.
       const d = store.read("pp_draft", null);
       if (d && Date.now() - (Number(d.at) || 0) < 60 * 60_000) {
-        if (["explore", "create", "library", "account"].includes(d.tab)) start = d.tab;
+        if (["explore", "create", "library"].includes(d.tab)) start = d.tab;
         if (d.mode === "video" || d.mode === "image") setMode(d.mode);
         if (typeof d.prompt === "string" && d.prompt) setPrompt(d.prompt.slice(0, 1500));
         if (d.ref?.id && typeof d.ref.url === "string") setRef(toItem({ id: d.ref.id, public_url: d.ref.url, aspect_ratio: d.ref.ratio }));
@@ -788,5 +828,6 @@ export function useStudio() {
     viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
+    page, setPage, translate, setTranslate, explore, feature, deleteAccount,
   };
 }
