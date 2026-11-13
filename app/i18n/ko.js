@@ -554,4 +554,13 @@ export default {
   "1 credit. Open the menu": "1 크레딧. 메뉴 열기",
   "Temporarily unavailable": "일시적으로 사용할 수 없음",
   "This model is temporarily unavailable. Pick another model.": "이 모델은 일시적으로 사용할 수 없어요. 다른 모델을 선택하세요.",
+  "Prompt improved. See what was used": "프롬프트를 다듬었어요. 사용된 내용 보기",
+  "Improve my prompt: on": "프롬프트 다듬기: 켜짐",
+  "Improve my prompt: off": "프롬프트 다듬기: 꺼짐",
+  "Improve my prompt": "프롬프트 다듬기",
+  "Short ideas are filled in before they are made. Text in quotes stays as you wrote it.": "짧은 아이디어는 만들기 전에 보완돼요. 따옴표 안의 글자는 쓴 그대로 유지돼요.",
+  "Your prompt is used exactly as you write it.": "프롬프트가 쓴 그대로 사용돼요.",
+  "The prompt that was used": "사용된 프롬프트",
+  "Your idea was filled in before it was made. This is what the model got.": "아이디어를 만들기 전에 보완했어요. 모델이 받은 내용이에요.",
+  "Your idea": "내 아이디어",
 };

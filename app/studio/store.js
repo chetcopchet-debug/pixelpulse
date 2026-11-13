@@ -50,6 +50,7 @@ export function useStudio() {
   const [prompt, setPrompt] = useState("");
   const [imgModel, setImgModelRaw] = useState("fast");
   const [auto, setAutoRaw] = useState(false); // Auto: the model is chosen from the prompt (images only)
+  const [improve, setImprove] = useState(true); // a short idea is filled in before it is made (the server does it)
   const [vidModel, setVidModelRaw] = useState("h3-lite");
   const [compare, setCompare] = useState([]); // image model ids to run side by side; fewer than two means "one model"
   // The three ways to choose are exclusive: one model, Auto, or comparing several.
@@ -311,7 +312,7 @@ export function useStudio() {
       let res;
       // No answer at all (the phone put the browser to sleep, the network dropped, the page was closed): the
       // server usually finished anyway, so look for the result in the Library instead of calling it a failure.
-      try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...inProject() }); }
+      try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...(o.improve && !o.ref ? { improve: true } : {}), ...inProject() }); }
       catch { patchRun(key, { lost: true }); watchRef.current(); return; }
       try {
         const d = await json(res); sync(d);
@@ -319,7 +320,7 @@ export function useStudio() {
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || t("The image didn't finish. Any credits were returned."));
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id, project_id: d.project });
         if (d.stored) addItem(item, { keep: "project" in d });
-        patchRun(key, { status: "done", item, unsaved: !d.stored, doneAt: Date.now(), lost: false, away: Boolean(d.stored) && awaySince(Date.now() - 1500) });
+        patchRun(key, { status: "done", item, unsaved: !d.stored, doneAt: Date.now(), lost: false, away: Boolean(d.stored) && awaySince(Date.now() - 1500), ...(typeof d.usedPrompt === "string" ? { used: d.usedPrompt } : {}) });
       } catch (e) { patchRun(key, { status: "failed", error: e.message || t("Something went wrong. Any credits were returned.") }); }
     })();
     return true;
@@ -407,7 +408,7 @@ export function useStudio() {
     (async () => {
       try {
         const pid = projectRef.current; // the video is filed in the project that is open when it starts
-        const res = await post("/api/animate", { ...(o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r }), ...(pid ? { project: pid } : {}) });
+        const res = await post("/api/animate", { ...(o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(o.improve ? { improve: true } : {}) }), ...(pid ? { project: pid } : {}) });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
         if (!res.ok || !d.job) throw new Error(plain(d.error) || t("The video couldn't start. Your credits were returned."));
@@ -482,14 +483,14 @@ export function useStudio() {
     if (mode === "video") {
       if (ref) { if (startVideo({ source: ref, prompt: text })) { setPrompt(""); setRef(null); } return; }
       if (!text) { say(t("Describe the video first.")); return; }
-      if (startVideo({ model: vidModel, prompt: text, ratio, d: vDur, r: vRes })) setPrompt("");
+      if (startVideo({ model: vidModel, prompt: text, ratio, d: vDur, r: vRes, improve })) setPrompt("");
       return;
     }
     if (!text) { say(t("Describe the image first.")); return; }
     if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
     const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
-    if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick) })) setPrompt("");
-  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, startVideo, startImage, startCompare, say, needAccount]);
+    if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve })) setPrompt("");
+  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, improve, startVideo, startImage, startCompare, say, needAccount]);
 
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
@@ -659,7 +660,7 @@ export function useStudio() {
   const setTheme = useCallback((t) => { setThemeRaw(t); }, []);
 
   // ---- remember choices ----
-  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project]);
+  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project, improve }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, improve, project]);
   // Remembered on this device: the images still being made, so they can be found after the page was closed.
   // (Videos have their own record on the server.) Finished results are not remembered: they are in the Library.
   useEffect(() => {
@@ -738,6 +739,7 @@ export function useStudio() {
     if (IMAGE_RATIOS.some((r) => r.id === p.ratio)) setRatio(p.ratio);
     if (typeof p.project === "string" && /^[0-9a-f-]{36}$/i.test(p.project)) { projectRef.current = p.project; setProjectRaw(p.project); }
     if (["dark", "light", "auto"].includes(p.theme)) setThemeRaw(p.theme);
+    if (p.improve === false) setImprove(false);
     loadExplore();
     setFavs(new Set(store.read("pp_favs", [])));
 
@@ -836,7 +838,7 @@ export function useStudio() {
   // result that finished while the person was away (it is in the Library).
   const shown = useMemo(() => runs.filter((r) => !r.checking && !(r.status === "done" && r.away)), [runs]);
   return {
-    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, compare, setCompare, ratio, setRatio,
+    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, improve, setImprove, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs: shown, items, cursor, library, favs,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,

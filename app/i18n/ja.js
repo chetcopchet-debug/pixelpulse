@@ -554,4 +554,13 @@ export default {
   "1 credit. Open the menu": "1クレジット。メニューを開く",
   "Temporarily unavailable": "一時的に利用できません",
   "This model is temporarily unavailable. Pick another model.": "このモデルは一時的に利用できません。別のモデルを選んでください。",
+  "Prompt improved. See what was used": "プロンプトを改善しました。使われた内容を見る",
+  "Improve my prompt: on": "プロンプトを改善：オン",
+  "Improve my prompt: off": "プロンプトを改善：オフ",
+  "Improve my prompt": "プロンプトを改善",
+  "Short ideas are filled in before they are made. Text in quotes stays as you wrote it.": "短いアイデアは作成前に補われます。引用符で囲んだ文字は書いたとおりに残ります。",
+  "Your prompt is used exactly as you write it.": "プロンプトは書いたとおりに使われます。",
+  "The prompt that was used": "使われたプロンプト",
+  "Your idea was filled in before it was made. This is what the model got.": "アイデアは作成前に補われました。モデルに渡された内容です。",
+  "Your idea": "あなたのアイデア",
 };

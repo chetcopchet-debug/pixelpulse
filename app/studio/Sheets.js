@@ -316,6 +316,19 @@ export function SignInSheet({ s, reason, onClose }) {
 }
 
 // Ideas to start from: the same cards a newcomer sees on the Create screen, one tap away for everyone else.
+// What the model was given, when a short idea was filled in first.
+export function UsedSheet({ s, text, idea, onClose }) {
+  return (
+    <Sheet title={t("The prompt that was used")} sub={t("Your idea was filled in before it was made. This is what the model got.")} onClose={onClose}>
+      <div style={{ padding: "0 8px 8px" }}>
+        {idea ? <p className="sm t3" style={{ marginBottom: 10 }}>{t("Your idea")}: {idea}</p> : null}
+        <p style={{ fontSize: 16, lineHeight: "24px", overflowWrap: "anywhere" }}>{text}</p>
+        <button className="btn btn-s btn-wide" style={{ marginTop: 16 }} onClick={() => { s.setPrompt(text); onClose(); }}>{t("Use this prompt")}</button>
+      </div>
+    </Sheet>
+  );
+}
+
 export function IdeasSheet({ s, onClose }) {
   const list = ideaCards(s.explore.items, s.mode === "video");
   return (
