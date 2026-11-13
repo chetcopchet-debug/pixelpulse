@@ -548,4 +548,9 @@ export default {
   "This sign-in link is no longer valid. Ask for a new one.": "Tautan masuk ini sudah tidak berlaku. Minta yang baru.",
   "Sign-in didn't work. Try again.": "Gagal masuk. Coba lagi.",
   "Sign-in didn't work. Check your connection and try again.": "Gagal masuk. Periksa koneksimu lalu coba lagi.",
+  "{name}, 1 credit": "{name}, 1 kredit",
+  "{name}, 1 credit. Create with this model": "{name}, 1 kredit. Buat dengan model ini",
+  "{name} costs 1 credit.": "{name} butuh 1 kredit.",
+  "This costs 1 credit.": "Biayanya 1 kredit.",
+  "1 credit. Open the menu": "1 kredit. Buka menu",
 };

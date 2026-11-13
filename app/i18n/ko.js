@@ -548,4 +548,9 @@ export default {
   "This sign-in link is no longer valid. Ask for a new one.": "이 로그인 링크는 더 이상 유효하지 않아요. 새 링크를 요청하세요.",
   "Sign-in didn't work. Try again.": "로그인하지 못했어요. 다시 시도해 주세요.",
   "Sign-in didn't work. Check your connection and try again.": "로그인하지 못했어요. 연결을 확인하고 다시 시도해 주세요.",
+  "{name}, 1 credit": "{name}, 1 크레딧",
+  "{name}, 1 credit. Create with this model": "{name}, 1 크레딧. 이 모델로 만들기",
+  "{name} costs 1 credit.": "{name}에는 크레딧 1개가 필요해요.",
+  "This costs 1 credit.": "크레딧 1개가 필요해요.",
+  "1 credit. Open the menu": "1 크레딧. 메뉴 열기",
 };

@@ -17,6 +17,9 @@ let curLang = "en";
 export const t = (key, vars) => cur.t(key, vars);
 export const tm = (msg) => cur.tm(msg);
 export const sm = (msg) => cur.sm(msg);
+// One of something has its own words ("1 credit", not "1 credits"): the first text is used when vars.n is one.
+// Mark both with N("…") so every language gets them.
+export const tn = (one, many, vars) => t(Number(vars && vars.n) === 1 ? one : many, vars);
 // Marks a text for translation where it is defined outside a component; it is translated where it is shown.
 export const N = (s) => s;
 export const lang = () => curLang;

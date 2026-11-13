@@ -1,5 +1,5 @@
 "use client";
-import { t, num, langTag } from "../i18n/index.js";
+import { t, tn, N, num, langTag } from "../i18n/index.js";
 import { useEffect, useState } from "react";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import Icon from "./icons";
@@ -71,7 +71,7 @@ export function Balance({ s, small }) {
   }
   const letter = (w.account?.email || "").trim().charAt(0).toUpperCase();
   return (
-    <button className="me" onClick={open} aria-label={w.admin ? t("Admin mode. Open the menu") : t("{n} credits. Open the menu", { n: w.free + w.paid })}>
+    <button className="me" onClick={open} aria-label={w.admin ? t("Admin mode. Open the menu") : tn(N("1 credit. Open the menu"), N("{n} credits. Open the menu"), { n: w.free + w.paid })}>
       <i className="coin" /><span className="num">{w.admin ? t("Admin") : w.loaded ? num(w.free + w.paid) : "…"}</span>
       <span className="av">{letter || <Icon name="person" size={16} />}</span>
     </button>

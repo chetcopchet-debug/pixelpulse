@@ -548,4 +548,9 @@ export default {
   "This sign-in link is no longer valid. Ask for a new one.": "このログインリンクは無効になりました。新しいリンクをリクエストしてください。",
   "Sign-in didn't work. Try again.": "ログインできませんでした。もう一度お試しください。",
   "Sign-in didn't work. Check your connection and try again.": "ログインできませんでした。接続を確認して、もう一度お試しください。",
+  "{name}, 1 credit": "{name}、1クレジット",
+  "{name}, 1 credit. Create with this model": "{name}、1クレジット。このモデルで作成",
+  "{name} costs 1 credit.": "{name}は1クレジットかかります。",
+  "This costs 1 credit.": "1クレジットかかります。",
+  "1 credit. Open the menu": "1クレジット。メニューを開く",
 };

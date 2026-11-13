@@ -548,4 +548,9 @@ export default {
   "This sign-in link is no longer valid. Ask for a new one.": "此登录链接已失效。请重新获取。",
   "Sign-in didn't work. Try again.": "登录失败。请重试。",
   "Sign-in didn't work. Check your connection and try again.": "登录失败。请检查网络连接后重试。",
+  "{name}, 1 credit": "{name}，1 积分",
+  "{name}, 1 credit. Create with this model": "{name}，1 积分。用此模型创作",
+  "{name} costs 1 credit.": "{name} 需要 1 积分。",
+  "This costs 1 credit.": "需要 1 积分。",
+  "1 credit. Open the menu": "1 积分。打开菜单",
 };

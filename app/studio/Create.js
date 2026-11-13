@@ -1,5 +1,5 @@
 "use client";
-import { t, N } from "../i18n/index.js";
+import { t, tn, N } from "../i18n/index.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
@@ -260,7 +260,7 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
               {tiles ? (
                 <div className="next4">
                   {nextActions(s, item).map((a) => (
-                    <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(s.busyTool)} aria-label={t("{name}, {n} credits", { name: a.label, n: a.cost })}>
+                    <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(s.busyTool)} aria-label={tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: a.label, n: a.cost })}>
                       <span className="nx-t">{s.busyTool === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<Price n={a.cost} /></span>
                       <span className="nx-l clamp1">{a.short}</span>
                     </button>
@@ -469,7 +469,7 @@ export default function Create({ s }) {
                 </>
               )}
             </div>
-            <button className="go2" onClick={s.generate} disabled={!canGo} aria-label={cost ? t("{name}, {n} credits", { name: action, n: cost }) : action}><span>{short}</span>{cost ? <Price n={cost} /> : null}</button>
+            <button className="go2" onClick={s.generate} disabled={!canGo} aria-label={cost ? tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: action, n: cost }) : action}><span>{short}</span>{cost ? <Price n={cost} /> : null}</button>
           </div>
         </div>
       </div>
