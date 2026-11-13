@@ -320,6 +320,18 @@ export function SignInSheet({ s, reason, onClose }) {
 }
 
 // Ideas to start from: the same cards a newcomer sees on the Create screen, one tap away for everyone else.
+// Today's free improvements are used: the Pro one is offered instead, with its price.
+export function ImproveProSheet({ s, limit, onClose }) {
+  return (
+    <Sheet title={t("Improve with Pro")} sub={t("You've used today's {n} free improvements. They come back tomorrow.", { n: limit || 10 })} onClose={onClose}>
+      <div className="c" style={{ gap: 12, padding: "4px 8px" }}>
+        <p className="t2">{t("Pro uses the strongest model to write a fuller prompt: scene, subjects, action, camera, light and expressions.")}</p>
+        <button className="btn btn-p btn-wide btn-split" onClick={() => { onClose(); s.improveNow("pro"); }}><span>{t("Improve with Pro")}</span><Price n={1} /></button>
+      </div>
+    </Sheet>
+  );
+}
+
 // What the model was given, when a short idea was filled in first.
 export function UsedSheet({ s, text, idea, onClose }) {
   return (

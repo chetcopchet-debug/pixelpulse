@@ -8,6 +8,7 @@ import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
 import { MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
 import { toEnglishPrompt, preparePrompt, shortIdea, improveAllowed } from '../../../lib/translate';
+import { hasPro } from '../../../lib/paid';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
@@ -140,7 +141,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   // A short idea is filled in when the person left that on: what moves, and one camera movement. Not for a video
   // that starts from a picture: the words there are only the motion, and with none the model gets a plain gentle one.
   const prepared = raw
-    ? await preparePrompt(raw, { admin, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin) ? 'video' : false })
+    ? await preparePrompt(raw, { admin, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'video' : false })
     : { prompt: DEFAULT_MOTION, improved: false };
   const en = prepared.prompt;
   const bad = checkPromptText(en);
