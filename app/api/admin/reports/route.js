@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabase, BUCKET } from '../../../../lib/supabase';
 import { isAdmin } from '../../../../lib/admin';
 import { isUuid } from '../../../../lib/identity';
-import { thumbPath } from '../../../../lib/thumbs';
+import { thumbPath, viewPath } from '../../../../lib/thumbs';
 import { slaDue, addStrike } from '../../../../lib/trustSafety';
 
 export const dynamic = 'force-dynamic';
@@ -58,7 +58,7 @@ export async function POST(request) {
     }
     case 'delete': {
       const strike = await addStrike(sb, { imageId: row.id, creatorId: row.creator_id, source: 'admin:delete' });
-      const paths = [row.storage_path, thumbPath(row.storage_path)].filter(Boolean);
+      const paths = [row.storage_path, thumbPath(row.storage_path), viewPath(row.storage_path)].filter(Boolean);
       if (paths.length) await sb.storage.from(BUCKET).remove(paths).catch((e) => console.error('Storage remove:', e));
       const { error: e } = await sb.from('images').delete().eq('id', row.id);
       if (e) return NextResponse.json({ error: e.message }, { status: 500 });

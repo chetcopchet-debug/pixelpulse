@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { getSupabase, BUCKET } from '../../../../lib/supabase';
 import { readAccount, clearAccountCookie } from '../../../../lib/account';
 import { setCreatorCookie } from '../../../../lib/identity';
-import { thumbPath } from '../../../../lib/thumbs';
+import { thumbPath, viewPath } from '../../../../lib/thumbs';
 import { rateLimit } from '../../../../lib/ratelimit';
 import { getClientIp } from '../../../../lib/credits';
 
@@ -37,7 +37,7 @@ export async function POST(request) {
     const { data: rows, error } = await sb.from('images').select('id, storage_path').eq('creator_id', uid).limit(200);
     if (error) return fail('images', error);
     if (!rows.length) break;
-    const paths = rows.flatMap((r) => [r.storage_path, thumbPath(r.storage_path)]).filter(Boolean);
+    const paths = rows.flatMap((r) => [r.storage_path, thumbPath(r.storage_path), viewPath(r.storage_path)]).filter(Boolean);
     if (paths.length) await sb.storage.from(BUCKET).remove(paths).catch((e) => console.error('Account delete, files:', e?.message || e));
     const { error: del } = await sb.from('images').delete().eq('creator_id', uid).in('id', rows.map((r) => r.id));
     if (del) return fail('image rows', del);
