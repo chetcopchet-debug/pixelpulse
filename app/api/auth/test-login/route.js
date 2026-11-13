@@ -3,7 +3,7 @@ import { getSupabase } from '../../../../lib/supabase';
 import { linkAccount } from '../../../../lib/account';
 import { rateLimit } from '../../../../lib/ratelimit';
 import { getClientIp } from '../../../../lib/credits';
-import { doorExists, doorOpens, TEST_EMAIL } from '../../../../lib/testDoor';
+import { doorExists, doorOpens, TEST_EMAIL, TEST_EMAIL_PLAIN } from '../../../../lib/testDoor';
 export const dynamic = 'force-dynamic';
 
 const notFound = () => new NextResponse(null, { status: 404 });
@@ -21,10 +21,11 @@ export async function POST(request) {
     // The account is made the first time the door is used. Making a sign-in link returns the person (and
     // creates them when new) without sending any email.
     let user = null;
-    const link = await sb.auth.admin.generateLink({ type: 'magiclink', email: TEST_EMAIL });
+    const email = request.headers.get('x-test-account') === 'plain' ? TEST_EMAIL_PLAIN : TEST_EMAIL;
+    const link = await sb.auth.admin.generateLink({ type: 'magiclink', email });
     user = link.data?.user || null;
     if (!user?.id) {
-      const made = await sb.auth.admin.createUser({ email: TEST_EMAIL, email_confirm: true });
+      const made = await sb.auth.admin.createUser({ email, email_confirm: true });
       user = made.data?.user || null;
       if (!user?.id) throw new Error(link.error?.message || made.error?.message || 'no test account');
     }

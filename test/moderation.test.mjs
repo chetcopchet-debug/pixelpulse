@@ -43,7 +43,7 @@ test('mixed Hebrew minor + English sexual is treated as minors', () => { assert.
 const src = (f) => readFileSync(new URL(`../app/api/${f}/route.js`, import.meta.url), 'utf8');
 test('repaint checks original and English prompt inside prepare (before runImageTool charges)', () => {
   const s = src('repaint');
-  const o = s.indexOf('checkPromptText(prompt)'), t = s.indexOf('toEnglishPrompt(prompt)'), e = s.indexOf('checkPromptText(english)');
+  const o = s.indexOf('checkPromptText(prompt)'), t = s.indexOf('toEnglish(prompt)'), e = s.indexOf('checkPromptText(english)');
   assert.ok(o > 0 && o < t && t < e, 'order: check original -> translate -> check English');
   assert.ok(e < s.indexOf('return { args }'), 'English check must run before args are returned to the charging tool');
   const tool = readFileSync(new URL('../lib/imagetool.js', import.meta.url), 'utf8');

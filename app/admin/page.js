@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { isAdmin, adminEnabled } from '../../lib/admin';
 import { setupChecks, googleEnabled, deploymentKind } from '../../lib/setup';
 import { recentJobs } from '../../lib/videoJobs';
-import { bump, DAILY_SPEND_CAP_USD, PAID_SPEND_KEY, HELP_SPEND_CAP_USD, HELP_SPEND_KEY, HELP_FAIL_KEY } from '../../lib/usage';
+import { bump, FREE_SPEND_KEY, DAILY_SPEND_CAP_USD, PAID_SPEND_KEY, HELP_SPEND_CAP_USD, HELP_SPEND_KEY, HELP_FAIL_KEY } from '../../lib/usage';
 import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
 import { billingWarnings, replicateAccount } from '../../lib/replicate';
@@ -58,7 +58,7 @@ export default async function AdminLogin(props) {
     numbers = [['New accounts', a1, a7], ['Images made', i1, i7], ['Videos made', v1, v7], ['Purchases', p1, p7]];
   }
   // What the models cost us so far today (UTC), as counted by the daily limit.
-  const spentToday = admin ? Math.max(0, Number(await bump('spend', 0, 1e9).catch(() => 0)) || 0) : 0; // on free credits: what the limit counts
+  const spentToday = admin ? Math.max(0, Number(await bump(FREE_SPEND_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // on free credits: what the limit counts
   const helpToday = admin ? Math.max(0, Number(await bump(HELP_SPEND_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // translating and the free improvement
   const helpFails = admin ? Math.max(0, Number(await bump(HELP_FAIL_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // in a row, without an answer from a model
   const paidToday = admin ? Math.max(0, Number(await bump(PAID_SPEND_KEY, 0, 1e9).catch(() => 0)) || 0) : 0; // paid work: counted, never limited
