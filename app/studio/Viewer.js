@@ -3,7 +3,7 @@ import { t, tn, N } from "../i18n/index.js";
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, Full, lockScroll } from "./bits";
-import { thumbUrl } from "../../lib/thumbs";
+import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import { madeWith } from "./models";
 import { nextActions } from "./next";
 import { download } from "./download";
@@ -90,7 +90,8 @@ export default function Viewer({ s }) {
         </header>
 
         <div className="stage">
-          {shown.video ? null : <div className="vback" style={{ backgroundImage: `url("${thumbUrl(shown.url)}")` }} aria-hidden="true" />}
+          {/* The space around the picture or the video is the same picture, blurred: never plain black. */}
+          <div className="vback" style={{ backgroundImage: `url("${shown.video ? posterUrl(shown.url) : thumbUrl(shown.url)}")` }} aria-hidden="true" />
           {shown.video
             ? <Player key={shown.url} item={shown} own={!readonly} s={s} />
             : <Full key={shown.url} className="fadein" src={shown.url} alt={shown.prompt || ""} />}
