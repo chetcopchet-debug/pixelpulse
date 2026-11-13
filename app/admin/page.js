@@ -2,13 +2,15 @@ import { cookies } from 'next/headers';
 import { isAdmin, adminEnabled } from '../../lib/admin';
 import { setupChecks, googleEnabled, deploymentKind } from '../../lib/setup';
 import { recentJobs } from '../../lib/videoJobs';
-import { bump } from '../../lib/usage';
+import { bump, DAILY_SPEND_CAP_USD } from '../../lib/usage';
 import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
 import { billingWarnings, replicateAccount } from '../../lib/replicate';
 import { liveCheck } from '../../lib/modelCheck';
 import { modelHealth } from '../../lib/modelHealth';
 import CheckModels from './CheckModels';
+import { summarize } from '../../lib/errorLog';
+import { getSupabase } from '../../lib/supabase';
 import { GALLERY_IMAGES, GALLERY_VIDEOS } from '../../lib/galleryPrompts';
 import { IMAGE_MODELS, VIDEO_MODELS } from '../../lib/catalog';
 import Page from '../studio/Page';
@@ -33,6 +35,27 @@ export default async function AdminLogin(props) {
   // Videos: what happened to the latest runs, and whether Replicate's calls reach this deployment.
   const videos = admin ? await recentJobs(10).catch(() => []) : [];
   const hooks = admin ? Number(await bump('hook:replicate', 0, 1e9).catch(() => 0)) || 0 : 0;
+  // Today in numbers, and what went wrong (lib/errorLog.js). Both come from tables the site already has.
+  const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10);
+  const todayUtc = dayOf(Date.now()), yesterdayUtc = dayOf(Date.now() - 86_400_000), weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  let errors = [], numbers = null;
+  const sbAdmin = admin ? getSupabase() : null;
+  if (sbAdmin) {
+    const count = async (table, build) => { const { count: n, error } = await build(sbAdmin.from(table).select('*', { count: 'exact', head: true })); return error ? null : n; };
+    const since = (iso) => (q) => q.gte('created_at', iso);
+    const start = `${todayUtc}T00:00:00Z`;
+    const [er, a1, a7, i1, i7, v1, v7, p1, p7] = await Promise.all([
+      sbAdmin.from('usage_counters').select('key, day, amount').like('key', 'err:%').gte('day', yesterdayUtc).limit(1000),
+      count('accounts', since(start)), count('accounts', since(weekAgo)),
+      count('images', (q) => q.gte('created_at', start).not('storage_path', 'like', '%.mp4').neq('model', 'upload')), count('images', (q) => q.gte('created_at', weekAgo).not('storage_path', 'like', '%.mp4').neq('model', 'upload')),
+      count('images', (q) => q.gte('created_at', start).like('storage_path', '%.mp4')), count('images', (q) => q.gte('created_at', weekAgo).like('storage_path', '%.mp4')),
+      count('payment_events', (q) => q.gte('created_at', start).in('kind', ['pack', 'pro'])), count('payment_events', (q) => q.gte('created_at', weekAgo).in('kind', ['pack', 'pro'])),
+    ]).catch(() => []);
+    errors = er && !er.error ? summarize(er.data, todayUtc, yesterdayUtc) : [];
+    numbers = [['New accounts', a1, a7], ['Images made', i1, i7], ['Videos made', v1, v7], ['Purchases', p1, p7]];
+  }
+  // What the models cost us so far today (UTC), as counted by the daily limit.
+  const spentToday = admin ? Math.max(0, Number(await bump('spend', 0, 1e9).catch(() => 0)) || 0) : 0;
   const bypass = Boolean(process.env.VERCEL_AUTOMATION_BYPASS_SECRET);
   const converter = showSetup ? await converterVersion().catch(() => null) : null;
   // Replicate: the API does not report the balance, so the page shows what Replicate's own refusals said today.
@@ -85,6 +108,41 @@ export default async function AdminLogin(props) {
 
       {admin && (
         <>
+          <h2 className="sec">Today in numbers</h2>
+          <div className="ptable">
+            <div className="head"><span className="grow">Since midnight UTC</span><span>Today</span><span style={{ minWidth: 64, textAlign: 'right' }}>7 days</span></div>
+            {(numbers || []).map(([name, d, w]) => <div key={name}><span className="grow b">{name}</span><span className="b num">{d ?? '?'}</span><span className="t2 num" style={{ minWidth: 64, textAlign: 'right' }}>{w ?? '?'}</span></div>)}
+          </div>
+
+          <h2 className="sec">What went wrong</h2>
+          {errors.length === 0 ? <p className="t2">No errors were counted today or yesterday.</p> : (
+            <>
+              <p className="t2" style={{ marginBottom: 10 }}>Every error the server reports and every error in a visitor's browser, grouped by message. Numbers, ids and addresses are removed. {errors.reduce((n, e) => n + e.today, 0)} today, {errors.reduce((n, e) => n + e.yesterday, 0)} yesterday.</p>
+              <div className="ptable">
+                <div className="head"><span className="grow">Where and what</span><span>Today</span><span style={{ minWidth: 64, textAlign: 'right' }}>Yesterday</span></div>
+                {errors.slice(0, 25).map((e) => (
+                  <div key={e.where + e.message}>
+                    <span className="grow"><span className="sm t2" style={{ display: 'block' }}>{e.where === 'browser' ? "In a visitor's browser" : e.where === 'crash' ? 'A request crashed' : 'On the server'}</span><span style={{ overflowWrap: 'anywhere' }}>{e.message}</span></span>
+                    <span className={`b num ${e.today ? 'bad' : 't3'}`}>{e.today}</span><span className="t2 num" style={{ minWidth: 64, textAlign: 'right' }}>{e.yesterday}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <h2 className="sec">Daily spending limit</h2>
+          {spentToday >= DAILY_SPEND_CAP_USD && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>Today's limit is reached.</b> Creating with free credits is paused until midnight UTC. Bought credits keep working.</p>}
+          <div className="ptable">
+            <div>
+              <span className="grow">
+                <span className="b">${spentToday.toFixed(2)} of ${DAILY_SPEND_CAP_USD.toFixed(2)} today</span>
+                <span className="sm t2" style={{ display: 'block' }}>Everything the models cost today is counted. When it passes the limit, creating with <b>free</b> credits pauses until midnight UTC, so free use can never cost more than this in a day. Creations paid with bought credits are never stopped by it.</span>
+                <span className="sm t2" style={{ display: 'block' }}>To change the limit, set DAILY_SPEND_CAP_USD in Vercel's environment variables and redeploy.</span>
+              </span>
+              <span className={`b sm ${spentToday >= DAILY_SPEND_CAP_USD ? 'bad' : 'ok'}`}>{spentToday >= DAILY_SPEND_CAP_USD ? 'Paused' : `${Math.max(0, Math.round((1 - spentToday / (DAILY_SPEND_CAP_USD || 1)) * 100))}% left`}</span>
+            </div>
+          </div>
+
           <h2 className="sec">Replicate account</h2>
           {money.empty > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>The Replicate balance is used up.</b> Replicate refused {money.empty} {money.empty === 1 ? 'run' : 'runs'} today for lack of credit. Nothing can be generated until credit is added.</p>}
           {money.empty === 0 && money.low > 0 && <p className="notice" role="alert" style={{ marginBottom: 10 }}><b>The Replicate balance is under $5.</b> Replicate slowed down {money.low} {money.low === 1 ? 'start' : 'starts'} today: below $5 it allows 6 starts a minute, one at a time. The site waits and retries, but people will see delays and some failures until credit is added.</p>}
@@ -140,6 +198,7 @@ export default async function AdminLogin(props) {
                   <span className="sm t2" style={{ display: 'block' }}>${m.usd < 1 ? m.usd.toFixed(3) : m.usd.toFixed(2)} for {m.unit}. Source: {m.src}</span>
                   <span className={`sm ${m.approx ? 'bad' : 'ok'}`} style={{ display: 'block' }}>{m.approx ? `Price not verified: list price $${m.listUsd} plus 15%` : 'Price verified'}</span></>}
                   <span className={`sm ${health.dead.has(m.slug) || shaky(m.slug) ? 'bad' : health.seen[m.slug] ? 'ok' : 't3'}`} style={{ display: 'block' }}>{health.dead.has(m.slug) ? 'Discontinued by its provider: Replicate refuses every run' : shaky(m.slug) ? `Replicate answered today's check with an error of its own (500). Not discontinued. It may pass; until then a run on this model may fail (credits come back).${health.seen[m.slug] ? ` Last seen running ${health.seen[m.slug]}.` : ''}` : health.seen[m.slug] ? `Running. Last checked ${health.seen[m.slug]}` : 'Not checked yet whether it still runs'}</span>
+                  {health.resting?.[m.slug] ? <span className="sm bad" style={{ display: 'block' }}>Resting: {health.resting[m.slug]} runs in a row failed in the last hour. Hidden from visitors; it comes back by itself within the hour, or at once when a run works.</span> : null}
                   <span className={`sm ${m.ok === true ? 'ok' : m.ok === false ? 'bad' : 't3'}`} style={{ display: 'block' }}>{m.ok === true ? (m.tool ? 'Replicate has this model' : 'Replicate accepts our inputs') : m.ok === false ? `Problem: ${m.problems.join('; ')}` : `Not checked: ${m.problems.join('; ')}`}</span>
                 </span>
                 {m.tool ? null : <span className="price"><i className="coin" />{m.cost}</span>}

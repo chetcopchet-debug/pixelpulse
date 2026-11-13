@@ -7,11 +7,12 @@ import { paymentsEnabled, planEnabled, PLANS, hasPurchased } from '../../../lib/
 import { modelHealth } from '../../../lib/modelHealth';
 import { MODEL_TIERS, VIDEO_TIERS } from '../../../lib/models';
 
-// Ids of models their provider has switched off. The page hides them and Auto never picks them.
+// Ids of models that should not be offered right now: switched off by their provider, or resting after failing
+// several runs in a row. The page hides them and Auto never picks them.
 async function offIds() {
-  const { dead } = await modelHealth().catch(() => ({ dead: new Set() }));
-  if (!dead.size) return [];
-  return [...Object.entries(MODEL_TIERS), ...Object.entries(VIDEO_TIERS)].filter(([, t]) => dead.has(t.model)).map(([id]) => id);
+  const { dead, resting = {} } = await modelHealth().catch(() => ({ dead: new Set(), resting: {} }));
+  if (!dead.size && !Object.keys(resting).length) return [];
+  return [...Object.entries(MODEL_TIERS), ...Object.entries(VIDEO_TIERS)].filter(([, t]) => dead.has(t.model) || resting[t.model]).map(([id]) => id);
 }
 
 export const dynamic = 'force-dynamic';

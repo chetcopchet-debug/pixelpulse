@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Icon from "./icons";
 import { Price } from "./bits";
 import Sheet from "./Sheet";
-import { IDEAS } from "./ideas";
+import { ideaCards } from "./ideas";
 import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
 import { FREE_DAILY } from "./store";
 
@@ -260,10 +260,9 @@ export function SignInSheet({ s, reason, onClose }) {
     setBusy(false); if (ok) s.signedIn(); else setErr(d.error || "That code didn't work. Check it and try again.");
   };
   return (
-    <Sheet title={step === "email" ? "Sign in or create an account" : "Check your email"} sub={step === "email" ? reason : null} onClose={onClose}>
+    <Sheet title={step === "email" ? "Sign in or create an account" : "Check your email"} sub={step === "email" ? reason || `One step, no password. ${FREE_DAILY} free credits every day.` : null} onClose={onClose}>
       {step === "email" ? (
         <form className="c" style={{ gap: 10, padding: "4px 8px" }} onSubmit={send}>
-          <p className="t2">One step does both. New here? Your account is created. Been here before? You're signed in. There is no password to remember.</p>
           {google ? (
             <>
               <a className="btn btn-s btn-wide" style={{ height: 52 }} href="/api/auth/google">
@@ -276,7 +275,6 @@ export function SignInSheet({ s, reason, onClose }) {
           <input className="field" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" aria-label="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
           <button className="btn btn-p btn-wide" style={{ height: 52 }} disabled={busy || !email.includes("@")}>{busy ? <i className="spin" /> : "Continue with email"}</button>
           {err ? <p className="sm bad" role="alert">{err}</p> : null}
-          <p className="sm t3">We email you a link; tapping it signs you in. You get {FREE_DAILY} free credits every day.</p>
         </form>
       ) : (
         <form className="c" style={{ gap: 10, padding: "4px 8px" }} onSubmit={verify}>
@@ -307,14 +305,14 @@ export function SignInSheet({ s, reason, onClose }) {
 
 // Ideas to start from: the same cards a newcomer sees on the Create screen, one tap away for everyone else.
 export function IdeasSheet({ s, onClose }) {
-  const list = IDEAS[s.mode === "video" ? "video" : "image"];
+  const list = ideaCards(s.explore.items, s.mode === "video");
   return (
     <Sheet title="Ideas to start from" sub="Tap one to put it in the prompt box. Then change it to make it yours." onClose={onClose}>
       <div className="ideas in-sheet">
         {list.map((x) => (
-          <button key={x.img} className="idea2" onClick={() => { s.setPrompt(x.prompt); onClose(); }} aria-label={`Use this idea: ${x.title}`}>
-            <img src={`/ideas/${x.img}.webp`} alt="" loading="lazy" decoding="async" />
-            <span>{x.title}</span>
+          <button key={x.key} className="idea2" onClick={() => { s.setPrompt(x.prompt); onClose(); }} aria-label={`Use this idea: ${x.title.slice(0, 80)}`}>
+            <img src={x.src} alt="" loading="lazy" decoding="async" />
+            <span><b className="clamp2">{x.title}</b></span>
           </button>
         ))}
       </div>
