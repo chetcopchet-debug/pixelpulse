@@ -267,6 +267,12 @@ html:has(.pp) body { background: transparent !important; }
 .pp .ideas.in-sheet { padding: 4px 8px 8px; }
 .pp .ideas.in-sheet .idea2 { height: 150px; }
 .pp .mini2 .refcard { padding: 0; }
+/* The improve button in the prompt box, and the line that follows it. */
+.pp .polish { display: flex; align-items: center; gap: 8px; margin: 6px 0 2px; font-size: 13px; line-height: 18px; color: var(--text-2); }
+.pp .polish > .ic { color: var(--accent); flex: none; }
+.pp .polish > button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 10px; background: var(--fill); color: var(--text); font-weight: 600; }
+.pp .plus.wandb.on { color: var(--accent); }
+.pp .ib.used { color: var(--accent); }
 .pp .plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -10px -6px -10px 0; color: var(--text-2); }
 .pp .go2 { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 12px; background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 14px; line-height: 20px; white-space: nowrap; }
 .pp .dock2 { position: relative; z-index: 1; flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; }

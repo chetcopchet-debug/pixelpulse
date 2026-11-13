@@ -216,6 +216,7 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
   const cap = (
     <>
       <p className="grow clamp1">{run?.unsaved && !wait ? t("Not saved to your Library. Download it now to keep it.") : show?.prompt || ""}</p>
+      {show?.used && !wait ? <button className="ib used" aria-label={t("Prompt improved. See what was used")} onClick={() => s.setSheet({ type: "used", text: show.used, idea: show.prompt })}><Icon name="wand" /></button> : null}
       {show?.kind === "compare" && show.cost ? <Price n={show.cost} /> : null}
       {item?.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? t("Remove from favorites") : t("Add to favorites")} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : undefined} /></button> : null}
       {item ? <button className="ib" aria-label={t("Download")} onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button> : null}
@@ -388,6 +389,26 @@ export default function Create({ s }) {
   const short = s.ref ? (video ? t("Animate") : t("Generate")) : cmp ? t("Compare {n}", { n: cmp.models.length }) : t("Generate");
   const stageEl = <Stage run={wait ? null : stage} wait={wait} s={s} now={now} video={video} wide={wide} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
 
+  // "Improve my prompt": a short idea is filled in before it is made. Not with a reference image or a start frame
+  // (the words there describe a change), and not when comparing models (each model must get the same words).
+  const canImprove = !s.ref && !cmp;
+  const improveRow = canImprove ? (
+    <button className="set set-row" style={{ padding: "10px 12px 10px 14px" }} role="switch" aria-checked={s.improve} onClick={() => s.setImprove(!s.improve)}>
+      <span className="grow"><span className="b" style={{ display: "block" }}>{t("Improve my prompt")}</span><span className="sm t2" style={{ display: "block" }}>{t("Short ideas are filled in before they are made. Text in quotes stays as you wrote it.")}</span></span>
+      <span className={`tg${s.improve ? " on" : ""}`} aria-hidden="true"><i /></span>
+    </button>
+  ) : null;
+  // The improve button fills the idea in inside the box, before anything is made. After it, a line under the box
+  // says so and offers Undo.
+  const hasText = Boolean(s.prompt.trim());
+  const canPolish = canImprove && hasText && !s.polish;
+  const polishLine = s.polish ? (
+    <div className="polish" role="status">
+      <Icon name="wand" size={16} /><span className="grow">{t("Improved. You can edit it.")}</span>
+      <button onClick={s.undoImprove}><Icon name="undo" size={16} />{t("Undo")}</button>
+    </div>
+  ) : null;
+
   if (wide) {
     // Desktop: settings in a column on the left, the result large in the rest of the window.
     return (
@@ -397,6 +418,8 @@ export default function Create({ s }) {
           <div className="panel-body">
             {mode}
             <div className="field2">{text}</div>
+            {polishLine}
+            {canPolish ? <button className="set-add" disabled={s.improving} onClick={s.improveNow}>{s.improving ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="wand" size={18} />}{t("Improve this prompt now")}</button> : null}
             {s.ref ? <div className="set">{refcard}</div> : (
               <button className="set-add" disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="plus" size={18} />}{s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")}</button>
             )}
@@ -411,6 +434,7 @@ export default function Create({ s }) {
                 </>
               )}
             </div>
+            {improveRow}
             {tags}
             {autoline}
           </div>
@@ -443,8 +467,10 @@ export default function Create({ s }) {
           <div className="r" style={{ gap: 4, alignItems: "flex-start" }}>
             {text}
             {more && !s.prompt.trim() ? <button className="plus" aria-label={t("Ideas to start from")} onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={22} /></button> : null}
+            {canPolish ? <button className="plus wandb on" aria-label={t("Improve this prompt now")} disabled={s.improving} onClick={s.improveNow}>{s.improving ? <i className="spin" /> : <Icon name="wand" size={22} />}</button> : null}
             <button className="plus" aria-label={s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
           </div>
+          {polishLine}
           {autoline}
           <div className="gorow">
             <div className="chips">
