@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Icon from "./icons";
 import { Price } from "./bits";
 import Sheet from "./Sheet";
+import { IDEAS } from "./ideas";
 import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
 import { FREE_DAILY } from "./store";
 
@@ -30,14 +31,15 @@ export function ModelSheet({ s, onClose }) {
         </div>
       ) : null}
       <div className="r" style={{ gap: 6, padding: "0 8px 8px" }}>
-        <button className={`chip${sort === "best" ? " on" : ""}`} onClick={() => setSort("best")}>Recommended</button>
+        <button className={`chip${sort === "best" ? " on" : ""}`} onClick={() => setSort("best")}>Best quality</button>
         <button className={`chip${sort === "price" ? " on" : ""}`} onClick={() => setSort("price")}>Lowest price</button>
       </div>
       {canCompare && !multi ? (
-        <button className={`mrow${autoOn ? " on" : ""}`} aria-pressed={autoOn} onClick={() => { s.setAuto(true); onClose(); }}>
+        <button className={`mrow mauto${autoOn ? " on" : ""}`} aria-pressed={autoOn} onClick={() => { s.setAuto(true); onClose(); }}>
           <span className="grow">
-            <span className="b" style={{ display: "block", fontSize: 16 }}>Auto</span>
-            <span className="sm t2" style={{ display: "block" }}>Picks the model that fits each prompt. You see the model and its price before you generate.</span>
+            <span className="r" style={{ gap: 8 }}><span className="b" style={{ fontSize: 16 }}>Auto</span><span className="rec">Recommended</span></span>
+            <span className="b" style={{ display: "block", marginTop: 2 }}>We pick the best model for your prompt</span>
+            <span className="sm t2" style={{ display: "block" }}>You see the model and its price before you generate.</span>
           </span>
           {autoOn ? <span className="tick"><Icon name="check" size={14} /></span> : null}
         </button>
@@ -299,6 +301,23 @@ export function SignInSheet({ s, reason, onClose }) {
           </div>
         </form>
       )}
+    </Sheet>
+  );
+}
+
+// Ideas to start from: the same cards a newcomer sees on the Create screen, one tap away for everyone else.
+export function IdeasSheet({ s, onClose }) {
+  const list = IDEAS[s.mode === "video" ? "video" : "image"];
+  return (
+    <Sheet title="Ideas to start from" sub="Tap one to put it in the prompt box. Then change it to make it yours." onClose={onClose}>
+      <div className="ideas in-sheet">
+        {list.map((x) => (
+          <button key={x.img} className="idea2" onClick={() => { s.setPrompt(x.prompt); onClose(); }} aria-label={`Use this idea: ${x.title}`}>
+            <img src={`/ideas/${x.img}.webp`} alt="" loading="lazy" decoding="async" />
+            <span>{x.title}</span>
+          </button>
+        ))}
+      </div>
     </Sheet>
   );
 }

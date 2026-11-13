@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
-import { imageModel, imageModels, madeWith, TOOLS } from "./models";
+import { madeWith } from "./models";
+import { nextActions } from "./next";
 import { download } from "./download";
 
 // The only place a video is actually played. Starts muted so every browser allows it to start by itself.
@@ -56,26 +57,18 @@ export default function Viewer({ s }) {
   useEffect(() => { setSide("after"); setConfirm(false); }, [item]);
   useEffect(() => lockScroll(), []);
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape" && !s.sheet) s.setViewer(null); };
+    const onKey = (e) => { if (e.key === "Escape" && !s.sheet && !s.area) s.setViewer(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [s.sheet, s.setViewer]);
+  }, [s.sheet, s.area, s.setViewer]);
 
   const shown = before && side === "before" ? before : item;
   const fav = item.id && s.favs.has(item.id);
   // The Library's copy knows the project even when this item was opened from the Create screen.
   const inProject = s.projects.find((p) => p.id === ((s.items.find((x) => x.id === item.id) ?? item).project || null));
   const canEdit = !readonly && !item.video && item.id;
-  const varCost = imageModel(imageModels.some((m) => m.id === item.model) ? item.model : "fast").cost;
   const busy = s.busyTool;
-  const next = [
-    { key: "animate", icon: "film", label: TOOLS.animate.label, cost: TOOLS.animate.cost, run: () => s.animate(item) },
-    { key: "sharpen", icon: "upscale", label: TOOLS.sharpen.label, cost: TOOLS.sharpen.cost, run: () => s.runTool("sharpen", item) },
-    { key: "cutout", icon: "eraser", label: TOOLS.cutout.label, cost: TOOLS.cutout.cost, run: () => s.runTool("cutout", item) },
-    { key: "edit", icon: "edit", label: TOOLS.edit.label, cost: TOOLS.edit.cost, run: () => s.setSheet({ type: "ask", tool: "edit", item }) },
-    { key: "variations", icon: "variations", label: "Another version", cost: varCost, run: () => s.variations(item) },
-    { key: "facelock", icon: "face", label: TOOLS.facelock.label, cost: TOOLS.facelock.cost, run: () => s.setSheet({ type: "ask", tool: "facelock", item }) },
-  ];
+  const next = nextActions(s, item);
   const copy = async () => { try { await navigator.clipboard.writeText(item.prompt || ""); s.say("Prompt copied"); } catch { s.say("Couldn't copy. Select the text instead."); } };
   const save = async () => { if (saving) return; setSaving(true); await download(shown); setSaving(false); };
 

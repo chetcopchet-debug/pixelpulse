@@ -31,6 +31,7 @@ function jsonError(message, status, credits) {
 }
 
 export async function POST(request) {
+  const startedAt = Date.now(); // the whole request has 60 seconds; see runPrediction
   // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
   const stop = accountGate(request); if (stop) return stop;
   const ip = getClientIp(request);
@@ -128,7 +129,7 @@ export async function POST(request) {
     }
 
     const finalPrompt = buildFinalPrompt(applyFormat(englishPrompt, format), selectedStyle);
-    const result = await runPrediction(finalPrompt, selectedRatio, tierDef);
+    const result = await runPrediction(finalPrompt, selectedRatio, tierDef, { until: startedAt + 50_000 });
 
     if (result.error) {
       await refund();

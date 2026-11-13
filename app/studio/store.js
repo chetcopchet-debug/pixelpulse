@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
 import { autoPick } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
-import { imageModel, imageModels, videoModel, videoModels, videoPlan, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith } from "./models";
+import { imageModel, imageModels, videoModel, videoModels, videoPlan, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers } from "./models";
 import { setDownloadMark } from "./download";
 import { posterUrl as posterUrlOf } from "../../lib/thumbs";
 
@@ -21,12 +21,29 @@ const store = {
   write(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} },
 };
 
+// What this device remembers about a run: enough to draw it again and to find its result in the Library.
+const slimItem = (x) => (x?.id ? { id: x.id, url: x.url, prompt: x.prompt, ratio: x.ratio, model: x.model, at: x.at, video: x.video, project: x.project } : null);
+const slimRun = (r) => ({ key: r.key, kind: r.kind, model: r.model, prompt: r.prompt, label: r.label, ratio: r.ratio, cost: r.cost, status: r.status, t0: r.t0, eta: r.eta, doneAt: r.doneAt, skip: r.skip, item: slimItem(r.item),
+  ...(r.parts ? { parts: r.parts.map((p) => ({ id: p.id, name: p.name, cost: p.cost, status: p.status, t0: p.t0, eta: p.eta, doneAt: p.doneAt, error: p.error, item: slimItem(p.item) })) } : {}) });
+const okItem = (x) => x && typeof x.id === "string" && typeof x.url === "string";
+// The Create screen needs only what is in progress, what failed, and the last few results.
+const trim = (rs) => { const done = rs.filter((r) => r.status === "done"); const old = new Set(done.slice(0, Math.max(0, done.length - 4)).map((r) => r.key)); return rs.filter((r) => !old.has(r.key)); };
+const LOST_MSG = "This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.";
+
+export const BUILD = process.env.NEXT_PUBLIC_BUILD || "dev"; // which build this page is
 export const FREE_DAILY = 10;
 const SIGN_UP_REASON = `Sign up or sign in to create. You get ${FREE_DAILY} free credits every day.`;
 
 export function useStudio() {
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState("explore");
+  const [tab, setTabRaw] = useState("explore");
+  const tabRef = useRef("explore");
+  // The Create screen opens clean every time: a result is on it only right after it was made, while the
+  // person stays there. Whatever is still being made (or failed) stays.
+  const setTab = useCallback((t) => {
+    if (t === "create" && tabRef.current !== "create") setRuns((rs) => rs.filter((r) => r.status !== "done"));
+    tabRef.current = t; setTabRaw(t);
+  }, []);
   const [mode, setMode] = useState("image");
   const [prompt, setPrompt] = useState("");
   const [imgModel, setImgModelRaw] = useState("fast");
@@ -44,6 +61,7 @@ export function useStudio() {
   const [wallet, setWallet] = useState({ loaded: false, free: 0, freeLimit: 3, guest: true, paid: 0, admin: false, account: null, plans: [], payments: false, purchased: false });
   const [runs, setRuns] = useState([]);
   const [items, setItems] = useState([]);
+  const itemsRef = useRef([]); itemsRef.current = items;
   // Projects: folders in the Library. `project` is the one being worked in: the Library shows its items and new
   // creations are saved into it. null = everything.
   const [projects, setProjects] = useState([]);
@@ -56,7 +74,9 @@ export function useStudio() {
   const [favs, setFavs] = useState(() => new Set());
   const [viewer, setViewer] = useState(null); // { item, before?, readonly? }
   const [sheet, setSheet] = useState(null);
+  const [area, setArea] = useState(null); // the image whose marked part is being changed
   const [toast, setToast] = useState("");
+  const [newer, setNewer] = useState(false); // the site has a newer build than the page on screen
   const [theme, setThemeRaw] = useState("dark");
   const [busyTool, setBusyTool] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -239,6 +259,20 @@ export function useStudio() {
   const patchRun = useCallback((key, patch) => setRuns((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r))), []);
   const dropRun = useCallback((key) => setRuns((rs) => rs.filter((r) => r.key !== key)), []);
   const markSeen = () => store.write("pp_seen", 1);
+  // Was the person away from the Create screen when this finished? Away means: on another screen of the site,
+  // the page hidden (phone locked, another app in front), or only just back. `since` is the last moment we know
+  // the creation was still running. A result that finished while away goes to the Library only.
+  const backAt = useRef(0), beat = useRef(Date.now()), note = useRef("");
+  useEffect(() => { const t = setInterval(() => { beat.current = Date.now(); }, 1000); return () => clearInterval(t); }, []);
+  const awaySince = useCallback((since) => tabRef.current !== "create" || document.visibilityState !== "visible" || backAt.current > since || Date.now() - beat.current > 3500, []);
+  const tell = useCallback((msg) => { if (document.visibilityState === "visible") say(msg); else note.current = msg; }, [say]);
+  useEffect(() => {
+    const gone = runs.filter((r) => r.status === "done" && r.away);
+    if (!gone.length) return;
+    setRuns((rs) => rs.filter((r) => !(r.status === "done" && r.away)));
+    const k = gone[gone.length - 1].kind;
+    tell(`Your ${k === "video" ? "video" : k === "compare" ? "comparison" : "image"} is ready in your Library`);
+  }, [runs, tell]);
 
   // Returns true once the run is on screen; the request itself continues in the background.
   const startImage = useCallback((o) => {
@@ -247,33 +281,42 @@ export function useStudio() {
     const label = o.ref ? TOOLS.reference.label : o.auto ? `${m.name}, picked by Auto` : m.name;
     if (!afford(cost, { label: o.ref ? TOOLS.reference.label : m.name })) return false;
     const key = uid();
-    setRuns((rs) => [...rs, { key, kind: "image", model: o.ref ? "guided" : m.id, prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url, again: { ...o, kind: "image" } }]);
+    setRuns((rs) => [...trim(rs), { key, kind: "image", model: o.ref ? "guided" : m.id, prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url,
+      skip: itemsRef.current.slice(0, 12).map((x) => x.id), again: { ...o, kind: "image" } }]);
     markSeen();
     (async () => {
+      let res;
+      // No answer at all (the phone put the browser to sleep, the network dropped, the page was closed): the
+      // server usually finished anyway, so look for the result in the Library instead of calling it a failure.
+      try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...inProject() }); }
+      catch { patchRun(key, { lost: true }); watchRef.current(); return; }
       try {
-        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...inProject() });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label); return; }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "The image didn't finish. Any credits were returned.");
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id, project_id: d.project });
         if (d.stored) addItem(item, { keep: "project" in d });
-        patchRun(key, { status: "done", item, unsaved: !d.stored });
+        patchRun(key, { status: "done", item, unsaved: !d.stored, doneAt: Date.now(), lost: false, away: Boolean(d.stored) && awaySince(Date.now() - 1500) });
       } catch (e) { patchRun(key, { status: "failed", error: e.message || "Something went wrong. Any credits were returned." }); }
     })();
     return true;
-  }, [afford, refused, sync, addItem, patchRun, dropRun]);
+  }, [afford, refused, sync, addItem, patchRun, dropRun, awaySince]);
 
   // ---- comparing models: one prompt, one image from each ----
   const patchPart = useCallback((key, id, patch) => setRuns((rs) => rs.map((r) => {
     if (r.key !== key || !r.parts) return r;
     const parts = r.parts.map((p) => (p.id === id ? { ...p, ...patch } : p));
-    return { ...r, parts, status: parts.some((p) => p.status === "running") ? "running" : "done" };
+    const running = parts.some((p) => p.status === "running");
+    // A comparison counts as finished while away when its last image did (and every image is safe in the Library).
+    return { ...r, parts, status: running ? "running" : "done", ...(running || r.doneAt ? {} : { doneAt: Date.now() }), away: !running && Boolean(patch.away) && !parts.some((p) => p.unsaved) };
   })), []);
   const runPart = useCallback(async (key, m, o, delay) => {
     try {
       if (delay) await sleep(delay);
       for (let attempt = 1; ; attempt++) {
-        const res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.project ? { project: o.project } : {}) });
+        let res;
+        try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.project ? { project: o.project } : {}) }); }
+        catch { patchPart(key, m.id, { lost: true }); watchRef.current(); return; } // no answer: look for it in the Library (see startImage)
         const d = await json(res); sync(d);
         // The provider limits how many generations can start at once. Wait and try again instead of failing.
         if (res.status === 429 && attempt < 3) { await sleep(10_000); continue; }
@@ -281,11 +324,11 @@ export function useStudio() {
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "This one didn't finish. Its credits were returned.");
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: d.tier || m.id, project_id: d.project });
         if (d.stored) addItem(item, { keep: "project" in d });
-        patchPart(key, m.id, { status: "done", item, unsaved: !d.stored });
+        patchPart(key, m.id, { status: "done", item, unsaved: !d.stored, doneAt: Date.now(), lost: false, away: awaySince(Date.now() - 1500) });
         return;
       }
     } catch (e) { patchPart(key, m.id, { status: "failed", error: e.message || "This one didn't finish. Its credits were returned." }); }
-  }, [sync, refused, addItem, patchPart]);
+  }, [sync, refused, addItem, patchPart, awaySince]);
   const startCompare = useCallback((o) => {
     const plan = comparePlan(o.models);
     if (!plan) return false;
@@ -295,7 +338,7 @@ export function useStudio() {
       return false;
     }
     const key = uid(); const t0 = Date.now();
-    setRuns((rs) => [...rs, { key, kind: "compare", prompt: o.prompt, label: `Comparing ${plan.models.length} models`, ratio: o.ratio, cost: plan.cost, status: "running", t0, again: { prompt: o.prompt, ratio: o.ratio, format: o.format, project: projectRef.current },
+    setRuns((rs) => [...trim(rs), { key, kind: "compare", prompt: o.prompt, label: `Comparing ${plan.models.length} models`, ratio: o.ratio, cost: plan.cost, status: "running", t0, skip: itemsRef.current.slice(0, 12).map((x) => x.id), again: { prompt: o.prompt, ratio: o.ratio, format: o.format, project: projectRef.current },
       parts: plan.models.map((m) => ({ id: m.id, name: m.name, cost: m.cost, status: "running", t0, eta: m.id === "fast" ? 6 : 25 })) }]);
     markSeen();
     plan.models.forEach((m, i) => runPart(key, m, { ...o, project: projectRef.current }, i * 700)); // a small gap between starts is kinder to the provider's limits
@@ -304,22 +347,28 @@ export function useStudio() {
   const retryPart = useCallback((run, id) => {
     const m = imageModel(id); if (!run?.again || m.id !== id) return;
     if (!afford(m.cost, { label: m.name })) return;
-    patchPart(run.key, id, { status: "running", t0: Date.now(), error: null });
+    patchPart(run.key, id, { status: "running", t0: Date.now(), error: null, lost: false });
     runPart(run.key, m, run.again, 0);
   }, [afford, patchPart, runPart]);
 
   const pollJob = useCallback(async (key, job) => {
     const started = Date.now();
+    let seen = started; // the last moment the video was known to be still rendering
     while (Date.now() - started < 20 * 60_000) {
       await sleep(4000);
       const s = await get(`/api/animate?job=${encodeURIComponent(job)}`).then(json).catch(() => ({ status: "processing" }));
-      if (s.status === "processing") continue;
+      if (s.status === "processing") { seen = Date.now(); continue; }
       sync(s);
-      if (s.status === "done" && s.item) { const item = toItem(s.item); addItem(item, { keep: true }); patchRun(key, { status: "done", item }); say("Your video is ready"); return; }
+      if (s.status === "done" && s.item) {
+        const item = toItem(s.item), away = awaySince(seen);
+        addItem(item, { keep: true }); patchRun(key, { status: "done", item, doneAt: Date.now(), away });
+        if (!away) say("Your video is ready");
+        return;
+      }
       throw new Error(plain(s.error) || "The video didn't finish. Your credits were returned.");
     }
     patchRun(key, { status: "late" });
-  }, [sync, addItem, patchRun, say]);
+  }, [sync, addItem, patchRun, say, awaySince]);
 
   const startVideo = useCallback((o) => {
     // o.source: animate an existing image (fixed model). Otherwise text-to-video on the chosen model.
@@ -330,7 +379,7 @@ export function useStudio() {
     const label = o.source ? `${TOOLS.animate.label}, ${TOOLS.animate.detail}` : `${m.name}, ${plan.d} s, ${plan.r}`;
     if (!afford(cost, { paidOnly: true, label: o.source ? TOOLS.animate.label : m.name })) return false;
     const key = uid();
-    setRuns((rs) => [...rs, { key, kind: "video", prompt: o.prompt, label, ratio: o.source ? o.source.ratio || "1:1" : plan.ratio, cost, status: "running", t0: Date.now(), eta: o.source ? 75 : Math.round(m.eta * (plan.d > 6 ? 1.6 : 1)), poster: o.source?.url, again: { ...o, kind: "video" } }]);
+    setRuns((rs) => [...trim(rs), { key, kind: "video", prompt: o.prompt, label, ratio: o.source ? o.source.ratio || "1:1" : plan.ratio, cost, status: "running", t0: Date.now(), eta: o.source ? 75 : Math.round(m.eta * (plan.d > 6 ? 1.6 : 1)), poster: o.source?.url, again: { ...o, kind: "video" } }]);
     markSeen();
     (async () => {
       try {
@@ -345,28 +394,61 @@ export function useStudio() {
     return true;
   }, [afford, refused, sync, patchRun, dropRun, pollJob, say]);
 
-  // ---- images that were still being made when the page was closed ----
-  // The server finishes them and saves them anyway. What was waiting is remembered on the device, so on the way
-  // back the Create screen shows them as still running and fills them in from the Library as they arrive.
-  const recoverRuns = useCallback(async (list) => {
-    const open = new Map(list.map((r) => [r.key, r])); const used = new Set();
-    for (let round = 0; open.size && round < 40; round++) {
-      if (round) await sleep(4000);
-      const d = await get("/api/history?limit=24").then(json).catch(() => null);
-      const found = (d?.items || []).map(toItem).filter((x) => !x.video);
-      for (const r of [...open.values()].sort((a, b) => a.t0 - b.t0)) {
-        const item = found.find((x) => !used.has(x.id) && x.prompt === r.prompt.trim() && x.model === r.model && Date.parse(x.at) >= r.t0 - 60_000);
-        if (item) {
-          used.add(item.id); open.delete(r.key);
-          addItem(item, { keep: true });
-          setRuns((rs) => rs.filter((x) => x.key !== `h${item.id}`).map((x) => (x.key === r.key ? { ...x, status: "done", item } : x)));
-        } else if (Date.now() - r.t0 > 130_000) {
-          open.delete(r.key);
-          patchRun(r.key, { status: "failed", error: "We couldn't find this image after you came back. If it failed, its credits were returned. If it was made, it is in your Library." });
-        }
-      }
+  // ---- images whose answer never arrived ----
+  // The page was closed, the phone put the browser to sleep, or the network dropped. The server finishes and
+  // saves the image anyway, so the result is looked for in the Library. findMade() makes one pass and returns
+  // how many are still missing; watch() keeps looking until they are found or it has been too long.
+  const lastPass = useRef(0);
+  const findMade = useCallback(async (returning) => {
+    const waiting = [];
+    for (const r of runsRef.current) {
+      if (r.kind === "image" && r.status === "running" && r.model) waiting.push({ key: r.key, model: r.model, prompt: r.prompt, t0: r.t0, skip: r.skip, lost: r.lost });
+      if (r.kind === "compare") for (const p of r.parts) if (p.status === "running") waiting.push({ key: r.key, part: p.id, model: p.id, prompt: r.prompt, t0: p.t0, skip: r.skip, lost: p.lost });
     }
-  }, [addItem, patchRun]);
+    if (!waiting.length) return 0;
+    const d = await get("/api/history?limit=24").then(json).catch(() => null);
+    const found = (d?.items || []).map(toItem).reverse(); // oldest first, so two requests with the same words get their own results in order
+    const taken = new Set(); // results already on screen are spoken for
+    for (const r of runsRef.current) { if (r.item?.id) taken.add(r.item.id); for (const p of r.parts || []) if (p.item?.id) taken.add(p.item.id); }
+    // Found on the first look after coming back (or after the page was opened again): it finished while the
+    // person was away, so it belongs to the Library and is not put on the Create screen.
+    const away = Boolean(returning) || awaySince(lastPass.current);
+    lastPass.current = Date.now();
+    let open = 0;
+    for (const w of waiting.sort((a, b) => a.t0 - b.t0)) {
+      const item = found.find((x) => answers(x, w, taken));
+      if (item) {
+        taken.add(item.id); addItem(item, { keep: true });
+        if (w.part) patchPart(w.key, w.part, { status: "done", item, doneAt: Date.now(), lost: false, away }); else patchRun(w.key, { status: "done", item, doneAt: Date.now(), lost: false, away });
+      } else if (w.lost && Date.now() - w.t0 > 140_000) {
+        if (w.part) patchPart(w.key, w.part, { status: "failed", error: LOST_MSG, lost: false }); else patchRun(w.key, { status: "failed", error: LOST_MSG, lost: false });
+      } else if (w.lost) open++;
+    }
+    return open;
+  }, [addItem, patchRun, patchPart, awaySince]);
+  const watching = useRef(false);
+  const watch = useCallback(async () => {
+    if (watching.current) return;
+    watching.current = true;
+    try { for (let i = 0; i < 50; i++) { await sleep(i ? 4000 : 600); if (!(await findMade())) break; } }
+    finally { watching.current = false; }
+  }, [findMade]);
+  const watchRef = useRef(() => {}); watchRef.current = watch;
+  // Back on the page after the phone was locked or another app was open: requests may have been cut off without
+  // a word. Look once right away; anything that has been "running" far too long is treated as cut off.
+  useEffect(() => {
+    const back = () => {
+      if (document.visibilityState !== "visible") return;
+      backAt.current = Date.now(); beat.current = Date.now();
+      if (note.current) { const msg = note.current; note.current = ""; setTimeout(() => say(msg), 400); }
+      const late = (t0) => Date.now() - t0 > 90_000;
+      setRuns((rs) => rs.map((r) => (r.kind === "image" && r.status === "running" && !r.lost && late(r.t0) ? { ...r, lost: true }
+        : r.kind === "compare" && r.parts.some((p) => p.status === "running" && !p.lost && late(p.t0)) ? { ...r, parts: r.parts.map((p) => (p.status === "running" && late(p.t0) ? { ...p, lost: true } : p)) } : r)));
+      setTimeout(() => watchRef.current(), 50);
+    };
+    document.addEventListener("visibilitychange", back); window.addEventListener("pageshow", back);
+    return () => { document.removeEventListener("visibilitychange", back); window.removeEventListener("pageshow", back); };
+  }, [say]);
 
   const retry = useCallback((run) => { dropRun(run.key); if (run.again?.kind === "video") startVideo(run.again); else if (run.again) startImage(run.again); }, [dropRun, startVideo, startImage]);
 
@@ -389,21 +471,23 @@ export function useStudio() {
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
     const t = TOOLS[tool];
-    if (needAccount()) return;
-    if (!item?.id) { say("This image wasn't saved, so it can't be changed."); return; }
-    if (busyTool) return;
-    if (!afford(t.cost, { paidOnly: t.paidOnly, label: t.label })) return;
+    if (needAccount()) return false;
+    if (!item?.id) { say("This image wasn't saved, so it can't be changed."); return false; }
+    if (busyTool) return false;
+    if (!afford(t.cost, { paidOnly: t.paidOnly, label: t.label })) return false;
     setBusyTool(tool);
     try {
       const res = await post(`/api/${tool}`, { id: item.id, ...extra, ...inProject() });
       const d = await json(res); sync(d);
-      if (res.status === 402 || res.status === 401) { refused(d, t.cost, t.label, t.paidOnly); return; }
+      if (res.status === 402 || res.status === 401) { refused(d, t.cost, t.label, t.paidOnly); return false; }
       if (!res.ok || !d.item) throw new Error(plain(d.error) || `${t.label} didn't finish. Any credits were returned.`);
       const made = toItem(d.item);
       addItem(made, { keep: "project_id" in d.item });
       setViewer({ item: made, before: item });
+      if (tabRef.current === "create") setRuns((rs) => [...trim(rs), { key: uid(), kind: "image", prompt: made.prompt, label: t.label, ratio: made.ratio, status: "done", item: made, doneAt: Date.now() }]);
       say(t.done);
-    } catch (e) { say(e.message); }
+      return true;
+    } catch (e) { say(e.message); return false; }
     finally { setBusyTool(""); }
   }, [busyTool, afford, refused, sync, addItem, say, needAccount]);
 
@@ -519,7 +603,7 @@ export function useStudio() {
     store.write("pp_draft", null);
     await refreshWallet(); loadLibrary(); loadProjects(); say("You're signed in");
   }, [refreshWallet, loadLibrary, loadProjects, say]);
-  const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); store.write("pp_pending", []); window.location.href = "/"; }, []);
+  const signOut = useCallback(async () => { await post("/api/auth/signout").catch(() => {}); store.write("pp_pending", []); store.write("pp_last", null); window.location.href = "/"; }, []);
   const buy = useCallback(async (planId) => {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
     const d = res ? await json(res) : {};
@@ -532,15 +616,11 @@ export function useStudio() {
 
   // ---- remember choices ----
   useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project]);
-  // Remember which images are still being made (see recoverRuns). Videos have their own record on the server.
+  // Remembered on this device: the images still being made, so they can be found after the page was closed.
+  // (Videos have their own record on the server.) Finished results are not remembered: they are in the Library.
   useEffect(() => {
     if (!ready) return;
-    const waiting = [];
-    for (const r of runs) {
-      if (r.kind === "image" && r.status === "running" && r.model) waiting.push({ model: r.model, prompt: r.prompt, ratio: r.ratio, label: r.label, cost: r.cost, t0: r.t0, eta: r.eta });
-      if (r.kind === "compare") for (const p of r.parts) if (p.status === "running") waiting.push({ model: p.id, prompt: r.prompt, ratio: r.ratio, label: p.name, cost: p.cost, t0: p.t0, eta: p.eta });
-    }
-    store.write("pp_pending", waiting);
+    store.write("pp_pending", runs.filter((r) => (r.kind === "image" && r.model && r.status === "running") || (r.kind === "compare" && r.status === "running")).map(slimRun));
   }, [ready, runs]);
 
   // ---- videos that were still rendering when the page was last closed ----
@@ -554,21 +634,53 @@ export function useStudio() {
   const hasResumed = runs.some((r) => r.resumed && r.status === "running");
   useEffect(() => {
     if (!hasResumed) return;
+    let seen = Date.now(); // the last moment these videos were known to be still rendering
     const t = setInterval(async () => {
       const jobs = await checkPending();
       if (!jobs) return;
+      const away = awaySince(seen); seen = Date.now();
       let reload = false;
       for (const r of runsRef.current.filter((x) => x.resumed && x.status === "running")) {
         const j = jobs.find((x) => x.id === r.jobId);
         if (j && j.status === "processing") continue;
         if (j && j.status === "failed") patchRun(r.key, { status: "failed", error: plain(j.error) || "The video didn't finish. Your credits were returned." });
-        else if (j?.item) { const item = toItem(j.item); addItem(item, { keep: true }); patchRun(r.key, { status: "done", item }); }
+        else if (j?.item) { const item = toItem(j.item); addItem(item, { keep: true }); patchRun(r.key, { status: "done", item, doneAt: Date.now(), away }); }
         else { dropRun(r.key); reload = true; }
       }
-      if (reload) { await loadLibrary(); say("Your video is ready in Library"); }
+      if (reload) {
+        await loadLibrary();
+        const d = await get("/api/history?limit=6").then(json).catch(() => null);
+        const item = (d?.items || []).map(toItem).find((x) => x.video);
+        if (item && !away) setRuns((rs) => (rs.some((x) => x.item?.id === item.id) ? rs : [...trim(rs), { key: `h${item.id}`, kind: "video", prompt: item.prompt, label: madeWith(item.model), ratio: item.ratio, status: "done", item, doneAt: Date.now() }]));
+        tell(away ? "Your video is ready in your Library" : "Your video is ready");
+      }
     }, 8000);
     return () => clearInterval(t);
-  }, [hasResumed, checkPending, addItem, patchRun, dropRun, loadLibrary, say]);
+  }, [hasResumed, checkPending, addItem, patchRun, dropRun, loadLibrary, tell, awaySince]);
+
+  // ---- is this page the current build? ----
+  // A page left open keeps running the build it was loaded with. On coming back to it, ask the site which build
+  // is live. If it is a newer one: reload at once when nothing would be lost (nothing being made, nothing typed,
+  // nothing open), otherwise show a line with a Reload button. One automatic reload per build, never a loop.
+  const idleRef = useRef(true);
+  idleRef.current = !prompt.trim() && !sheet && !viewer && !area && !ref && !runs.some((r) => r.status === "running");
+  useEffect(() => {
+    if (BUILD === "dev") return;
+    let last = 0;
+    const check = async () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 30_000) return;
+      last = Date.now();
+      const d = await get("/api/version").then(json).catch(() => null);
+      if (!d?.build || d.build === "dev" || d.build === BUILD) return;
+      let tried = null; try { tried = sessionStorage.getItem("pp_reload"); } catch {}
+      if (idleRef.current && tried !== d.build) { try { sessionStorage.setItem("pp_reload", d.build); } catch {} window.location.reload(); return; }
+      setNewer(true);
+    };
+    check();
+    document.addEventListener("visibilitychange", check); window.addEventListener("focus", check);
+    const t = setInterval(check, 120_000);
+    return () => { document.removeEventListener("visibilitychange", check); window.removeEventListener("focus", check); clearInterval(t); };
+  }, []);
 
   // ---- first load ----
   useEffect(() => {
@@ -619,10 +731,22 @@ export function useStudio() {
       setTimeout(async () => { const d = await refreshWallet(); if (d && !d.account && !d.admin) askSignIn("Purchase complete. Sign in so your credits are safe on every device."); }, 2500);
     }
     if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
-    // Images that were being made when the page was last closed, if that was moments ago.
-    const back = (Array.isArray(store.read("pp_pending", [])) ? store.read("pp_pending", []) : [])
-      .filter((r) => r && typeof r.prompt === "string" && typeof r.model === "string" && Date.now() - r.t0 < 150_000).slice(0, 8)
-      .map((r) => ({ key: uid(), kind: "image", model: r.model, prompt: r.prompt, label: String(r.label || "Image"), ratio: IMAGE_RATIOS.some((x) => x.id === r.ratio) ? r.ratio : "1:1", cost: Number(r.cost) || 0, status: "running", t0: Number(r.t0), eta: Number(r.eta) || 20, back: true }));
+    // What this device remembers: images that were still being made when the page was closed (up to half an
+    // hour ago). They stay out of sight until the first look in the Library: the ones that finished in the
+    // meantime are simply in the Library, and only the ones still being made come back as a loading frame.
+    const cleanRun = (r) => {
+      if (!r || typeof r.prompt !== "string" || !["image", "compare"].includes(r.kind)) return null;
+      const ratio = IMAGE_RATIOS.some((x) => x.id === r.ratio) ? r.ratio : "1:1";
+      const base = { key: uid(), kind: r.kind, prompt: r.prompt, label: String(r.label || "Image"), ratio, cost: Number(r.cost) || 0, t0: Number(r.t0) || Date.now(), eta: Number(r.eta) || 20, skip: Array.isArray(r.skip) ? r.skip.slice(0, 12) : [], checking: true };
+      if (r.kind !== "compare") return typeof r.model === "string" ? { ...base, model: r.model, status: "running", lost: true } : null;
+      const parts = (Array.isArray(r.parts) ? r.parts : []).filter((p) => p && typeof p.id === "string").slice(0, 4)
+        .map((p) => ({ id: p.id, name: String(p.name || p.id), cost: Number(p.cost) || 0, t0: Number(p.t0) || base.t0, eta: Number(p.eta) || 25,
+          ...(okItem(p.item) ? { status: "done", item: p.item } : p.status === "running" ? { status: "running", lost: true } : { status: "failed", error: String(p.error || LOST_MSG) }) }));
+      return parts.length >= 2 && parts.some((p) => p.status === "running") ? { ...base, parts, status: "running" } : null;
+    };
+    const saved = store.read("pp_pending", []);
+    const back = (Array.isArray(saved) ? saved : []).filter((r) => r && Date.now() - Number(r.t0) < 30 * 60_000).slice(0, 6).map(cleanRun).filter(Boolean);
+    store.write("pp_last", null); // left by an earlier version
     if (back.length) { setRuns(back); start = "create"; }
     setTab(start); setReady(true);
 
@@ -634,7 +758,7 @@ export function useStudio() {
     (async () => {
       await post("/api/session").catch(() => {});
       const jobs = (await checkPending()) || [];
-      const got = await loadLibrary();
+      await loadLibrary();
       const waiting = jobs.filter((j) => j.status === "processing").map((j) => ({
         key: `j${j.id}`, jobId: j.id, resumed: true, kind: "video", prompt: j.prompt || "", label: madeWith(j.kind), ratio: "16:9",
         status: "running", t0: Date.parse(j.started) || Date.now(), eta: 150,
@@ -644,17 +768,24 @@ export function useStudio() {
         key: `j${j.id}`, kind: "video", prompt: j.prompt || "", label: madeWith(j.kind), ratio: "16:9", status: "failed",
         error: plain(j.error) || "The video didn't finish. Your credits were returned.",
       }));
-      const past = got.slice(0, 6).reverse().map((item) => ({ key: `h${item.id}`, kind: item.video ? "video" : "image", prompt: item.prompt, label: madeWith(item.model), ratio: item.ratio, status: "done", item, past: true }));
-      setRuns((rs) => [...past, ...ended, ...waiting, ...rs]);
-      if (back.length) recoverRuns(back);
+      setRuns((rs) => [...ended, ...waiting, ...rs]);
+      if (back.length) {
+        await sleep(50);
+        const open = await findMade(true);
+        setRuns((rs) => rs.map((r) => (r.checking ? { ...r, checking: false } : r)));
+        if (open) watch();
+      }
     })();
   }, []);
 
+  // What the screens see: not the requests still being looked up after the page was opened again, and not a
+  // result that finished while the person was away (it is in the Library).
+  const shown = useMemo(() => runs.filter((r) => !r.checking && !(r.status === "done" && r.away)), [runs]);
   return {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, compare, setCompare, ratio, setRatio,
-    vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs, items, cursor, library, favs,
+    vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs: shown, items, cursor, library, favs,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
-    viewer, setViewer, sheet, setSheet, toast, say, theme, setTheme, busyTool, uploading,
+    viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
   };

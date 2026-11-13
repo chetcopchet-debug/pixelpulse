@@ -17,6 +17,9 @@ const csp = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // The build's short name, known to the page itself (see app/api/version): shown in Account, and used to
+  // notice when the page on screen is older than the site.
+  env: { NEXT_PUBLIC_BUILD: (process.env.VERCEL_GIT_COMMIT_SHA || 'dev').slice(0, 7) },
   // Video conversion (lib/transcode.js) runs the ffmpeg program from the ffmpeg-static package. The package must
   // stay a plain node module (not bundled) so it can find its own file, and the file must be shipped with the
   // functions that save or repair videos; Next would otherwise leave a program it cannot see in the code behind.

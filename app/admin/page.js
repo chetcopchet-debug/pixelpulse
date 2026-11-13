@@ -42,7 +42,10 @@ export default async function AdminLogin(props) {
   const unverified = models.filter((m) => m.approx);
   const broken = models.filter((m) => m.ok === false);
   // Whether each model still runs: learned from real refusals, from the daily check and from the button below.
-  const health = admin ? await modelHealth().catch(() => ({ dead: new Set(), seen: {} })) : { dead: new Set(), seen: {} };
+  const health = admin ? await modelHealth().catch(() => ({ dead: new Set(), seen: {}, trouble: {} })) : { dead: new Set(), seen: {}, trouble: {} };
+  const today = new Date().toISOString().slice(0, 10);
+  // Asked today, and Replicate answered with an error of its own instead of yes or no.
+  const shaky = (slug) => health.trouble?.[slug] === today && health.seen[slug] !== today && !health.dead.has(slug);
   const gone = models.filter((m) => health.dead.has(m.slug));
   const when = (t) => new Date(t).toLocaleString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   return (
@@ -107,7 +110,7 @@ export default async function AdminLogin(props) {
                   {m.tool ? <span className="sm t2" style={{ display: 'block' }}>Used by a tool</span> : <>
                   <span className="sm t2" style={{ display: 'block' }}>${m.usd < 1 ? m.usd.toFixed(3) : m.usd.toFixed(2)} for {m.unit}. Source: {m.src}</span>
                   <span className={`sm ${m.approx ? 'bad' : 'ok'}`} style={{ display: 'block' }}>{m.approx ? `Price not verified: list price $${m.listUsd} plus 15%` : 'Price verified'}</span></>}
-                  <span className={`sm ${health.dead.has(m.slug) ? 'bad' : health.seen[m.slug] ? 'ok' : 't3'}`} style={{ display: 'block' }}>{health.dead.has(m.slug) ? 'Discontinued by its provider: Replicate refuses every run' : health.seen[m.slug] ? `Running. Last checked ${health.seen[m.slug]}` : 'Not checked yet whether it still runs'}</span>
+                  <span className={`sm ${health.dead.has(m.slug) || shaky(m.slug) ? 'bad' : health.seen[m.slug] ? 'ok' : 't3'}`} style={{ display: 'block' }}>{health.dead.has(m.slug) ? 'Discontinued by its provider: Replicate refuses every run' : shaky(m.slug) ? `Replicate answered today's check with an error of its own (500). Not discontinued. It may pass; until then a run on this model may fail (credits come back).${health.seen[m.slug] ? ` Last seen running ${health.seen[m.slug]}.` : ''}` : health.seen[m.slug] ? `Running. Last checked ${health.seen[m.slug]}` : 'Not checked yet whether it still runs'}</span>
                   <span className={`sm ${m.ok === true ? 'ok' : m.ok === false ? 'bad' : 't3'}`} style={{ display: 'block' }}>{m.ok === true ? (m.tool ? 'Replicate has this model' : 'Replicate accepts our inputs') : m.ok === false ? `Problem: ${m.problems.join('; ')}` : `Not checked: ${m.problems.join('; ')}`}</span>
                 </span>
                 {m.tool ? null : <span className="price"><i className="coin" />{m.cost}</span>}

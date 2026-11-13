@@ -8,7 +8,8 @@ import Explore from "./Explore";
 import Library from "./Library";
 import Account from "./Account";
 import Viewer from "./Viewer";
-import { ModelSheet, RatioSheet, VideoSheet, PricingSheet, SignInSheet, AskSheet, ProjectSheet } from "./Sheets";
+import AreaEditor from "./AreaEditor";
+import { ModelSheet, RatioSheet, VideoSheet, PricingSheet, SignInSheet, AskSheet, ProjectSheet, IdeasSheet } from "./Sheets";
 
 const TABS = [["explore", "compass", "Explore"], ["create", "create", "Create"], ["library", "library", "Library"], ["account", "user", "Account"]];
 
@@ -31,6 +32,7 @@ export default function Studio() {
       </nav>
 
       {s.viewer ? <Viewer s={s} /> : null}
+      {s.area ? <AreaEditor s={s} item={s.area} onClose={() => s.setArea(null)} /> : null}
 
       {sh?.type === "models" ? <ModelSheet s={s} onClose={close} /> : null}
       {sh?.type === "ratio" ? <RatioSheet s={s} onClose={close} /> : null}
@@ -38,8 +40,10 @@ export default function Studio() {
       {sh?.type === "pricing" ? <PricingSheet s={s} need={sh.need} label={sh.label} paidOnly={sh.paidOnly} onClose={close} /> : null}
       {sh?.type === "signin" ? <SignInSheet s={s} reason={sh.reason} onClose={close} /> : null}
       {sh?.type === "ask" ? <AskSheet s={s} tool={sh.tool} item={sh.item} onClose={close} /> : null}
+      {sh?.type === "ideas" ? <IdeasSheet s={s} onClose={close} /> : null}
       {sh?.type === "project" ? <ProjectSheet s={s} mode={sh.mode} item={sh.item} id={sh.id} onClose={close} /> : null}
 
+      {s.newer ? <div className="newer" role="status"><span>A newer version of the site is ready.</span><button onClick={() => window.location.reload()}>Reload</button></div> : null}
       {s.toast ? <div className="toast" role="status">{s.toast}</div> : null}
     </div>
   );
