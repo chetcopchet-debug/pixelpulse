@@ -554,4 +554,13 @@ export default {
   "1 credit. Open the menu": "1 crédito. Abrir el menú",
   "Temporarily unavailable": "No disponible temporalmente",
   "This model is temporarily unavailable. Pick another model.": "Este modelo no está disponible temporalmente. Elige otro modelo.",
+  "Prompt improved. See what was used": "Prompt mejorado. Ver lo que se usó",
+  "Improve my prompt: on": "Mejorar mi prompt: activado",
+  "Improve my prompt: off": "Mejorar mi prompt: desactivado",
+  "Improve my prompt": "Mejorar mi prompt",
+  "Short ideas are filled in before they are made. Text in quotes stays as you wrote it.": "Las ideas cortas se completan antes de crearlas. El texto entre comillas se queda tal como lo escribiste.",
+  "Your prompt is used exactly as you write it.": "Tu prompt se usa exactamente como lo escribes.",
+  "The prompt that was used": "El prompt que se usó",
+  "Your idea was filled in before it was made. This is what the model got.": "Tu idea se completó antes de crearla. Esto es lo que recibió el modelo.",
+  "Your idea": "Tu idea",
 };

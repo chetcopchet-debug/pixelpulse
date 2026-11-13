@@ -7,7 +7,7 @@ import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
 import { rateLimit } from '../../../lib/ratelimit';
 import { MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
-import { toEnglishPrompt } from '../../../lib/translate';
+import { toEnglishPrompt, preparePrompt } from '../../../lib/translate';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
@@ -115,7 +115,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   if (!q) return NextResponse.json({ error: 'That duration / quality is not available for this model.' }, { status: 400 });
   const ratio = q.ratio;
   const tier = { ...def, cost: q.cost, usd: q.usd };
-  const en = await toEnglishPrompt(raw);
+  const en = (await preparePrompt(raw, { admin, improve: body?.improve === true ? 'video' : false })).prompt; // a short idea is filled in when the person left that on
   const bad = checkPromptText(en);
   if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
