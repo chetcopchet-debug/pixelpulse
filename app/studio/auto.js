@@ -86,7 +86,10 @@ function videoKind(prompt) {
 //   short  how many credits are missing for `best` (0 when it is covered, or when the balance is not known)
 // `kind`: "image" or "video". `priceOf(id)`: what one run costs right now (a video's length and quality count).
 // Video is paid from bought credits only. `off`: models that are switched off.
-export function recommend(prompt, kind, wallet, off, priceOf) {
+// `cap`: the most `pick` may cost. Auto for video uses it, so that Auto never runs the most expensive models by
+// itself; those are only offered, in the card after the improve button. `best` and `short` ignore the cap.
+export const VIDEO_AUTO_CAP = 100;
+export function recommend(prompt, kind, wallet, off, priceOf, cap = Infinity) {
   const video = kind === "video";
   const k = video ? videoKind(prompt) : promptKind(prompt);
   const gone = off instanceof Set ? off : new Set(off || []);
@@ -96,7 +99,9 @@ export function recommend(prompt, kind, wallet, off, priceOf) {
   const known = Boolean(wallet && wallet.loaded && !wallet.admin);
   const have = !known ? Infinity : video ? wallet.paid || 0 : Math.max(wallet.paid || 0, wallet.free || 0);
   const best = picks[0];
-  const pick = picks.find((id) => cost(id) <= have) || best;
   const saver = picks.reduce((a, b) => (cost(b) < cost(a) ? b : a), best);
-  return { kind: k.id, why: k.why, best, pick, saver, fitted: pick !== best, short: known ? Math.max(0, cost(best) - have) : 0, cost };
+  const within = picks.filter((id) => cost(id) <= cap);
+  const top = within[0] || saver; // the first choice under the cap
+  const pick = within.find((id) => cost(id) <= have) || top;
+  return { kind: k.id, why: k.why, best, pick, saver, fitted: pick !== top, short: known ? Math.max(0, cost(best) - have) : 0, cost };
 }

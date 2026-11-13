@@ -4,7 +4,7 @@ import { t, N, sm, isLang, pickLang, loadDict, applyDict, langTag, LANG_COOKIE }
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
 import { shortIdea } from "../../lib/promptLanguage.js";
-import { autoPick, recommend } from "./auto";
+import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
 import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers } from "./models";
 import { setDownloadMark } from "./download";
@@ -517,7 +517,7 @@ export function useStudio() {
     const idea = again ? polish.original : prompt;
     setImproving(pro ? "pro" : "std");
     try {
-      const res = await post("/api/improve", { prompt: idea.trim(), kind: mode === "video" ? "video" : "image", ...(pro ? { level: "pro" } : {}), ...(mode === "video" ? { model: vAuto ? recommend(idea, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost)?.pick || vidModel : vidModel } : {}), ...(again ? { avoid: polish.seen } : {}) });
+      const res = await post("/api/improve", { prompt: idea.trim(), kind: mode === "video" ? "video" : "image", ...(pro ? { level: "pro" } : {}), ...(mode === "video" ? { model: vAuto ? recommend(idea, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP)?.pick || vidModel : vidModel } : {}), ...(again ? { avoid: polish.seen } : {}) });
       const d = await json(res); if (pro) sync(d);
       if (res.status === 402) refused(d, 1, t("Improve Pro"));
       else if (d.error) say(plain(d.error));
@@ -544,7 +544,7 @@ export function useStudio() {
       if (ref) { if (startVideo({ source: ref, prompt: text, model: vidModel, d: vDur, r: vRes })) { setPrompt(""); setRef(null); } return; }
       if (!text) { say(t("Describe the video first.")); return; }
       // Auto: the model the screen showed for this prompt, at the chosen length and quality.
-      const vp = vAuto ? recommend(text, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost) : null;
+      const vp = vAuto ? recommend(text, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP) : null;
       if (startVideo({ model: vp ? vp.pick : vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish })) setPrompt("");
       return;
     }

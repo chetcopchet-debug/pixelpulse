@@ -6,7 +6,7 @@ import Icon from "./icons";
 import { Price } from "./bits";
 import Sheet from "./Sheet";
 import { ideaCards } from "./ideas";
-import { recommend } from "./auto";
+import { recommend, VIDEO_AUTO_CAP } from "./auto";
 import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, videoTakesImage, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
 import { FREE_DAILY } from "./store";
 
@@ -102,7 +102,7 @@ export function RatioSheet({ s, onClose }) {
 }
 
 export function VideoSheet({ s, onClose }) {
-  const va = s.vAuto && !s.ref ? recommend(s.prompt, "video", s.wallet, s.off, (id) => videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost) : null; // Auto: the model it would run
+  const va = s.vAuto && !s.ref ? recommend(s.prompt, "video", s.wallet, s.off, (id) => videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost, VIDEO_AUTO_CAP) : null; // Auto: the model it would run
   const m = videoModel(va ? va.pick : s.vidModel);
   const img = Boolean(s.ref && videoTakesImage(m.id)); // the video starts from a picture: its own price, and the picture's shape
   const plan = videoPlan(m.id, s.vDur, s.vRes, img ? s.ref.ratio : s.ratio, img);

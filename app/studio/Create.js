@@ -8,7 +8,7 @@ import { Price, Picture, Full, Poster, Brand, Balance, useNow } from "./bits";
 import { imageModel, videoModel, videoPlan, videoTakesImage, TOOLS, comparePlan, stageOf, stageTime } from "./models";
 import { nextActions } from "./next";
 import { ideaCards } from "./ideas";
-import { autoPick, recommend } from "./auto";
+import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
 
@@ -328,7 +328,7 @@ export default function Create({ s }) {
   const jobs = s.runs.filter((r) => r !== stage && r !== wait && r.status !== "done");
 
   // Auto for video: the model follows the prompt, at the chosen length and quality.
-  const vauto = video && !s.ref && s.vAuto ? recommend(s.prompt, "video", s.wallet, s.off, (id) => videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost) : null;
+  const vauto = video && !s.ref && s.vAuto ? recommend(s.prompt, "video", s.wallet, s.off, (id) => videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost, VIDEO_AUTO_CAP) : null;
   const vm = videoModel(vauto ? vauto.pick : s.vidModel);
   // A video that starts from a picture: on the chosen model when it can do that, otherwise Wan's fixed "Animate".
   const fromImg = Boolean(video && s.ref && videoTakesImage(vm.id));
