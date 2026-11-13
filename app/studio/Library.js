@@ -1,5 +1,5 @@
 "use client";
-import { t, N } from "../i18n/index.js";
+import { t, N, lang } from "../i18n/index.js";
 import { useMemo, useState } from "react";
 import Icon from "./icons";
 import { Tile, Brand, Balance, Picture, useNow, dayLabel } from "./bits";
@@ -13,6 +13,7 @@ export default function Library({ s }) {
   const rendering = s.runs.filter((r) => r.kind === "video" && (r.status === "running" || r.status === "late"));
   const now = useNow(rendering.length > 0);
 
+  const language = lang(); // the day headings ("Today") are words, so they are made again when the language changes
   const groups = useMemo(() => {
     const list = s.items.filter((x) => (filter === "images" ? !x.video : filter === "videos" ? x.video : filter === "favorites" ? s.favs.has(x.id) : true));
     const out = [];
@@ -22,7 +23,7 @@ export default function Library({ s }) {
       out[out.length - 1].items.push(item);
     }
     return out;
-  }, [s.items, s.favs, filter]);
+  }, [s.items, s.favs, filter, language]);
   const more = async () => { setLoadingMore(true); await s.loadMore(); setLoadingMore(false); };
   const active = s.projectsOn ? s.projects.find((p) => p.id === s.project) : null;
   const emptyText = { all: active ? t("This project is empty. What you make now is saved into it.") : t("Nothing here yet. What you make is saved here automatically."), images: t("No images yet."), videos: t("No videos yet."), favorites: t("No favorites yet. Tap the heart on a result to keep it here.") }[filter];
