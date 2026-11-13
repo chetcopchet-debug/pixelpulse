@@ -1,4 +1,5 @@
 "use client";
+import { t, LANGS } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import Icon from "./icons";
 import { Brand, Balance, Picture, Poster } from "./bits";
@@ -44,23 +45,23 @@ export default function Explore({ s }) {
 
       {guest ? (
         <section className="strip pad">
-          <h1 className="d">The best image and video models. One wallet.</h1>
+          <h1 className="d">{t("The best image and video models. One wallet.")}</h1>
           <div className="r" style={{ gap: 12, marginTop: 14, flexWrap: "wrap" }}>
-            <button className="btn btn-p" onClick={start}>Start free</button>
-            <span className="sm t2">{FREE_DAILY} free credits every day</span>
+            <button className="btn btn-p" onClick={start}>{t("Start free")}</button>
+            <span className="sm t2">{t("{n} free credits every day", { n: FREE_DAILY })}</span>
           </div>
         </section>
       ) : null}
 
       {hasVideo ? (
-        <div className="fl pad" role="tablist" aria-label="Show">
-          {[["all", "All"], ["image", "Images"], ["video", "Video"]].map(([id, label]) => (
+        <div className="fl pad" role="tablist" aria-label={t("Show")}>
+          {[["all", t("All")], ["image", t("Images")], ["video", t("Video")]].map(([id, label]) => (
             <button key={id} role="tab" aria-selected={kind === id} className={`chip2${kind === id ? " on" : ""}`} onClick={() => setKind(id)}>{label}</button>
           ))}
         </div>
       ) : null}
 
-      {w.admin && !chosen.length && s.explore.status === "ready" ? <p className="sm t2 pad" style={{ marginBottom: 12 }}>Nothing is chosen for the gallery yet, so the starting ideas are shown. Open one of your creations in the Library and tap "Show in Explore".</p> : null}
+      {w.admin && !chosen.length && s.explore.status === "ready" ? <p className="sm t2 pad" style={{ marginBottom: 12 }}>{t("Nothing is chosen for the gallery yet, so the starting ideas are shown. Open one of your creations in the Library and tap \"Show in Explore\".")}</p> : null}
 
       {s.explore.status === "loading" ? (
         <div className="gal pad" aria-hidden="true">{Array.from({ length: cols }, (_, c) => <div key={c}>{[1.3, 1, 0.75].map((h, i) => <div key={i} className="gt ghost" style={{ aspectRatio: `1 / ${c % 2 ? h : 2 - h + 0.3}` }} />)}</div>)}</div>
@@ -69,14 +70,20 @@ export default function Explore({ s }) {
           {columns.map((c, i) => (
             <div key={i}>
               {c.items.map((it) => (
-                <button key={it.id || it.idea} className="gt" style={{ aspectRatio: `1 / ${tall(it.ratio)}` }} onClick={() => s.setViewer({ item: it, readonly: true, explore: true })} aria-label={it.prompt ? `Open: ${it.prompt.slice(0, 80)}` : it.video ? "Open video" : "Open image"}>
-                  {it.video ? <><Poster item={it} /><span className="badge"><Icon name="play" size={10} />Video</span></> : <Picture src={it.url} />}
+                <button key={it.id || it.idea} className="gt" style={{ aspectRatio: `1 / ${tall(it.ratio)}` }} onClick={() => s.setViewer({ item: it, readonly: true, explore: true })} aria-label={it.prompt ? t("Open: {title}", { title: it.prompt.slice(0, 80) }) : it.video ? t("Open video") : t("Open image")}>
+                  {it.video ? <><Poster item={it} /><span className="badge"><Icon name="play" size={10} />{t("Video")}</span></> : <Picture src={it.url} />}
                 </button>
               ))}
             </div>
           ))}
         </div>
       )}
+
+      {guest ? (
+        <div className="pad" style={{ marginTop: 28, display: "flex", justifyContent: "center" }}>
+          <button className="chip2" onClick={() => s.setSheet({ type: "lang" })} aria-label={t("Language")}><Icon name="globe" size={18} style={{ marginRight: 8 }} />{(LANGS.find((l) => l.id === s.lang) || LANGS[0]).name}</button>
+        </div>
+      ) : null}
     </div>
   );
 }

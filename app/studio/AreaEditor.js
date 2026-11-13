@@ -1,11 +1,12 @@
 "use client";
+import { t, N } from "../i18n";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
 import { TOOLS } from "./models";
 
 // Brush width as a share of the image's shorter side.
-const BRUSHES = [["Small brush", 0.04, 8], ["Medium brush", 0.09, 14], ["Large brush", 0.18, 22]];
+const BRUSHES = [[N("Small brush"), 0.04, 8], [N("Medium brush"), 0.09, 14], [N("Large brush"), 0.18, 22]];
 const MAX_PIXELS = 4096 * 4096; // the largest drawing surface every phone browser allows
 const MAX_MASK = 4 * 1024 * 1024; // the server's limit on the mask it accepts
 
@@ -52,17 +53,17 @@ export default function AreaEditor({ s, item, onClose }) {
   const [problem, setProblem] = useState("");
   const [frame, setFrame] = useState(null); // the visible part of the screen, which shrinks when the keyboard opens
   const busy = s.busyTool === "repaint";
-  const t = TOOLS.repaint;
+  const tool = TOOLS.repaint;
 
   useEffect(() => lockScroll(), []);
   useEffect(() => () => { alive.current = false; }, []);
   useEffect(() => {
     const im = new Image();
     im.onload = () => {
-      if (im.naturalWidth * im.naturalHeight > MAX_PIXELS) setProblem("This image is too large to edit an area of. Use the version from before it was upscaled.");
+      if (im.naturalWidth * im.naturalHeight > MAX_PIXELS) setProblem(t("This image is too large to edit an area of. Use the version from before it was upscaled."));
       else setDims({ w: im.naturalWidth, h: im.naturalHeight });
     };
-    im.onerror = () => setProblem("The image didn't load. Close this and try again.");
+    im.onerror = () => setProblem(t("The image didn't load. Close this and try again."));
     im.src = item.url;
   }, [item.url]);
   useEffect(() => {
@@ -139,22 +140,22 @@ export default function AreaEditor({ s, item, onClose }) {
     ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, dims.w, dims.h);
     drawStrokes(ctx, dims.w, dims.h, strokes.current, "#FFFFFF");
     const mask = c.toDataURL("image/png");
-    if (mask.length > MAX_MASK) { s.say("The marked area is too detailed to send. Clear it and mark it with fewer, wider strokes."); return; }
+    if (mask.length > MAX_MASK) { s.say(t("The marked area is too detailed to send. Clear it and mark it with fewer, wider strokes.")); return; }
     const ok = await s.runTool("repaint", item, { mask, prompt: v });
     if (ok && alive.current) onClose(); // the result opens next to the original; on a failure the marking stays so it can be tried again
   };
 
   const help = problem ? problem
-    : !count ? "Paint over the part you want to change."
-    : !text.trim() ? "Now describe what should be there instead."
-    : "Only the marked part changes. The original stays in your Library.";
+    : !count ? t("Paint over the part you want to change.")
+    : !text.trim() ? t("Now describe what should be there instead.")
+    : t("Only the marked part changes. The original stays in your Library.");
 
   return (
-    <div className="area" role="dialog" aria-modal="true" aria-label={t.label} style={frame ? { top: frame.top, height: frame.height } : undefined}>
+    <div className="area" role="dialog" aria-modal="true" aria-label={t(tool.label)} style={frame ? { top: frame.top, height: frame.height } : undefined}>
       <div className="area-in">
         <header className="top">
-          <button className="ib" aria-label="Close" onClick={onClose}><Icon name="x" /></button>
-          <h2 className="d h2">{t.label}</h2>
+          <button className="ib" aria-label={t("Close")} onClick={onClose}><Icon name="x" /></button>
+          <h2 className="d h2">{t(tool.label)}</h2>
           <span style={{ width: 44 }} />
         </header>
 
@@ -162,8 +163,8 @@ export default function AreaEditor({ s, item, onClose }) {
           {box ? (
             <div className="area-box" style={{ width: box.w, height: box.h }}>
               <img src={item.url} alt={item.prompt || ""} draggable={false} />
-              <canvas ref={cvRef} aria-label="Marked area" onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
-              {busy ? <div className="area-busy" role="status"><i className="spin" style={{ width: 28, height: 28 }} /><p className="b">Changing the marked part</p></div> : null}
+              <canvas ref={cvRef} aria-label={t("Marked area")} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
+              {busy ? <div className="area-busy" role="status"><i className="spin" style={{ width: 28, height: 28 }} /><p className="b">{t("Changing the marked part")}</p></div> : null}
             </div>
           ) : problem ? null : <i className="spin" style={{ width: 28, height: 28 }} />}
         </div>
@@ -171,19 +172,19 @@ export default function AreaEditor({ s, item, onClose }) {
         <div className="area-foot">
           <p className="sm t2" role={problem ? "alert" : undefined}>{help}</p>
           <div className="r" style={{ gap: 8 }}>
-            <div className="seg" role="radiogroup" aria-label="Brush size">
+            <div className="seg" role="radiogroup" aria-label={t("Brush size")}>
               {BRUSHES.map(([label, , dot], i) => (
-                <button key={label} role="radio" aria-checked={brush === i} aria-label={label} className={brush === i ? "on" : ""} disabled={busy} onClick={() => setBrush(i)}>
+                <button key={label} role="radio" aria-checked={brush === i} aria-label={t(label)} className={brush === i ? "on" : ""} disabled={busy} onClick={() => setBrush(i)}>
                   <i className="area-dot" style={{ width: dot, height: dot }} />
                 </button>
               ))}
             </div>
             <span style={{ flex: 1 }} />
-            <button className="btn btn-s area-sm" disabled={!count || busy} onClick={undo}><Icon name="undo" size={18} />Undo</button>
-            <button className="btn btn-s area-sm" disabled={!count || busy} onClick={clear}>Clear</button>
+            <button className="btn btn-s area-sm" disabled={!count || busy} onClick={undo}><Icon name="undo" size={18} />{t("Undo")}</button>
+            <button className="btn btn-s area-sm" disabled={!count || busy} onClick={clear}>{t("Clear")}</button>
           </div>
-          <textarea className="field" maxLength={1500} value={text} disabled={busy || Boolean(problem)} placeholder="A red scarf, a cup of coffee, clear blue sky" aria-label="What should be in the marked part" onChange={(e) => setText(e.target.value)} />
-          <button className="btn btn-p btn-wide btn-split" disabled={busy || !count || !text.trim() || !dims} onClick={go}><span>{busy ? "Working" : t.label}</span><Price n={t.cost} /></button>
+          <textarea className="field" maxLength={1500} value={text} disabled={busy || Boolean(problem)} placeholder={t("A red scarf, a cup of coffee, clear blue sky")} aria-label={t("What should be in the marked part")} onChange={(e) => setText(e.target.value)} />
+          <button className="btn btn-p btn-wide btn-split" disabled={busy || !count || !text.trim() || !dims} onClick={go}><span>{busy ? t("Working") : t(tool.label)}</span><Price n={tool.cost} /></button>
         </div>
       </div>
     </div>

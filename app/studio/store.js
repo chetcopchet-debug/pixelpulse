@@ -1,4 +1,5 @@
 "use client";
+import { t, N, sm, isLang, pickLang, loadDict, applyDict, langTag, LANG_COOKIE } from "../i18n";
 // All state and server calls for the studio. The screens only read from here and call these actions.
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
@@ -9,15 +10,13 @@ import { setDownloadMark } from "./download";
 import { posterUrl as posterUrlOf } from "../../lib/thumbs";
 
 const json = (r) => r.json().catch(() => ({}));
-// Settings: "Translate prompts to English". When it is off every request says so, and the server sends the
-// words to the model as written.
-let TRANSLATE = true;
-const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(TRANSLATE ? body || {} : { ...(body || {}), translate: false }) });
+const post = (url, body) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
 const get = (url) => fetch(url, { cache: "no-store" });
 const uid = () => Math.random().toString(36).slice(2, 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Server messages are written in two languages ("English. / עברית."); this interface is English.
-const plain = (msg) => (typeof msg === "string" ? msg.split(" / ")[0].replace(/⚡/g, " credits").trim() : "");
+// A message from the server arrives in English and is shown in the visitor's language.
+const plain = (msg) => (typeof msg === "string" ? sm(msg.split(" / ")[0].replace(/⚡/g, " credits").trim()) : "");
 const dedupe = (list) => { const seen = new Set(); return list.filter((x) => !x.id || (!seen.has(x.id) && seen.add(x.id))); };
 const store = {
   read(key, fallback) { try { const v = JSON.parse(localStorage.getItem(key) || "null"); return v ?? fallback; } catch { return fallback; } },
@@ -31,11 +30,11 @@ const slimRun = (r) => ({ key: r.key, kind: r.kind, model: r.model, prompt: r.pr
 const okItem = (x) => x && typeof x.id === "string" && typeof x.url === "string";
 // The Create screen needs only what is in progress, what failed, and the last few results.
 const trim = (rs) => { const done = rs.filter((r) => r.status === "done"); const old = new Set(done.slice(0, Math.max(0, done.length - 4)).map((r) => r.key)); return rs.filter((r) => !old.has(r.key)); };
-const LOST_MSG = "This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.";
+const LOST_MSG = N("This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.");
 
 export const BUILD = process.env.NEXT_PUBLIC_BUILD || "dev"; // which build this page is
 export const FREE_DAILY = 10;
-const SIGN_UP_REASON = `Sign up or sign in to create. You get ${FREE_DAILY} free credits every day.`;
+const SIGN_UP_REASON = N("Sign up or sign in to create. You get {n} free credits every day.");
 
 export function useStudio() {
   const [ready, setReady] = useState(false);
@@ -81,8 +80,18 @@ export function useStudio() {
   const [toast, setToast] = useState("");
   const [newer, setNewer] = useState(false); // the site has a newer build than the page on screen
   const [theme, setThemeRaw] = useState("dark");
-  const [translate, setTranslateRaw] = useState(true);
-  const setTranslate = useCallback((on) => { TRANSLATE = Boolean(on); setTranslateRaw(Boolean(on)); }, []);
+  // The language of the interface. It is chosen once from the browser's own language, and changed in Settings
+  // (or at the bottom of Explore for a visitor). The choice is kept in a cookie, so pages the server draws use it too.
+  const [lang, setLangRaw] = useState("en");
+  const setLang = useCallback(async (id) => {
+    const next = isLang(id) ? id : "en";
+    const dict = await loadDict(next).catch(() => null);
+    const use = dict || next === "en" ? next : "en"; // a language file that did not arrive leaves English
+    applyDict(use, dict);
+    try { document.cookie = `${LANG_COOKIE}=${use}; path=/; max-age=31536000; samesite=lax`; localStorage.setItem(LANG_COOKIE, use); } catch { /* private mode */ }
+    document.documentElement.lang = langTag();
+    setLangRaw(use);
+  }, []);
   // A full page over the tabs: "settings", "pricing", "help". null = none.
   const [page, setPage] = useState(null);
   // The Explore gallery: the pictures the site's owner chose to show.
@@ -144,7 +153,7 @@ export function useStudio() {
   const needAccount = useCallback((after) => {
     const w = walletRef.current;
     if (!w.loaded || w.admin || w.account) return false; // not loaded yet: the server decides
-    askSignIn(SIGN_UP_REASON, after);
+    askSignIn(t(SIGN_UP_REASON, { n: FREE_DAILY }), after);
     return true;
   }, [askSignIn]);
   const askCredits = useCallback((need, label, paidOnly) => setSheet({ type: "pricing", need, label, paidOnly: Boolean(paidOnly) }), []);
@@ -153,7 +162,7 @@ export function useStudio() {
     const w = walletRef.current;
     if (!w.loaded || w.admin) return true; // not loaded yet: the server decides
     if (w.paid >= cost || (!paidOnly && w.free >= cost)) return true; // the server pays from one pocket, never a mix
-    if (!w.account) askSignIn(SIGN_UP_REASON);
+    if (!w.account) askSignIn(t(SIGN_UP_REASON, { n: FREE_DAILY }));
     else askCredits(cost, label, paidOnly);
     return false;
   }, [askSignIn, askCredits]);
@@ -215,7 +224,7 @@ export function useStudio() {
   const projectCall = useCallback(async (body) => {
     const res = await post("/api/projects", body).catch(() => null);
     const d = res ? await json(res) : {};
-    if (!res?.ok) { say(plain(d.error) || "That didn't work. Try again."); return null; }
+    if (!res?.ok) { say(plain(d.error) || t("That didn't work. Try again.")); return null; }
     return d;
   }, [say]);
   const createProject = useCallback(async (name) => {
@@ -236,7 +245,7 @@ export function useStudio() {
     if (!d) return false;
     setProjects((ps) => ps.filter((p) => p.id !== id));
     if (projectRef.current === id) setProject(null); else setItems((prev) => prev.map((h) => (h.project === id ? { ...h, project: null } : h)));
-    say("Project deleted. Its items are still in your Library.");
+    say(t("Project deleted. Its items are still in your Library."));
     return true;
   }, [projectCall, setProject, say]);
   const moveItem = useCallback(async (item, pid) => {
@@ -244,12 +253,12 @@ export function useStudio() {
     const to = pid || null;
     const res = await post("/api/projects/items", { project: to, ids: [item.id] }).catch(() => null);
     const d = res ? await json(res) : {};
-    if (!res?.ok) { say(plain(d.error) || "Couldn't move it. Try again."); return false; }
+    if (!res?.ok) { say(plain(d.error) || t("Couldn't move it. Try again.")); return false; }
     const open = projectRef.current;
     setItems((prev) => (open && open !== to ? prev.filter((h) => h.id !== item.id) : prev.map((h) => (h.id === item.id ? { ...h, project: to } : h))));
     setViewer((v) => (v?.item?.id === item.id ? { ...v, item: { ...v.item, project: to } } : v));
     loadProjects();
-    say(to ? "Added to the project" : "Taken out of the project");
+    say(to ? t("Added to the project") : t("Taken out of the project"));
     return true;
   }, [say, loadProjects]);
 
@@ -276,7 +285,7 @@ export function useStudio() {
   // the page hidden (phone locked, another app in front), or only just back. `since` is the last moment we know
   // the creation was still running. A result that finished while away goes to the Library only.
   const backAt = useRef(0), beat = useRef(Date.now()), note = useRef("");
-  useEffect(() => { const t = setInterval(() => { beat.current = Date.now(); }, 1000); return () => clearInterval(t); }, []);
+  useEffect(() => { const timer = setInterval(() => { beat.current = Date.now(); }, 1000); return () => clearInterval(timer); }, []);
   const awaySince = useCallback((since) => tabRef.current !== "create" || document.visibilityState !== "visible" || backAt.current > since || Date.now() - beat.current > 3500, []);
   const tell = useCallback((msg) => { if (document.visibilityState === "visible") say(msg); else note.current = msg; }, [say]);
   useEffect(() => {
@@ -284,7 +293,7 @@ export function useStudio() {
     if (!gone.length) return;
     setRuns((rs) => rs.filter((r) => !(r.status === "done" && r.away)));
     const k = gone[gone.length - 1].kind;
-    tell(`Your ${k === "video" ? "video" : k === "compare" ? "comparison" : "image"} is ready in your Library`);
+    tell(k === "video" ? t("Your video is ready in your Library") : k === "compare" ? t("Your comparison is ready in your Library") : t("Your image is ready in your Library"));
   }, [runs, tell]);
 
   // Returns true once the run is on screen; the request itself continues in the background.
@@ -306,11 +315,11 @@ export function useStudio() {
       try {
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label); return; }
-        if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "The image didn't finish. Any credits were returned.");
+        if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || t("The image didn't finish. Any credits were returned."));
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id, project_id: d.project });
         if (d.stored) addItem(item, { keep: "project" in d });
         patchRun(key, { status: "done", item, unsaved: !d.stored, doneAt: Date.now(), lost: false, away: Boolean(d.stored) && awaySince(Date.now() - 1500) });
-      } catch (e) { patchRun(key, { status: "failed", error: e.message || "Something went wrong. Any credits were returned." }); }
+      } catch (e) { patchRun(key, { status: "failed", error: e.message || t("Something went wrong. Any credits were returned.") }); }
     })();
     return true;
   }, [afford, refused, sync, addItem, patchRun, dropRun, awaySince]);
@@ -333,25 +342,25 @@ export function useStudio() {
         const d = await json(res); sync(d);
         // The provider limits how many generations can start at once. Wait and try again instead of failing.
         if (res.status === 429 && attempt < 3) { await sleep(10_000); continue; }
-        if (res.status === 402 || res.status === 401) { refused(d, m.cost, m.name); throw new Error(d.needSignIn ? "Sign in to create." : "Not enough credits for this one."); }
-        if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || "This one didn't finish. Its credits were returned.");
+        if (res.status === 402 || res.status === 401) { refused(d, m.cost, m.name); throw new Error(d.needSignIn ? t("Sign in to create.") : t("Not enough credits for this one.")); }
+        if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || t("This one didn't finish. Its credits were returned."));
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: d.tier || m.id, project_id: d.project });
         if (d.stored) addItem(item, { keep: "project" in d });
         patchPart(key, m.id, { status: "done", item, unsaved: !d.stored, doneAt: Date.now(), lost: false, away: awaySince(Date.now() - 1500) });
         return;
       }
-    } catch (e) { patchPart(key, m.id, { status: "failed", error: e.message || "This one didn't finish. Its credits were returned." }); }
+    } catch (e) { patchPart(key, m.id, { status: "failed", error: e.message || t("This one didn't finish. Its credits were returned.") }); }
   }, [sync, refused, addItem, patchPart, awaySince]);
   const startCompare = useCallback((o) => {
     const plan = comparePlan(o.models);
     if (!plan) return false;
     const w = walletRef.current;
     if (w.loaded && !w.admin && !covers(w, plan.models.map((m) => m.cost))) {
-      if (!w.account) askSignIn(SIGN_UP_REASON); else askCredits(plan.cost, `Compare ${plan.models.length} models`);
+      if (!w.account) askSignIn(t(SIGN_UP_REASON, { n: FREE_DAILY })); else askCredits(plan.cost, t("Compare {n} models", { n: plan.models.length }));
       return false;
     }
     const key = uid(); const t0 = Date.now();
-    setRuns((rs) => [...trim(rs), { key, kind: "compare", prompt: o.prompt, label: `Comparing ${plan.models.length} models`, ratio: o.ratio, cost: plan.cost, status: "running", t0, skip: itemsRef.current.slice(0, 12).map((x) => x.id), again: { prompt: o.prompt, ratio: o.ratio, format: o.format, project: projectRef.current },
+    setRuns((rs) => [...trim(rs), { key, kind: "compare", prompt: o.prompt, label: t("Comparing {n} models", { n: plan.models.length }), ratio: o.ratio, cost: plan.cost, status: "running", t0, skip: itemsRef.current.slice(0, 12).map((x) => x.id), again: { prompt: o.prompt, ratio: o.ratio, format: o.format, project: projectRef.current },
       parts: plan.models.map((m) => ({ id: m.id, name: m.name, cost: m.cost, status: "running", t0, eta: m.id === "fast" ? 6 : 25 })) }]);
     markSeen();
     plan.models.forEach((m, i) => runPart(key, m, { ...o, project: projectRef.current }, i * 700)); // a small gap between starts is kinder to the provider's limits
@@ -375,10 +384,10 @@ export function useStudio() {
       if (s.status === "done" && s.item) {
         const item = toItem(s.item), away = awaySince(seen);
         addItem(item, { keep: true }); patchRun(key, { status: "done", item, doneAt: Date.now(), away });
-        if (!away) say("Your video is ready");
+        if (!away) say(t("Your video is ready"));
         return;
       }
-      throw new Error(plain(s.error) || "The video didn't finish. Your credits were returned.");
+      throw new Error(plain(s.error) || t("The video didn't finish. Your credits were returned."));
     }
     patchRun(key, { status: "late" });
   }, [sync, addItem, patchRun, say, awaySince]);
@@ -387,7 +396,7 @@ export function useStudio() {
     // o.source: animate an existing image (fixed model). Otherwise text-to-video on the chosen model.
     const m = videoModel(o.model);
     const plan = o.source ? null : videoPlan(m.id, o.d, o.r, o.ratio);
-    if (!o.source && !plan) { say("That length and quality aren't available on this model."); return false; }
+    if (!o.source && !plan) { say(t("That length and quality aren't available on this model.")); return false; }
     const cost = o.source ? TOOLS.animate.cost : plan.cost;
     const label = o.source ? `${TOOLS.animate.label}, ${TOOLS.animate.detail}` : `${m.name}, ${plan.d} s, ${plan.r}`;
     if (!afford(cost, { paidOnly: true, label: o.source ? TOOLS.animate.label : m.name })) return false;
@@ -400,9 +409,9 @@ export function useStudio() {
         const res = await post("/api/animate", { ...(o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r }), ...(pid ? { project: pid } : {}) });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
-        if (!res.ok || !d.job) throw new Error(plain(d.error) || "The video couldn't start. Your credits were returned.");
+        if (!res.ok || !d.job) throw new Error(plain(d.error) || t("The video couldn't start. Your credits were returned."));
         await pollJob(key, d.job);
-      } catch (e) { patchRun(key, { status: "failed", error: e.message || "The video didn't finish. Your credits were returned." }); }
+      } catch (e) { patchRun(key, { status: "failed", error: e.message || t("The video didn't finish. Your credits were returned.") }); }
     })();
     return true;
   }, [afford, refused, sync, patchRun, dropRun, pollJob, say]);
@@ -434,7 +443,7 @@ export function useStudio() {
         taken.add(item.id); addItem(item, { keep: true });
         if (w.part) patchPart(w.key, w.part, { status: "done", item, doneAt: Date.now(), lost: false, away }); else patchRun(w.key, { status: "done", item, doneAt: Date.now(), lost: false, away });
       } else if (w.lost && Date.now() - w.t0 > 140_000) {
-        if (w.part) patchPart(w.key, w.part, { status: "failed", error: LOST_MSG, lost: false }); else patchRun(w.key, { status: "failed", error: LOST_MSG, lost: false });
+        if (w.part) patchPart(w.key, w.part, { status: "failed", error: t(LOST_MSG), lost: false }); else patchRun(w.key, { status: "failed", error: t(LOST_MSG), lost: false });
       } else if (w.lost) open++;
     }
     return open;
@@ -471,11 +480,11 @@ export function useStudio() {
     const text = prompt.trim();
     if (mode === "video") {
       if (ref) { if (startVideo({ source: ref, prompt: text })) { setPrompt(""); setRef(null); } return; }
-      if (!text) { say("Describe the video first."); return; }
+      if (!text) { say(t("Describe the video first.")); return; }
       if (startVideo({ model: vidModel, prompt: text, ratio, d: vDur, r: vRes })) setPrompt("");
       return;
     }
-    if (!text) { say("Describe the image first."); return; }
+    if (!text) { say(t("Describe the image first.")); return; }
     if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
     const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
     if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick) })) setPrompt("");
@@ -483,22 +492,22 @@ export function useStudio() {
 
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
-    const t = TOOLS[tool];
+    const tl = TOOLS[tool];
     if (needAccount()) return false;
-    if (!item?.id) { say("This image wasn't saved, so it can't be changed."); return false; }
+    if (!item?.id) { say(t("This image wasn't saved, so it can't be changed.")); return false; }
     if (busyTool) return false;
-    if (!afford(t.cost, { paidOnly: t.paidOnly, label: t.label })) return false;
+    if (!afford(tl.cost, { paidOnly: tl.paidOnly, label: tl.label })) return false;
     setBusyTool(tool);
     try {
       const res = await post(`/api/${tool}`, { id: item.id, ...extra, ...inProject() });
       const d = await json(res); sync(d);
-      if (res.status === 402 || res.status === 401) { refused(d, t.cost, t.label, t.paidOnly); return false; }
-      if (!res.ok || !d.item) throw new Error(plain(d.error) || `${t.label} didn't finish. Any credits were returned.`);
+      if (res.status === 402 || res.status === 401) { refused(d, tl.cost, tl.label, tl.paidOnly); return false; }
+      if (!res.ok || !d.item) throw new Error(plain(d.error) || t("{name} didn't finish. Any credits were returned.", { name: tl.label }));
       const made = toItem(d.item);
       addItem(made, { keep: "project_id" in d.item });
       setViewer({ item: made, before: item });
-      if (tabRef.current === "create") setRuns((rs) => [...trim(rs), { key: uid(), kind: "image", prompt: made.prompt, label: t.label, ratio: made.ratio, status: "done", item: made, doneAt: Date.now() }]);
-      say(t.done);
+      if (tabRef.current === "create") setRuns((rs) => [...trim(rs), { key: uid(), kind: "image", prompt: made.prompt, label: tl.label, ratio: made.ratio, status: "done", item: made, doneAt: Date.now() }]);
+      say(tl.done);
       return true;
     } catch (e) { say(e.message); return false; }
     finally { setBusyTool(""); }
@@ -506,7 +515,7 @@ export function useStudio() {
 
   const animate = useCallback((item) => {
     if (needAccount()) return;
-    if (!item?.id) { say("This image wasn't saved, so it can't be animated."); return; }
+    if (!item?.id) { say(t("This image wasn't saved, so it can't be animated.")); return; }
     setViewer(null); setTab("create"); setMode("video");
     startVideo({ source: item, prompt: "" });
   }, [startVideo, say, needAccount]);
@@ -529,7 +538,7 @@ export function useStudio() {
   const remove = useCallback(async (item) => {
     if (!item?.id) { setRuns((rs) => rs.filter((r) => r.item !== item)); setViewer(null); return; }
     const res = await post("/api/delete", { ids: [item.id] }).catch(() => null);
-    if (!res || !res.ok) { say("Couldn't delete. Try again."); return; }
+    if (!res || !res.ok) { say(t("Couldn't delete. Try again.")); return; }
     setItems((prev) => prev.filter((h) => h.id !== item.id));
     setRuns((rs) => rs.filter((r) => r.item?.id !== item.id));
     setViewer(null); say("Deleted");
@@ -562,7 +571,7 @@ export function useStudio() {
       setItems((prev) => prev.filter((h) => h.id !== item.id));
       setRuns((rs) => rs.filter((r) => r.item?.id !== item.id));
       setViewer((v) => (v?.item?.id === item.id ? null : v));
-      say(d.refunded ? `That video's file was missing or damaged. It was removed and ${d.refunded} credits were returned.` : "That video's file was missing or damaged, so it was removed.");
+      say(d.refunded ? t("That video's file was missing or damaged. It was removed and {n} credits were returned.", { n: d.refunded }) : t("That video's file was missing or damaged, so it was removed."));
       return "removed";
     }
     return res?.ok && d.playable === false ? "format" : "device";
@@ -602,10 +611,10 @@ export function useStudio() {
         : await uploadRaw(prep.raw, uploadId);
       const d = await json(res);
       if (res.status === 401 && d.needSignIn) { askSignIn(plain(d.error)); return; }
-      if (!res.ok || !d.item) throw new Error(plain(d.error) || (res.status === 413 ? "That photo is too large. Try a smaller one." : "The upload didn't work. Try again."));
+      if (!res.ok || !d.item) throw new Error(plain(d.error) || (res.status === 413 ? t("That photo is too large. Try a smaller one.") : t("The upload didn't work. Try again.")));
       const item = toItem(d.item);
       addItem(item); setRef(item); setTab("create");
-    } catch (e) { say(e.message || "The upload didn't work. Try again."); }
+    } catch (e) { say(e.message || t("The upload didn't work. Try again.")); }
     finally { setUploading(false); uploadLock.current = false; }
   }, [addItem, say, needAccount, askSignIn]);
 
@@ -614,16 +623,16 @@ export function useStudio() {
     setSheet(null);
     if (afterSignIn.current) { setTab(afterSignIn.current); afterSignIn.current = null; }
     store.write("pp_draft", null);
-    await refreshWallet(); loadLibrary(); loadProjects(); say("You're signed in");
+    await refreshWallet(); loadLibrary(); loadProjects(); say(t("You're signed in"));
   }, [refreshWallet, loadLibrary, loadProjects, say]);
   // Admin only: put one of your own creations in the Explore gallery, or take it out.
   const feature = useCallback(async (item, on) => {
     const res = await post("/api/admin/feature", { id: item.id, on }).catch(() => null);
     const d = res ? await json(res) : {};
-    if (!res || !res.ok) { say(plain(d.error) || "Could not save. Try again."); return false; }
+    if (!res || !res.ok) { say(plain(d.error) || t("Could not save. Try again.")); return false; }
     setItems((xs) => xs.map((x) => (x.id === item.id ? { ...x, featured: on } : x)));
     setViewer((v) => (v && v.item.id === item.id ? { ...v, item: { ...v.item, featured: on } } : v));
-    say(on ? "Showing in Explore" : "Removed from Explore");
+    say(on ? t("Showing in Explore") : t("Removed from Explore"));
     loadExplore();
     return true;
   }, [say, loadExplore]);
@@ -632,7 +641,7 @@ export function useStudio() {
   const deleteAccount = useCallback(async () => {
     const res = await post("/api/account/delete", { confirm: "DELETE" }).catch(() => null);
     const d = res ? await json(res) : {};
-    if (!res || !res.ok) return plain(d.error) || "Your account could not be deleted. Try again.";
+    if (!res || !res.ok) return plain(d.error) || t("Your account could not be deleted. Try again.");
     ["pp_pending", "pp_last", "pp_favs", "pp_draft", "pp_seen"].forEach((k) => store.write(k, null));
     window.location.href = "/";
     return "";
@@ -642,14 +651,14 @@ export function useStudio() {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
     const d = res ? await json(res) : {};
     if (res?.ok && d.url) { window.location.href = d.url; return; }
-    say(plain(d.error) || "Checkout isn't available right now.");
+    say(plain(d.error) || t("Checkout isn't available right now."));
   }, [say]);
 
   const setVidModel = useCallback((id) => { setVidModelRaw(id); setVDur(null); setVRes(null); }, []);
   const setTheme = useCallback((t) => { setThemeRaw(t); }, []);
 
   // ---- remember choices ----
-  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project, translate }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project, translate]);
+  useEffect(() => { if (ready) store.write("pp_studio", { mode, imgModel, vidModel, auto, compare, ratio, theme, project }); }, [ready, mode, imgModel, vidModel, auto, compare, ratio, theme, project]);
   // Remembered on this device: the images still being made, so they can be found after the page was closed.
   // (Videos have their own record on the server.) Finished results are not remembered: they are in the Library.
   useEffect(() => {
@@ -669,7 +678,7 @@ export function useStudio() {
   useEffect(() => {
     if (!hasResumed) return;
     let seen = Date.now(); // the last moment these videos were known to be still rendering
-    const t = setInterval(async () => {
+    const timer = setInterval(async () => {
       const jobs = await checkPending();
       if (!jobs) return;
       const away = awaySince(seen); seen = Date.now();
@@ -677,7 +686,7 @@ export function useStudio() {
       for (const r of runsRef.current.filter((x) => x.resumed && x.status === "running")) {
         const j = jobs.find((x) => x.id === r.jobId);
         if (j && j.status === "processing") continue;
-        if (j && j.status === "failed") patchRun(r.key, { status: "failed", error: plain(j.error) || "The video didn't finish. Your credits were returned." });
+        if (j && j.status === "failed") patchRun(r.key, { status: "failed", error: plain(j.error) || t("The video didn't finish. Your credits were returned.") });
         else if (j?.item) { const item = toItem(j.item); addItem(item, { keep: true }); patchRun(r.key, { status: "done", item, doneAt: Date.now(), away }); }
         else { dropRun(r.key); reload = true; }
       }
@@ -686,10 +695,10 @@ export function useStudio() {
         const d = await get("/api/history?limit=6").then(json).catch(() => null);
         const item = (d?.items || []).map(toItem).find((x) => x.video);
         if (item && !away) setRuns((rs) => (rs.some((x) => x.item?.id === item.id) ? rs : [...trim(rs), { key: `h${item.id}`, kind: "video", prompt: item.prompt, label: madeWith(item.model), ratio: item.ratio, status: "done", item, doneAt: Date.now() }]));
-        tell(away ? "Your video is ready in your Library" : "Your video is ready");
+        tell(away ? t("Your video is ready in your Library") : t("Your video is ready"));
       }
     }, 8000);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, [hasResumed, checkPending, addItem, patchRun, dropRun, loadLibrary, tell, awaySince]);
 
   // ---- is this page the current build? ----
@@ -712,8 +721,8 @@ export function useStudio() {
     };
     check();
     document.addEventListener("visibilitychange", check); window.addEventListener("focus", check);
-    const t = setInterval(check, 120_000);
-    return () => { document.removeEventListener("visibilitychange", check); window.removeEventListener("focus", check); clearInterval(t); };
+    const timer = setInterval(check, 120_000);
+    return () => { document.removeEventListener("visibilitychange", check); window.removeEventListener("focus", check); clearInterval(timer); };
   }, []);
 
   // ---- first load ----
@@ -728,13 +737,12 @@ export function useStudio() {
     if (IMAGE_RATIOS.some((r) => r.id === p.ratio)) setRatio(p.ratio);
     if (typeof p.project === "string" && /^[0-9a-f-]{36}$/i.test(p.project)) { projectRef.current = p.project; setProjectRaw(p.project); }
     if (["dark", "light", "auto"].includes(p.theme)) setThemeRaw(p.theme);
-    if (p.translate === false) setTranslate(false);
     loadExplore();
     setFavs(new Set(store.read("pp_favs", [])));
 
     let start = store.read("pp_seen", 0) ? "create" : "explore";
-    const t = q.get("tab");
-    if (t === "me") start = "library"; else if (t === "community") start = "explore"; else if (t === "create") start = "create";
+    const tabQ = q.get("tab");
+    if (tabQ === "me") start = "library"; else if (tabQ === "community") start = "explore"; else if (tabQ === "create") start = "create";
     const f = q.get("format");
     if (f && FORMATS[f] && f !== "free") {
       setFormat(f); setMode("image"); start = "create";
@@ -762,13 +770,13 @@ export function useStudio() {
         if (d.ref?.id && typeof d.ref.url === "string") setRef(toItem({ id: d.ref.id, public_url: d.ref.url, aspect_ratio: d.ref.ratio }));
       }
       store.write("pp_draft", null);
-      setTimeout(() => say("You're signed in"), 300);
+      setTimeout(() => say(t("You're signed in")), 300);
     }
     if (q.get("signin") === "1") setTimeout(() => askSignIn(), 200);
     if (q.get("paid") === "1") {
-      setTimeout(() => say("Thank you. Your credits are on the way."), 300);
+      setTimeout(() => say(t("Thank you. Your credits are on the way.")), 300);
       [3000, 8000, 20000].forEach((ms) => setTimeout(refreshWallet, ms));
-      setTimeout(async () => { const d = await refreshWallet(); if (d && !d.account && !d.admin) askSignIn("Purchase complete. Sign in so your credits are safe on every device."); }, 2500);
+      setTimeout(async () => { const d = await refreshWallet(); if (d && !d.account && !d.admin) askSignIn(t("Purchase complete. Sign in so your credits are safe on every device.")); }, 2500);
     }
     if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
     // What this device remembers: images that were still being made when the page was closed (up to half an
@@ -781,14 +789,19 @@ export function useStudio() {
       if (r.kind !== "compare") return typeof r.model === "string" ? { ...base, model: r.model, status: "running", lost: true } : null;
       const parts = (Array.isArray(r.parts) ? r.parts : []).filter((p) => p && typeof p.id === "string").slice(0, 4)
         .map((p) => ({ id: p.id, name: String(p.name || p.id), cost: Number(p.cost) || 0, t0: Number(p.t0) || base.t0, eta: Number(p.eta) || 25,
-          ...(okItem(p.item) ? { status: "done", item: p.item } : p.status === "running" ? { status: "running", lost: true } : { status: "failed", error: String(p.error || LOST_MSG) }) }));
+          ...(okItem(p.item) ? { status: "done", item: p.item } : p.status === "running" ? { status: "running", lost: true } : { status: "failed", error: String(p.error || t(LOST_MSG)) }) }));
       return parts.length >= 2 && parts.some((p) => p.status === "running") ? { ...base, parts, status: "running" } : null;
     };
     const saved = store.read("pp_pending", []);
     const back = (Array.isArray(saved) ? saved : []).filter((r) => r && Date.now() - Number(r.t0) < 30 * 60_000).slice(0, 6).map(cleanRun).filter(Boolean);
     store.write("pp_last", null); // left by an earlier version
     if (back.length) { setRuns(back); start = "create"; }
-    setTab(start); setReady(true);
+    setTab(start);
+    // The words must be there before the first screen is drawn, so nobody sees it flip from English.
+    let want = null;
+    try { want = (document.cookie.match(new RegExp(`(?:^|; )${LANG_COOKIE}=([a-z]+)`)) || [])[1] || localStorage.getItem(LANG_COOKIE); } catch { /* private mode */ }
+    if (!isLang(want)) want = pickLang(navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language]);
+    (want === "en" ? Promise.resolve() : setLang(want)).finally(() => setReady(true));
 
     refreshWallet().then((d) => {
       // Projects belong to an account. Without one, nothing is filtered by a project remembered on this device.
@@ -806,7 +819,7 @@ export function useStudio() {
       // A video that ended badly while the page was closed: say so (the credits are already back).
       const ended = jobs.filter((j) => j.status === "failed").map((j) => ({
         key: `j${j.id}`, kind: "video", prompt: j.prompt || "", label: madeWith(j.kind), ratio: "16:9", status: "failed",
-        error: plain(j.error) || "The video didn't finish. Your credits were returned.",
+        error: plain(j.error) || t("The video didn't finish. Your credits were returned."),
       }));
       setRuns((rs) => [...ended, ...waiting, ...rs]);
       if (back.length) {
@@ -828,6 +841,6 @@ export function useStudio() {
     viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
-    page, setPage, translate, setTranslate, explore, feature, deleteAccount,
+    page, setPage, lang, setLang, explore, feature, deleteAccount,
   };
 }

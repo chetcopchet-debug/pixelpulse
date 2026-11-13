@@ -19,7 +19,7 @@ async function prepare(body) {
   const bad = checkPromptText(english) || checkPersonEditText(english);
   if (bad) return { error: blockedMessage(bad) };
   const ratio = VALID_RATIOS.includes(body?.aspectRatio) ? body.aspectRatio : '1:1';
-  const full = `Use the person in the reference photo. Keep their exact face, facial features, skin tone, age and identity unchanged and clearly recognizable. New image: ${body?.translate === false ? prompt : english}`;
+  const full = `Use the person in the reference photo. Keep their exact face, facial features, skin tone, age and identity unchanged and clearly recognizable. New image: ${english}`;
   const args = [full, ratio];
   args.promptLabel = prompt; args.ratio = ratio;
   return { args };

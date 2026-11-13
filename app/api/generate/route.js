@@ -128,9 +128,7 @@ export async function POST(request) {
       return res;
     }
 
-    // "Translate prompts to English" switched off in Settings: the model gets the words as written. The safety
-    // checks above still read the English version.
-    const finalPrompt = buildFinalPrompt(applyFormat(body?.translate === false ? prompt.trim() : englishPrompt, format), selectedStyle);
+    const finalPrompt = buildFinalPrompt(applyFormat(englishPrompt, format), selectedStyle);
     const result = await runPrediction(finalPrompt, selectedRatio, tierDef, { until: startedAt + 50_000 });
 
     if (result.error) {

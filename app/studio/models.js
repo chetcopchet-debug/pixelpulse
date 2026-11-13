@@ -1,4 +1,5 @@
 // What the interface shows for each model and tool. Prices come from the same tables the server charges from.
+import { t, N } from "../i18n";
 import { IMAGE_MODELS, VIDEO_MODELS, RETIRED } from "../../lib/catalog.js";
 import { VIDEO_PRICING, videoQuote, videoFrom } from "../../lib/videoPricing.js";
 
@@ -24,22 +25,29 @@ export function covers(wallet, costs) {
 export const imageModel = (id) => imageModels.find((m) => m.id === id) || imageModels.find((m) => m.id === "fast");
 export const videoModel = (id) => videoModels.find((m) => m.id === id) || videoModels[0];
 
+// A list defined here is read long before a language is chosen, so its texts are marked with N("…") and
+// translate themselves at the moment they are read.
+const live = (o, keep = []) => {
+  const out = {};
+  for (const [k, v] of Object.entries(o)) Object.defineProperty(out, k, typeof v === "string" && !keep.includes(k) ? { get: () => t(v), enumerable: true } : { value: v, enumerable: true });
+  return out;
+};
 export const IMAGE_RATIOS = [
-  { id: "1:1", label: "Square" },
-  { id: "9:16", label: "Tall" },
-  { id: "16:9", label: "Wide" },
+  live({ id: "1:1", label: N("Square") }, ["id"]),
+  live({ id: "9:16", label: N("Tall") }, ["id"]),
+  live({ id: "16:9", label: N("Wide") }, ["id"]),
 ];
 export const ratioLabel = (id) => (IMAGE_RATIOS.find((r) => r.id === id) || { label: id }).label;
 
 // Tools that work on an existing image. `paidOnly` tools can't be paid for with free credits.
 export const TOOLS = {
-  animate: { label: "Animate", cost: 15, paidOnly: true, detail: "Wan 2.2, 5 s, 480p" },
-  sharpen: { label: "Upscale", cost: 1, done: "Upscaled to twice the size" },
-  cutout: { label: "Remove background", cost: 1, done: "Background removed" },
-  edit: { label: "Edit with words", cost: 8, done: "Edit applied", ask: "What should change?", hint: "Make it night, add snow, change the jacket to red" },
-  repaint: { label: "Edit an area", cost: 13, done: "The marked part was changed" },
-  facelock: { label: "Keep the face", cost: 7, paidOnly: true, done: "Same face, new scene", ask: "Describe the new scene", hint: "As an astronaut on Mars" },
-  reference: { label: "From a reference image", cost: 5, detail: "FLUX Dev" },
+  animate: live({ label: N("Animate"), cost: 15, paidOnly: true, detail: "Wan 2.2, 5 s, 480p" }, ["detail"]),
+  sharpen: live({ label: N("Upscale"), cost: 1, done: N("Upscaled to twice the size") }),
+  cutout: live({ label: N("Remove background"), cost: 1, done: N("Background removed") }),
+  edit: live({ label: N("Edit with words"), cost: 8, done: N("Edit applied"), ask: N("What should change?"), hint: N("Make it night, add snow, change the jacket to red") }),
+  repaint: live({ label: N("Edit an area"), cost: 13, done: N("The marked part was changed") }),
+  facelock: live({ label: N("Keep the face"), cost: 7, paidOnly: true, done: N("Same face, new scene"), ask: N("Describe the new scene"), hint: N("As an astronaut on Mars") }),
+  reference: live({ label: N("From a reference image"), cost: 5, detail: "FLUX Dev" }, ["detail"]),
 };
 
 // Options and price for one video run. The ratio falls back to one the model supports.
@@ -68,16 +76,16 @@ export const answers = (item, w, taken) => !item.video && !taken.has(item.id) &&
 // Name shown for a saved item, from the `model` column of the images table.
 export function madeWith(model) {
   const id = String(model || "fast");
-  if (id === "upload") return "Your upload";
-  if (id === "guided") return "From a reference image";
-  if (id === "edit") return "Edit with words";
-  if (id === "repaint") return "Edit an area";
-  if (id === "animate") return "Animate";
-  if (id === "facelock") return "Keep the face";
-  if (id.startsWith("effect:")) return "Effect";
+  if (id === "upload") return t("Your upload");
+  if (id === "guided") return t("From a reference image");
+  if (id === "edit") return t("Edit with words");
+  if (id === "repaint") return t("Edit an area");
+  if (id === "animate") return t("Animate");
+  if (id === "facelock") return t("Keep the face");
+  if (id.startsWith("effect:")) return t("Effect");
   if (RETIRED[id]) return RETIRED[id];
-  if (id.startsWith("video:")) return (videoModels.find((m) => m.id === id.slice(6)) || { name: "Video" }).name;
-  return (imageModels.find((m) => m.id === id) || { name: "Image" }).name;
+  if (id.startsWith("video:")) return (videoModels.find((m) => m.id === id.slice(6)) || { name: t("Video") }).name;
+  return (imageModels.find((m) => m.id === id) || { name: t("Image") }).name;
 }
 
 export const isVideoUrl = (u) => /\.mp4(\?|$)/i.test(u || "");
