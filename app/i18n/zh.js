@@ -563,4 +563,8 @@ export default {
   "The prompt that was used": "实际使用的提示词",
   "Your idea was filled in before it was made. This is what the model got.": "你的想法在生成前被补充完整。这是模型收到的内容。",
   "Your idea": "你的想法",
+  "Length and quality": "时长和画质",
+  "Length and quality. Change": "时长和画质。更改",
+  "Prices are for a video that starts from your image, at the standard setting.": "价格为从你的图片开始生成的视频（标准设置）。",
+  "The video keeps the shape of your image.": "视频会保持图片的比例。",
 };

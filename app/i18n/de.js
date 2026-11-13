@@ -563,4 +563,8 @@ export default {
   "The prompt that was used": "Der verwendete Prompt",
   "Your idea was filled in before it was made. This is what the model got.": "Deine Idee wurde vor dem Erstellen ausformuliert. Das hat das Modell bekommen.",
   "Your idea": "Deine Idee",
+  "Length and quality": "Länge und Qualität",
+  "Length and quality. Change": "Länge und Qualität. Ändern",
+  "Prices are for a video that starts from your image, at the standard setting.": "Die Preise gelten für ein Video, das mit deinem Bild beginnt, in der Standardeinstellung.",
+  "The video keeps the shape of your image.": "Das Video behält das Format deines Bildes.",
 };

@@ -5,7 +5,7 @@ import { FORMATS } from "../../lib/formats";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import Icon from "./icons";
 import { Price, Picture, Full, Poster, Brand, Balance, useNow } from "./bits";
-import { imageModel, videoModel, videoPlan, TOOLS, comparePlan, stageOf, stageTime } from "./models";
+import { imageModel, videoModel, videoPlan, videoTakesImage, TOOLS, comparePlan, stageOf, stageTime } from "./models";
 import { nextActions } from "./next";
 import { ideaCards } from "./ideas";
 import { autoPick } from "./auto";
@@ -326,12 +326,14 @@ export default function Create({ s }) {
   const jobs = s.runs.filter((r) => r !== stage && r !== wait && r.status !== "done");
 
   const vm = videoModel(s.vidModel);
-  const plan = video ? videoPlan(vm.id, s.vDur, s.vRes, s.ratio) : null;
+  // A video that starts from a picture: on the chosen model when it can do that, otherwise Wan's fixed "Animate".
+  const fromImg = Boolean(video && s.ref && videoTakesImage(vm.id));
+  const plan = video ? videoPlan(vm.id, s.vDur, s.vRes, fromImg ? s.ref.ratio : s.ratio, fromImg) : null;
   const cmp = !video && !s.ref ? comparePlan(s.compare) : null; // two or more models chosen: compare them
   // Auto: the model follows the prompt, and the button shows it with its price before anything is charged.
   const auto = !video && !s.ref && !cmp && s.auto ? autoPick(`${s.prompt} ${s.format !== "free" ? FORMATS[s.format]?.label || "" : ""}`, s.wallet, s.off) : null;
   const im = imageModel(auto ? auto.id : s.imgModel);
-  const cost = s.ref ? (video ? TOOLS.animate.cost : TOOLS.reference.cost) : video ? plan?.cost : cmp ? cmp.cost : im.cost;
+  const cost = s.ref ? (video ? (fromImg ? plan?.cost : TOOLS.animate.cost) : TOOLS.reference.cost) : video ? plan?.cost : cmp ? cmp.cost : im.cost;
   const action = s.ref ? (video ? t("Animate image") : t("Generate from image")) : video ? t("Generate video") : cmp ? t("Compare {n} models", { n: cmp.models.length }) : t("Generate");
   const placeholder = s.ref ? (video ? t("Describe the motion (optional)") : t("Describe the new image")) : video ? t("Describe the video you want") : t("Describe the image you want");
   const lockedRatio = !video && s.format !== "free" ? FORMATS[s.format]?.ratio : null; // a format fixes the shape
@@ -414,7 +416,12 @@ export default function Create({ s }) {
             )}
             {more ? <button className="set-add" onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={18} />{t("Ideas to start from")}</button> : null}
             <div className="set">
-              {s.ref ? <div className="set-row"><span className="t2">{t("Model")}</span><span className="b clamp1">{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span></div> : (
+              {s.ref && !video ? <div className="set-row"><span className="t2">{t("Model")}</span><span className="b clamp1">{TOOLS.reference.detail}</span></div> : s.ref ? (
+                <>
+                  <Row name={t("Model")} value={fromImg ? modelName : TOOLS.animate.detail} label={modelLabel} onClick={() => s.setSheet({ type: "models" })} />
+                  {fromImg ? <Row name={t("Length and quality")} value={`${plan?.d} s, ${plan?.r}`} label={t("Length and quality. Change")} onClick={() => s.setSheet({ type: "video" })} /> : null}
+                </>
+              ) : (
                 <>
                   <Row name={t("Model")} value={modelName} label={modelLabel} onClick={() => s.setSheet({ type: "models" })} />
                   {video ? <Row name={t("Length, quality, shape")} value={`${plan?.d} s, ${plan?.r}, ${plan?.ratio}`} label={t("Length, quality and shape. Change")} onClick={() => s.setSheet({ type: "video" })} />
@@ -462,8 +469,19 @@ export default function Create({ s }) {
           {autoline}
           <div className="gorow">
             <div className="chips">
-              {s.ref ? (
-                <span className="sm t2 b" style={{ whiteSpace: "nowrap", padding: "0 4px" }}>{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span>
+              {s.ref && !video ? (
+                <span className="sm t2 b" style={{ whiteSpace: "nowrap", padding: "0 4px" }}>{TOOLS.reference.detail}</span>
+              ) : s.ref ? (
+                <>
+                  <button className="chip-tap" onClick={() => s.setSheet({ type: "models" })} aria-label={modelLabel}>
+                    <span className="chip">{fromImg ? modelName : TOOLS.animate.detail}<Icon name="down" size={16} /></span>
+                  </button>
+                  {fromImg ? (
+                    <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label={t("Length and quality. Change")}>
+                      <span className="chip">{plan?.d} s, {plan?.r}</span>
+                    </button>
+                  ) : null}
+                </>
               ) : (
                 <>
                   <button className="chip-tap" onClick={() => s.setSheet({ type: "models" })} aria-label={modelLabel}>

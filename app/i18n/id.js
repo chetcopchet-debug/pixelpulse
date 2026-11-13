@@ -563,4 +563,8 @@ export default {
   "The prompt that was used": "Prompt yang dipakai",
   "Your idea was filled in before it was made. This is what the model got.": "Ide kamu dilengkapi sebelum dibuat. Inilah yang diterima model.",
   "Your idea": "Ide kamu",
+  "Length and quality": "Durasi dan kualitas",
+  "Length and quality. Change": "Durasi dan kualitas. Ubah",
+  "Prices are for a video that starts from your image, at the standard setting.": "Harga untuk video yang dimulai dari gambarmu, pada pengaturan standar.",
+  "The video keeps the shape of your image.": "Video mengikuti bentuk gambarmu.",
 };

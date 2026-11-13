@@ -6,7 +6,7 @@ import Icon from "./icons";
 import { Price } from "./bits";
 import Sheet from "./Sheet";
 import { ideaCards } from "./ideas";
-import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
+import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, videoTakesImage, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
 import { FREE_DAILY } from "./store";
 
 export function ModelSheet({ s, onClose }) {
@@ -24,7 +24,8 @@ export function ModelSheet({ s, onClose }) {
   const plan = comparePlan(picked);
   const autoOn = canCompare && s.auto && !comparePlan(s.compare);
   const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= MAX_COMPARE ? (s.say(t("Up to {n} models at a time.", { n: MAX_COMPARE })), p) : [...p, id]));
-  const sub = video ? t("Prices are for the standard setting. Length and quality change the price.")
+  const fromImage = Boolean(video && s.ref); // the video will start from the attached image
+  const sub = video ? (fromImage ? t("Prices are for a video that starts from your image, at the standard setting.") : t("Prices are for the standard setting. Length and quality change the price."))
     : multi ? t("Tick 2 to {n} models. Your prompt runs on each one, and you pay each model's price.", { n: MAX_COMPARE }) : t("The price is for one image.");
   return (
     <Sheet title={video ? t("Video models") : t("Image models")} sub={sub} onClose={onClose}>
@@ -67,7 +68,7 @@ export function ModelSheet({ s, onClose }) {
               <span className="sm t2" style={{ display: "block" }}>{t(m.desc)}</span>
             </span>
             {!multi && on ? <span className="tick"><Icon name="check" size={14} /></span> : null}
-            <Price n={m.cost} />
+            <Price n={fromImage ? (videoTakesImage(m.id) ? videoPlan(m.id, undefined, undefined, s.ref.ratio, true)?.cost ?? m.cost : TOOLS.animate.cost) : m.cost} />
           </button>
         );
       })}
@@ -100,25 +101,28 @@ export function RatioSheet({ s, onClose }) {
 
 export function VideoSheet({ s, onClose }) {
   const m = videoModel(s.vidModel);
-  const plan = videoPlan(m.id, s.vDur, s.vRes, s.ratio);
+  const img = Boolean(s.ref && videoTakesImage(m.id)); // the video starts from a picture: its own price, and the picture's shape
+  const plan = videoPlan(m.id, s.vDur, s.vRes, img ? s.ref.ratio : s.ratio, img);
   const Group = ({ label, children }) => <div style={{ padding: "8px 8px 12px" }}><p className="sm b t2" style={{ marginBottom: 8 }}>{label}</p><div className="opt">{children}</div></div>;
   return (
     <Sheet title={t("Video settings")} sub={t("{name}. The price changes with length and quality.", { name: m.name })} onClose={onClose}>
       <Group label={t("Length")}>
         {plan.durations.map((d) => {
-          const c = videoOptionCost(m.id, d, plan.r);
+          const c = videoOptionCost(m.id, d, plan.r, img);
           return <button key={d} className={d === plan.d ? "on" : ""} aria-pressed={d === plan.d} disabled={c === null} onClick={() => s.setVDur(d)}><span>{t("{n} seconds", { n: d })}</span>{c !== null ? <Price n={c} /> : <span className="sm">{t("Not at {what}", { what: plan.r })}</span>}</button>;
         })}
       </Group>
       <Group label={t("Quality")}>
         {plan.resolutions.map((r) => {
-          const c = videoOptionCost(m.id, plan.d, r);
+          const c = videoOptionCost(m.id, plan.d, r, img);
           return <button key={r} className={r === plan.r ? "on" : ""} aria-pressed={r === plan.r} disabled={c === null} onClick={() => s.setVRes(r)}><span>{r}</span>{c !== null ? <Price n={c} /> : <span className="sm">{t("Not at {what}", { what: `${plan.d} s` })}</span>}</button>;
         })}
       </Group>
-      <Group label={t("Shape")}>
-        {plan.ratios.map((r) => <button key={r} className={r === plan.ratio ? "on" : ""} aria-pressed={r === plan.ratio} onClick={() => s.setRatio(r)}><span>{r}</span></button>)}
-      </Group>
+      {img ? <p className="sm t2" style={{ padding: "0 8px 12px" }}>{t("The video keeps the shape of your image.")}</p> : (
+        <Group label={t("Shape")}>
+          {plan.ratios.map((r) => <button key={r} className={r === plan.ratio ? "on" : ""} aria-pressed={r === plan.ratio} onClick={() => s.setRatio(r)}><span>{r}</span></button>)}
+        </Group>
+      )}
       <div style={{ padding: "4px 8px 0" }}><button className="btn btn-p btn-wide btn-split" onClick={onClose}><span>{t("Done")}</span><Price n={plan.cost} /></button></div>
     </Sheet>
   );
