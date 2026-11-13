@@ -50,7 +50,10 @@ function Player({ item, own, s }) {
 
 // One result, full screen: the picture or video, what you can do with it next, and how it was made.
 export default function Viewer({ s }) {
-  const { item, before, readonly } = s.viewer;
+  // `explore`: opened from the gallery. It is someone else's finished work to look at and start from, so the
+  // page is just the picture, how it was made, and "Use this prompt".
+  const { item, before, readonly, explore } = s.viewer;
+  const [featuring, setFeaturing] = useState(false);
   const [side, setSide] = useState("after");
   const [confirm, setConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -78,7 +81,7 @@ export default function Viewer({ s }) {
         <header className="top">
           <button className="ib" aria-label="Close" onClick={() => s.setViewer(null)}><Icon name="x" /></button>
           <div className="r">
-            <button className="ib" aria-label="Download" onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button>
+            {explore ? null : <button className="ib" aria-label="Download" onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button>}
             {!readonly && item.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? "Remove from favorites" : "Add to favorites"} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : null} /></button> : null}
             {!readonly ? <button className="ib" aria-label="Delete" onClick={() => setConfirm(true)}><Icon name="trash" /></button> : null}
           </div>
@@ -124,7 +127,16 @@ export default function Viewer({ s }) {
             </>
           ) : null}
 
-          {item.prompt ? (
+          {explore ? (
+            <>
+              {item.model ? <p className="sm" style={{ marginBottom: 6 }}><span className="t2">Made with</span> <span className="b">{madeWith(item.model)}</span><span className="t3 num">, {item.ratio}</span></p> : null}
+              <p style={{ margin: "0 0 14px", overflowWrap: "anywhere" }}>{item.prompt}</p>
+              <div className="r" style={{ gap: 8 }}>
+                <button className="btn btn-p grow" onClick={() => s.useAgain(item)}>Use this prompt</button>
+                <button className="btn btn-s" style={{ width: 48, padding: 0 }} aria-label="Copy prompt" onClick={copy}><Icon name="copy" size={20} /></button>
+              </div>
+            </>
+          ) : item.prompt ? (
             <>
               <p className="sm b t3">Prompt</p>
               <p style={{ margin: "4px 0 12px", overflowWrap: "anywhere" }}>{item.prompt}</p>
@@ -133,6 +145,12 @@ export default function Viewer({ s }) {
                 <button className={`btn ${readonly ? "btn-p" : "btn-s"}`} onClick={() => s.useAgain(item)}><Icon name="again" size={18} />{readonly ? "Use this prompt" : "Use again"}</button>
               </div>
             </>
+          ) : null}
+
+          {!readonly && s.wallet.admin && item.id && item.model !== "upload" ? (
+            <button className="btn btn-s btn-wide" style={{ marginTop: 20 }} disabled={featuring} aria-pressed={Boolean(item.featured)} onClick={async () => { setFeaturing(true); await s.feature(item, !item.featured); setFeaturing(false); }}>
+              {featuring ? <i className="spin" /> : <Icon name={item.featured ? "check" : "compass"} size={18} />}{item.featured ? "Showing in Explore. Tap to remove" : "Show in Explore"}
+            </button>
           ) : null}
 
           {!readonly ? (

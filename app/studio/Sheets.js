@@ -136,7 +136,7 @@ export function PricingSheet({ s, need, label, paidOnly, onClose }) {
         ))}
         {!open ? <p className="sm t2" style={{ padding: "4px 8px" }}>Payments are opening soon. Until then you can keep creating with free credits.</p> : null}
         {w.guest && !paidOnly ? <button className="btn btn-s btn-wide" onClick={() => s.askSignIn()}>Create an account for {FREE_DAILY} free credits a day</button> : null}
-        <a className="btn btn-wide" href="/pricing">See all prices</a>
+        <button className="btn btn-wide" onClick={() => { onClose(); s.setPage("pricing"); }}>Models & pricing</button>
       </div>
     </Sheet>
   );
@@ -317,6 +317,59 @@ export function IdeasSheet({ s, onClose }) {
             <span>{x.title}</span>
           </button>
         ))}
+      </div>
+    </Sheet>
+  );
+}
+
+// The profile menu: who is signed in, the credits, and the way to everything that is not a tab.
+export function MeSheet({ s, onClose }) {
+  const w = s.wallet;
+  const guest = w.loaded && !w.account && !w.admin;
+  const go = (page) => { onClose(); s.setPage(page); };
+  const row = (icon, label, onClick) => <button className="lrow" onClick={onClick}><Icon name={icon} style={{ color: "var(--text-2)" }} /><span className="grow" style={{ textAlign: "left" }}>{label}</span><Icon name="right" size={18} style={{ color: "var(--text-3)" }} /></button>;
+  return (
+    <Sheet title={guest ? "Welcome" : "Account"} onClose={onClose}>
+      <div className="c" style={{ gap: 12, padding: "4px 8px 8px" }}>
+        {guest ? (
+          <div className="wal">
+            <p className="d" style={{ fontSize: 22, lineHeight: "28px" }}>Sign up and get {FREE_DAILY} free credits every day</p>
+            <p className="sm t2" style={{ margin: "6px 0 14px" }}>One step, no password. Your work is kept on every device.</p>
+            <button className="btn btn-p btn-wide" onClick={() => { onClose(); s.askSignIn(); }}>Sign up or sign in</button>
+            {w.paid > 0 ? <p className="sm t2" style={{ marginTop: 12 }}>This browser holds {w.paid.toLocaleString("en-US")} bought credits. They move into your account when you sign in.</p> : null}
+          </div>
+        ) : (
+          <>
+            {w.account ? <div className="r" style={{ gap: 12, padding: "0 4px" }}><span className="av big">{w.account.email.trim().charAt(0).toUpperCase()}</span><div className="grow"><p className="b clamp1">{w.account.email}</p><p className="sm t2">Signed in</p></div></div> : null}
+            {w.admin ? (
+              <div className="wal">
+                <p className="d" style={{ fontSize: 22, lineHeight: "28px" }}>Admin mode</p>
+                <p className="sm t2" style={{ margin: "6px 0 12px" }}>Nothing is charged while admin mode is on, so your credits are not shown.</p>
+                <div className="r" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <form method="post" action="/api/admin" className="grow"><input type="hidden" name="logout" value="1" /><button className="btn btn-p btn-wide" type="submit">Turn off admin mode</button></form>
+                  <a className="btn btn-s" href="/admin">Admin page</a>
+                </div>
+              </div>
+            ) : (
+              <div className="wal">
+                <div className="r" style={{ justifyContent: "space-between", alignItems: "flex-end", gap: 12 }}>
+                  <div>
+                    <p className="sm t2">Credits</p>
+                    <p className="d num r" style={{ fontSize: 34, lineHeight: "38px", gap: 8 }}><i className="coin" style={{ width: 14, height: 14 }} />{w.loaded ? (w.free + w.paid).toLocaleString("en-US") : "…"}</p>
+                  </div>
+                  <button className="btn btn-p" onClick={() => { onClose(); s.askCredits(0); }}>Add credits</button>
+                </div>
+                <p className="sm t2" style={{ marginTop: 8 }}>{w.paid.toLocaleString("en-US")} bought, {w.free} of {w.freeLimit} free today</p>
+              </div>
+            )}
+          </>
+        )}
+        <div className="card flat">
+          {row("coins", "Models & pricing", () => go("pricing"))}
+          {row("gear", "Settings", () => go("settings"))}
+          {row("help", "Help", () => go("help"))}
+        </div>
+        {w.account ? <div className="card flat"><button className="lrow" onClick={s.signOut}><Icon name="logout" style={{ color: "var(--text-2)" }} /><span className="grow" style={{ textAlign: "left" }}>Sign out</span></button></div> : null}
       </div>
     </Sheet>
   );

@@ -9,6 +9,8 @@ import { billingWarnings, replicateAccount } from '../../lib/replicate';
 import { liveCheck } from '../../lib/modelCheck';
 import { modelHealth } from '../../lib/modelHealth';
 import CheckModels from './CheckModels';
+import { GALLERY_IMAGES, GALLERY_VIDEOS } from '../../lib/galleryPrompts';
+import { IMAGE_MODELS, VIDEO_MODELS } from '../../lib/catalog';
 import Page from '../studio/Page';
 export const metadata = { title: 'Admin · PixelPulse', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -48,6 +50,10 @@ export default async function AdminLogin(props) {
   const shaky = (slug) => health.trouble?.[slug] === today && health.seen[slug] !== today && !health.dead.has(slug);
   const gone = models.filter((m) => health.dead.has(m.slug));
   const when = (t) => new Date(t).toLocaleString('en-GB', { timeZone: 'UTC', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const galleryCost = [...GALLERY_IMAGES, ...GALLERY_VIDEOS].reduce((t, g) => {
+    const m = (g.group === 'Video' ? VIDEO_MODELS : IMAGE_MODELS).find((x) => x.id === g.model);
+    return m ? { usd: t.usd + m.usd, credits: t.credits + m.cost } : t;
+  }, { usd: 0, credits: 0 });
   return (
     <Page bare>
       <h1>Admin</h1>
@@ -92,6 +98,29 @@ export default async function AdminLogin(props) {
               <span className={`b sm ${money.empty > 0 ? 'bad' : money.low > 0 ? 'bad' : 'ok'}`} style={{ whiteSpace: 'nowrap' }}>{money.empty > 0 ? 'Empty' : money.low > 0 ? 'Under $5' : 'No warnings today'}</span>
             </div>
           </div>
+
+          <h2 className="sec">Prompts for the Explore gallery</h2>
+          <p className="t2" style={{ marginBottom: 10 }}>{GALLERY_IMAGES.length} images and {GALLERY_VIDEOS.length} videos. "Use" opens Create with the prompt, model and shape filled in; you still tap Generate yourself. When a result is good, open it in your Library and tap "Show in Explore". Making all of them once costs about <b>${galleryCost.usd.toFixed(2)}</b> at Replicate ({galleryCost.credits.toLocaleString('en-US')} credits; nothing is charged in admin mode).</p>
+          <details className="gp">
+            <summary className="b">Show the {GALLERY_IMAGES.length + GALLERY_VIDEOS.length} prompts</summary>
+            <div className="ptable" style={{ marginTop: 10 }}>
+              {[...GALLERY_IMAGES, ...GALLERY_VIDEOS].map((g) => {
+                const video = g.group === 'Video';
+                const m = (video ? VIDEO_MODELS : IMAGE_MODELS).find((x) => x.id === g.model);
+                const href = video ? `/?p=${encodeURIComponent(g.prompt)}&video=${g.model}&ratio=${encodeURIComponent(g.ratio)}` : `/?p=${encodeURIComponent(g.prompt)}&vibe=1&tier=${g.model}&ratio=${encodeURIComponent(g.ratio)}`;
+                return (
+                  <div key={g.title}>
+                    <span className="grow">
+                      <span className="b">{g.group}: {g.title}</span>
+                      <span className="sm t2" style={{ display: 'block' }}>{m ? m.label : g.model}, {g.ratio}, {m ? m.cost : '?'} credits</span>
+                      <span className="sm" style={{ display: 'block', marginTop: 4 }}>{g.prompt}</span>
+                    </span>
+                    <a className="btn btn-s" style={{ height: 44, padding: '0 14px', flex: 'none' }} href={href}>Use</a>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
 
           <h2 className="sec">Models and prices</h2>
           {gone.length > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>Discontinued by {gone.length === 1 ? 'its' : 'their'} provider: {gone.map((m) => m.name).join(', ')}.</b> Replicate refuses every run. The site already hides {gone.length === 1 ? 'it' : 'them'} and Auto does not pick {gone.length === 1 ? 'it' : 'them'}. Tell Claude so the list can be updated.</p>}
