@@ -577,4 +577,5 @@ export default {
   "Pro uses the strongest model to write a fuller prompt: scene, subjects, action, camera, light and expressions.": "Pro memakai model terkuat untuk menulis prompt yang lebih lengkap: adegan, subjek, aksi, kamera, cahaya, dan ekspresi.",
   "Couldn't improve the prompt right now. Your credit was returned.": "Prompt belum bisa disempurnakan sekarang. Kreditmu dikembalikan.",
   "Improve Pro costs 1 credit.": "Penyempurnaan Pro butuh 1 kredit.",
+  "Improving your prompt…": "Menyempurnakan prompt Anda…",
 };

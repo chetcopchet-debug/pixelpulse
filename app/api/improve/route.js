@@ -4,24 +4,27 @@ import { getCreatorId } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
 import { readAccount } from '../../../lib/account';
 import { MAX_PROMPT_LENGTH } from '../../../lib/generation';
-import { preparePrompt, improveAllowed, IMPROVE_DAILY, IMPROVE_DAILY_PRO } from '../../../lib/translate';
+import { preparePrompt, improveAllowed, shortIdea, IMPROVE_DAILY, IMPROVE_DAILY_PRO } from '../../../lib/translate';
 import { checkPromptText, blockedMessage as blocked } from '../../../lib/moderation';
 import { setCreditsCookie, getClientIp, freeState, chargeCredits, paidFor } from '../../../lib/credits';
 import { hasPro } from '../../../lib/paid';
 import { TOOLS } from '../../../lib/replicate';
 import { VIDEO_WITH_SOUND } from '../../../lib/videoPricing';
 
-export const maxDuration = 45;
+export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 const PRO = TOOLS.improvePro;
 
-// POST { prompt, kind: 'image' | 'video', level?: 'pro', model?: <video model id>, avoid?: [earlier versions] }
+// POST { prompt, kind: 'image' | 'video', level?: 'pro', model?: <video model id>, avoid?: [earlier versions], auto?: true }
 //   -> { prompt, improved }
 // The improve button in the prompt box. Pressed by the person, so it always improves, long prompts too, and every
 // press takes a different direction. Two levels:
 //   standard: free, a fixed number a day (more with a Yelvo Pro subscription); past that it answers why: 'limit'.
 //   pro:      the strongest model that answers; costs one credit, returned when nothing was improved.
+// auto: asked for by the screen just before a creation ("Improve my prompt" is on). Short ideas only, in a neutral
+// style: the person's own style if they gave one, otherwise realistic. When today's free ones are used it simply
+// answers improved: false, and the creation goes on with the words as written.
 export async function POST(request) {
   const stop = accountGate(request); if (stop) return stop; // creating needs an account, and so does this
   const body = await request.json().catch(() => ({}));
@@ -35,11 +38,14 @@ export async function POST(request) {
   const creator = getCreatorId(request);
   // Earlier versions offered for this same idea: the new one must differ from them.
   const avoid = Array.isArray(body?.avoid) ? body.avoid.filter((v) => typeof v === 'string' && v.trim()).slice(-3) : [];
-  const press = { avoid, level: pro ? 'pro' : 'std', sound: kind === 'video' && VIDEO_WITH_SOUND.includes(body?.model) };
+  const auto = body?.auto === true && !pro;
+  if (auto && !shortIdea(prompt)) return NextResponse.json({ prompt, improved: false });
+  const press = { avoid: auto ? [] : avoid, auto, level: pro ? 'pro' : 'std', sound: kind === 'video' && VIDEO_WITH_SOUND.includes(body?.model) };
 
   if (!pro) {
     const subscriber = admin ? false : await hasPro(creator.id);
     if (!await improveAllowed(creator.id, admin, subscriber)) {
+      if (auto) return NextResponse.json({ prompt, improved: false, why: 'limit' });
       return NextResponse.json({ prompt, improved: false, why: 'limit', limit: subscriber ? IMPROVE_DAILY_PRO : IMPROVE_DAILY, pro: { cost: PRO.cost } }, { status: 429 });
     }
     const out = await preparePrompt(prompt, { admin, improve: kind, press });
