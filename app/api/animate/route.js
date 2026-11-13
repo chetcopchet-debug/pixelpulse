@@ -14,7 +14,7 @@ import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
 import { EFFECT_PROMPTS } from '../../../lib/effectPrompts';
 import { finalizeJob, recordJob, pendingJobs, jobFromRow, webhookFields, repairRecent } from '../../../lib/videoJobs';
-import { videoQuote, VIDEO_PRICING } from '../../../lib/videoPricing';
+import { videoQuote, VIDEO_PRICING, VIDEO_WITH_SOUND } from '../../../lib/videoPricing';
 import { ownedProject } from '../../../lib/projectOwner';
 import { isDiscontinued, markDead, isDeadSlug } from '../../../lib/modelHealth';
 const MODEL_OFF_MSG = 'This model is temporarily unavailable. Pick another model.';
@@ -141,7 +141,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   // A short idea is filled in when the person left that on: what moves, and one camera movement. Not for a video
   // that starts from a picture: the words there are only the motion, and with none the model gets a plain gentle one.
   const prepared = raw
-    ? await preparePrompt(raw, { admin, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'video' : false })
+    ? await preparePrompt(raw, { admin, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'video' : false, sound: VIDEO_WITH_SOUND.includes(body.model) })
     : { prompt: DEFAULT_MOTION, improved: false };
   const en = prepared.prompt;
   const bad = checkPromptText(en);
