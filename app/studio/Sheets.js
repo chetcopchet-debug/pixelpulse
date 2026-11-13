@@ -6,6 +6,7 @@ import Icon from "./icons";
 import { Price } from "./bits";
 import Sheet from "./Sheet";
 import { ideaCards } from "./ideas";
+import { recommend } from "./auto";
 import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, videoTakesImage, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
 import { FREE_DAILY } from "./store";
 
@@ -22,7 +23,8 @@ export function ModelSheet({ s, onClose }) {
   const [multi, setMulti] = useState(canCompare && Boolean(comparePlan(s.compare)));
   const [picked, setPicked] = useState(() => (comparePlan(s.compare) ? s.compare : [s.imgModel]));
   const plan = comparePlan(picked);
-  const autoOn = canCompare && s.auto && !comparePlan(s.compare);
+  const canAuto = canCompare || (video && !s.ref); // Auto: for images, and for a video made from words
+  const autoOn = video ? canAuto && s.vAuto : canCompare && s.auto && !comparePlan(s.compare);
   const toggle = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= MAX_COMPARE ? (s.say(t("Up to {n} models at a time.", { n: MAX_COMPARE })), p) : [...p, id]));
   const fromImage = Boolean(video && s.ref); // the video will start from the attached image
   const sub = video ? (fromImage ? t("Prices are for a video that starts from your image, at the standard setting.") : t("Prices are for the standard setting. Length and quality change the price."))
@@ -39,8 +41,8 @@ export function ModelSheet({ s, onClose }) {
         <button className={`chip${sort === "best" ? " on" : ""}`} onClick={() => setSort("best")}>{t("Best quality")}</button>
         <button className={`chip${sort === "price" ? " on" : ""}`} onClick={() => setSort("price")}>{t("Lowest price")}</button>
       </div>
-      {canCompare && !multi ? (
-        <button className={`mrow mauto${autoOn ? " on" : ""}`} aria-pressed={autoOn} onClick={() => { s.setAuto(true); onClose(); }}>
+      {canAuto && !multi ? (
+        <button className={`mrow mauto${autoOn ? " on" : ""}`} aria-pressed={autoOn} onClick={() => { (video ? s.setVAuto : s.setAuto)(true); onClose(); }}>
           <span className="grow">
             <span className="r" style={{ gap: 8 }}><span className="b" style={{ fontSize: 16 }}>{t("Auto")}</span><span className="rec">{t("Recommended")}</span></span>
             <span className="b" style={{ display: "block", marginTop: 2 }}>{t("We pick the best model for your prompt")}</span>
@@ -100,7 +102,8 @@ export function RatioSheet({ s, onClose }) {
 }
 
 export function VideoSheet({ s, onClose }) {
-  const m = videoModel(s.vidModel);
+  const va = s.vAuto && !s.ref ? recommend(s.prompt, "video", s.wallet, s.off, (id) => videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost) : null; // Auto: the model it would run
+  const m = videoModel(va ? va.pick : s.vidModel);
   const img = Boolean(s.ref && videoTakesImage(m.id)); // the video starts from a picture: its own price, and the picture's shape
   const plan = videoPlan(m.id, s.vDur, s.vRes, img ? s.ref.ratio : s.ratio, img);
   const Group = ({ label, children }) => <div style={{ padding: "8px 8px 12px" }}><p className="sm b t2" style={{ marginBottom: 8 }}>{label}</p><div className="opt">{children}</div></div>;
