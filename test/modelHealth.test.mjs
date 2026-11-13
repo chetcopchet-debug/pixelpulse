@@ -64,3 +64,11 @@ test('a run blocked for its content is not counted against the model', () => {
   for (const why of ['The input was flagged as sensitive', 'NSFW content detected', 'Blocked by our content policy', 'Prompt violates safety rules']) assert.equal(blamesRequest(why), true, why);
   for (const why of ['CUDA out of memory', 'Server side error', 'no answer in time', 'Replicate answered 500', '']) assert.equal(blamesRequest(why), false, why);
 });
+
+test("a failure that says the provider's own key is broken is recognised, and an ordinary failure is not", async () => {
+  const { providerBroken } = await import('../lib/modelHealthCore.js');
+  assert.equal(providerBroken('ValueError: Failed to generate: { "error": { "message": "...", "code": "token_invalidated" } }'), true);
+  assert.equal(providerBroken('Async prediction failed: AuthenticationError'), true);
+  assert.equal(providerBroken('ModelError: The input was invalid. Please try again.'), false);
+  assert.equal(providerBroken('no answer in time'), false);
+});
