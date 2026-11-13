@@ -403,7 +403,7 @@ export default function Create({ s }) {
   // The improve button fills the idea in inside the box, before anything is made. After it, a line under the box
   // says so and offers Undo.
   const hasText = Boolean(s.prompt.trim());
-  const canPolish = canImprove && hasText && !s.polish;
+  const canPolish = canImprove && hasText; // also after an improvement: another press gives another version
   const polishLine = s.polish ? (
     <div className="polish" role="status">
       <Icon name="wand" size={16} /><span className="grow">{t("Improved. You can edit it.")}</span>
