@@ -123,7 +123,8 @@ export function Pricing({ s }) {
   const [kind, setKind] = useState("image");
   const [busy, setBusy] = useState("");
   const plans = (w.plans || []).filter((p) => p.credits);
-  const list = (kind === "video" ? videoModels : imageModels).filter((m) => !s.off.has(m.id));
+  const every = kind === "video" ? videoModels : imageModels;
+  const list = [...every.filter((m) => !s.off.has(m.id)), ...every.filter((m) => s.off.has(m.id))]; // the ones that are down right now come last, marked
   const pick = (m) => {
     if (kind === "video") { s.setMode("video"); s.setVidModel(m.id); } else { s.setMode("image"); s.setImgModel(m.id); }
     s.setPage(null);
@@ -160,7 +161,11 @@ export function Pricing({ s }) {
       ) : (
         <>
           <div className="mlist">
-            {list.map((m) => (
+            {list.map((m) => s.off.has(m.id) ? (
+              <button key={m.id} disabled aria-disabled="true" style={{ width: "100%", textAlign: "left" }}>
+                <span className="grow"><span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span><span className="sm t3" style={{ display: "block" }}>{t("Temporarily unavailable")}</span></span>
+              </button>
+            ) : (
               <button key={m.id} onClick={() => pick(m)} style={{ width: "100%", textAlign: "left" }} aria-label={tn(N("{name}, 1 credit. Create with this model"), N("{name}, {n} credits. Create with this model"), { name: m.name, n: m.cost })}>
                 <span className="grow"><span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span><span className="sm t2" style={{ display: "block" }}>{m.by}. {t(m.desc)}</span></span>
                 <Price n={m.cost} />

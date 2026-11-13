@@ -424,7 +424,6 @@ export default {
   "This image wasn't saved, so it can't be changed.": "이 이미지는 저장되지 않아서 수정할 수 없어요.",
   "This is already a video.": "이미 영상이에요.",
   "This item is added to it.": "이 항목이 여기에 추가돼요.",
-  "This model was discontinued by its maker. Pick another model.": "제작사가 이 모델의 제공을 종료했어요. 다른 모델을 선택하세요.",
   "This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.": "이 작업은 결과가 돌아오지 않았어요. 만들어졌다면 라이브러리에 있고, 실패했다면 크레딧이 반환됐어요.",
   "This one didn't finish. Its credits were returned.": "이 작업은 완성되지 않았어요. 크레딧은 반환됐어요.",
   "This page doesn't exist": "존재하지 않는 페이지예요",
@@ -553,4 +552,6 @@ export default {
   "{name} costs 1 credit.": "{name}에는 크레딧 1개가 필요해요.",
   "This costs 1 credit.": "크레딧 1개가 필요해요.",
   "1 credit. Open the menu": "1 크레딧. 메뉴 열기",
+  "Temporarily unavailable": "일시적으로 사용할 수 없음",
+  "This model is temporarily unavailable. Pick another model.": "이 모델은 일시적으로 사용할 수 없어요. 다른 모델을 선택하세요.",
 };

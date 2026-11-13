@@ -424,7 +424,6 @@ export default {
   "This image wasn't saved, so it can't be changed.": "Dieses Bild wurde nicht gespeichert und kann deshalb nicht geändert werden.",
   "This is already a video.": "Das ist schon ein Video.",
   "This item is added to it.": "Dieses Element wird hinzugefügt.",
-  "This model was discontinued by its maker. Pick another model.": "Dieses Modell wurde vom Hersteller eingestellt. Wähle ein anderes Modell.",
   "This one didn't come back. If it was made, it is in your Library. If it failed, its credits were returned.": "Das hier kam nicht zurück. Wenn es erstellt wurde, liegt es in deiner Bibliothek. Wenn es fehlgeschlagen ist, wurden die Credits erstattet.",
   "This one didn't finish. Its credits were returned.": "Das hier wurde nicht fertig. Die Credits wurden erstattet.",
   "This page doesn't exist": "Diese Seite gibt es nicht",
@@ -553,4 +552,6 @@ export default {
   "{name} costs 1 credit.": "{name} kostet 1 Credit.",
   "This costs 1 credit.": "Das kostet 1 Credit.",
   "1 credit. Open the menu": "1 Credit. Menü öffnen",
+  "Temporarily unavailable": "Vorübergehend nicht verfügbar",
+  "This model is temporarily unavailable. Pick another model.": "Dieses Modell ist vorübergehend nicht verfügbar. Wähle ein anderes Modell.",
 };
