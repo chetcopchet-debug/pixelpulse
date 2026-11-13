@@ -70,7 +70,7 @@ export async function POST(request) {
     const en = await toEnglishPrompt(raw);
     const bad = checkPromptText(en);
     if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
-    motion = `${body?.translate === false ? raw : en}. Keep the scene and subject consistent.`;
+    motion = `${en}. Keep the scene and subject consistent.`;
   }
   if (!admin && !await rateLimit(`animate:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Animate limit reached. Try again later.' }, { status: 429 });
 
@@ -124,7 +124,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const spend = await reserveSpend(tier.usd, { admin: true });
   const pj = await ownedProject(creator.id, body?.project); // the project being worked in, if it is really theirs
   const fields = { u: creator.id, s: null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, pr: raw.slice(0, 600), r: ratio, ...(pj ? { j: pj } : {}) };
-  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(body?.translate === false ? raw : en, ratio, q.d, q.r), ...hookFor(request, fields) }) }).catch(() => null);
+  const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input: def.input(en, ratio, q.d, q.r), ...hookFor(request, fields) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
     console.error('t2v start', body.model, r?.status, p?.detail || p?.error || '');

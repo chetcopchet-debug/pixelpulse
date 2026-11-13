@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Page from '../../studio/Page';
 
 const fmt = (t) => (t ? new Date(t).toLocaleString() : 'not set');
 
@@ -22,7 +21,7 @@ export default function ReportsQueue() {
     load();
   };
   return (
-    <Page bare wide>
+    <>
       <div className="r" style={{ gap: 12, justifyContent: 'space-between' }}><h1>Reports</h1><button className="btn btn-s" onClick={load}>Refresh</button></div>
       {err && <p className="bad" role="alert">{err}</p>}
       {items === null && <p className="t2">Loading…</p>}
@@ -49,6 +48,6 @@ export default function ReportsQueue() {
         </section>
       ))}
       <p style={{ marginTop: 20 }}><a className="link sm" href="/admin">Admin</a></p>
-    </Page>
+    </>
   );
 }

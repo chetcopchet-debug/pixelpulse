@@ -1,4 +1,5 @@
 "use client";
+import { t, num, langTag } from "../i18n/index.js";
 import { useEffect, useState } from "react";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import Icon from "./icons";
@@ -47,9 +48,9 @@ export function Poster({ item, version }) {
 // Square tile for grids.
 export function Tile({ item, onClick, label, poster }) {
   return (
-    <button className="tile" onClick={onClick} aria-label={label || item.prompt || (item.video ? "Video" : "Image")}>
+    <button className="tile" onClick={onClick} aria-label={label || item.prompt || (item.video ? t("Video") : t("Image"))}>
       {item.video
-        ? <><Poster item={item} version={poster} /><span className="badge"><Icon name="play" size={10} />Video</span></>
+        ? <><Poster item={item} version={poster} /><span className="badge"><Icon name="play" size={10} />{t("Video")}</span></>
         : <Picture src={item.url} />}
     </button>
   );
@@ -66,22 +67,22 @@ export function Balance({ s, small }) {
   const w = s.wallet;
   const open = () => s.setSheet({ type: "me" });
   if (w.loaded && !w.account && !w.admin) {
-    return <button className="me" onClick={open} aria-label="Sign in, prices and settings">{small ? null : <span>Sign in</span>}<span className="av"><Icon name="person" size={16} /></span></button>;
+    return <button className="me" onClick={open} aria-label={t("Sign in, prices and settings")}>{small ? null : <span>{t("Sign in")}</span>}<span className="av"><Icon name="person" size={16} /></span></button>;
   }
   const letter = (w.account?.email || "").trim().charAt(0).toUpperCase();
   return (
-    <button className="me" onClick={open} aria-label={w.admin ? "Admin mode. Open the menu" : `${w.free + w.paid} credits. Open the menu`}>
-      <i className="coin" /><span className="num">{w.admin ? "Admin" : w.loaded ? (w.free + w.paid).toLocaleString("en-US") : "…"}</span>
+    <button className="me" onClick={open} aria-label={w.admin ? t("Admin mode. Open the menu") : t("{n} credits. Open the menu", { n: w.free + w.paid })}>
+      <i className="coin" /><span className="num">{w.admin ? t("Admin") : w.loaded ? num(w.free + w.paid) : "…"}</span>
       <span className="av">{letter || <Icon name="person" size={16} />}</span>
     </button>
   );
 }
 
 export function dayLabel(iso) {
-  const d = new Date(iso), t = new Date();
+  const d = new Date(iso), now = new Date();
   const key = (x) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
-  const y = new Date(t); y.setDate(t.getDate() - 1);
-  if (key(d) === key(t)) return "Today";
-  if (key(d) === key(y)) return "Yesterday";
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", ...(d.getFullYear() !== t.getFullYear() ? { year: "numeric" } : {}) });
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  if (key(d) === key(now)) return t("Today");
+  if (key(d) === key(y)) return t("Yesterday");
+  return d.toLocaleDateString(langTag(), { weekday: "short", month: "short", day: "numeric", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
 }

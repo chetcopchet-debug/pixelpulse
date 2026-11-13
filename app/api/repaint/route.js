@@ -29,7 +29,7 @@ async function prepare(body) {
   const english = await toEnglishPrompt(prompt); // the model reads English: any other language is translated first
   const badEnglish = checkPromptText(english);
   if (badEnglish) return { error: blocked(badEnglish) };
-  const args = [mask, body?.translate === false ? prompt : english]; // translation switched off: the check above still read it in English
+  const args = [mask, english];
   args.promptLabel = prompt; // the Library shows what was asked for, in the person's own words
   args.startedAt = startedAt;
   return { args };

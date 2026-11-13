@@ -1,4 +1,5 @@
 "use client";
+import { t, N } from "../i18n/index.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FORMATS } from "../../lib/formats";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
@@ -53,11 +54,11 @@ const elapsed = (run, now) => (now - run.t0) / 1000;
 const percent = (run, now) => Math.round(Math.min(96, Math.max(4, (elapsed(run, now) / (run.eta || 25)) * 100)));
 // An estimate, said as one: how long is left.
 function leftText(run, now) {
-  if (run.status === "late") return "Still rendering";
+  if (run.status === "late") return t("Still rendering");
   const left = (run.eta || 25) - elapsed(run, now);
-  if (left > 90) return `About ${Math.round(left / 60)} minutes left`;
-  if (left > 1) return `About ${Math.ceil(left)} seconds left`;
-  return elapsed(run, now) > (run.eta || 25) * 1.5 ? "Taking longer than usual" : "Almost there";
+  if (left > 90) return t("About {n} minutes left", { n: Math.round(left / 60) });
+  if (left > 1) return t("About {n} seconds left", { n: Math.ceil(left) });
+  return elapsed(run, now) > (run.eta || 25) * 1.5 ? t("Taking longer than usual") : t("Almost there");
 }
 
 // Other things still being made, and anything that failed: one slim line each, above the prompt box.
@@ -66,26 +67,26 @@ function Jobs({ runs, s, now }) {
   const shown = runs.slice(-3), more = runs.length - shown.length;
   return (
     <div className="jobs">
-      {more > 0 ? <p className="sm t3" style={{ padding: "0 4px" }}>And {more} more in progress</p> : null}
+      {more > 0 ? <p className="sm t3" style={{ padding: "0 4px" }}>{t("And {n} more in progress", { n: more })}</p> : null}
       {shown.map((run) => {
         if (run.status === "failed") {
           return (
             <div key={run.key} className="job err" role="alert">
               <Icon name="alert" size={18} />
               <p className="job-t">{run.error}</p>
-              {run.again ? <button className="job-b" onClick={() => s.retry(run)}>Try again</button> : null}
-              <button className="job-x" aria-label="Dismiss" onClick={() => s.dropRun(run.key)}><Icon name="x" size={18} /></button>
+              {run.again ? <button className="job-b" onClick={() => s.retry(run)}>{t("Try again")}</button> : null}
+              <button className="job-x" aria-label={t("Dismiss")} onClick={() => s.dropRun(run.key)}><Icon name="x" size={18} /></button>
             </div>
           );
         }
         const parts = run.parts || [];
-        const sub = run.status === "late" ? "It will be in your Library when it's ready" : run.kind === "video" ? "You can close the site meanwhile" : run.kind === "compare" ? `${parts.filter((p) => p.status !== "running").length} of ${parts.length} ready` : run.prompt;
+        const sub = run.status === "late" ? t("It will be in your Library when it's ready") : run.kind === "video" ? t("You can close the site meanwhile") : run.kind === "compare" ? t("{done} of {all} ready", { done: parts.filter((p) => p.status !== "running").length, all: parts.length }) : run.prompt;
         return (
           <div key={run.key} className="job" role="status" aria-live="polite">
             {run.status === "late" ? <Icon name="timer" size={18} /> : <i className="spin" style={{ width: 16, height: 16 }} />}
             <p className="job-t"><span className="b clamp1">{run.label}</span>{sub ? <span className="t3 clamp1">{sub}</span> : null}</p>
             <span className="job-r">{run.kind === "compare" || run.status === "late" ? "" : leftText(run, now).replace(/ left$/, "")}</span>
-            {run.status === "late" ? <button className="job-x" aria-label="Dismiss" onClick={() => s.dropRun(run.key)}><Icon name="x" size={18} /></button> : <i className="job-bar" style={{ width: `${percent(run, now)}%` }} />}
+            {run.status === "late" ? <button className="job-x" aria-label={t("Dismiss")} onClick={() => s.dropRun(run.key)}><Icon name="x" size={18} /></button> : <i className="job-bar" style={{ width: `${percent(run, now)}%` }} />}
           </div>
         );
       })}
@@ -118,8 +119,8 @@ function Glow({ src }) {
 
 // What is happening while a picture is being made, in a few words that take turns.
 const WORDS = {
-  image: ["Mixing colors…", "Adding light…", "Sharpening details…"],
-  video: ["Setting the scene…", "Adding motion…", "Rendering frames…"],
+  image: [N("Mixing colors…"), N("Adding light…"), N("Sharpening details…")],
+  video: [N("Setting the scene…"), N("Adding motion…"), N("Rendering frames…")],
 };
 function Words({ it, now }) {
   const video = it.kind === "video";
@@ -128,11 +129,11 @@ function Words({ it, now }) {
   const pct = percent(it, now);
   const last = pct >= 88;
   const list = WORDS[video ? "video" : "image"];
-  const text = last ? "Finishing touches…" : list[i % list.length];
+  const text = last ? t("Finishing touches…") : t(list[i % list.length]);
   return (
     <div className="words" aria-hidden="true">
       <p key={text} className={last ? "stay" : undefined}>{text}<span className="num">{pct}%</span></p>
-      {video ? <p className="words-n">You can close the site. The video is saved to your Library.</p> : null}
+      {video ? <p className="words-n">{t("You can close the site. The video is saved to your Library.")}</p> : null}
     </div>
   );
 }
@@ -150,12 +151,12 @@ function Shot({ it, box, now, s, small, back, foot = 0, children }) {
   useEffect(() => { if (item?.video) setSeen(true); }, [item]);
   useEffect(() => { if (!seen) return; const t = setTimeout(() => setCalm(true), 700); return () => clearTimeout(t); }, [seen]);
   return (
-    <div className={`frame2${small ? "" : " full"}`} style={{ width: box.w, height: box.h }} role={item ? undefined : "status"} aria-label={item ? undefined : it.kind === "video" ? "Rendering" : "Generating"}>
+    <div className={`frame2${small ? "" : " full"}`} style={{ width: box.w, height: box.h }} role={item ? undefined : "status"} aria-label={item ? undefined : it.kind === "video" ? t("Rendering") : t("Generating")}>
       {seen && calm ? null : <div className="breath" aria-hidden="true"><i /></div>}
       {item && back ? <div className={`back${seen ? " in" : ""}`} style={{ backgroundImage: `url("${back}")` }} aria-hidden="true" /> : null}
       {item ? null : small ? <p className="mist-t num" aria-hidden="true">{percent(it, now)}%</p> : <Words it={it} now={now} />}
       {item ? (
-        <button className={`shot3${seen ? " in" : ""}`} style={small ? undefined : { bottom: foot }} onClick={() => s.setViewer({ item })} aria-label={item.video ? "Open video" : "Open image"}>
+        <button className={`shot3${seen ? " in" : ""}`} style={small ? undefined : { bottom: foot }} onClick={() => s.setViewer({ item })} aria-label={item.video ? t("Open video") : t("Open image")}>
           {item.video
             ? <><Poster item={item} version={s.posters[item.id]} /><span className="play"><Icon name="play" size={22} /></span></>
             : <img src={item.url} alt={item.prompt || ""} decoding="async" onLoad={() => setSeen(true)} />}
@@ -214,10 +215,10 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
   const fav = item?.id && s.favs.has(item.id);
   const cap = (
     <>
-      <p className="grow clamp1">{run?.unsaved && !wait ? "Not saved to your Library. Download it now to keep it." : show?.prompt || ""}</p>
+      <p className="grow clamp1">{run?.unsaved && !wait ? t("Not saved to your Library. Download it now to keep it.") : show?.prompt || ""}</p>
       {show?.kind === "compare" && show.cost ? <Price n={show.cost} /> : null}
-      {item?.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? "Remove from favorites" : "Add to favorites"} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : undefined} /></button> : null}
-      {item ? <button className="ib" aria-label="Download" onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button> : null}
+      {item?.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? t("Remove from favorites") : t("Add to favorites")} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : undefined} /></button> : null}
+      {item ? <button className="ib" aria-label={t("Download")} onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button> : null}
     </>
   );
 
@@ -237,10 +238,10 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
                   {p.status === "failed" ? (
                     <div className="frame2 cmp-f" style={{ width: box.w, height: box.h }}>
                       <p className="sm clamp3">{p.error}</p>
-                      {show.again ? <button className="btn btn-s" style={{ height: 40 }} onClick={() => s.retryPart(show, p.id)}><Icon name="refresh" size={16} />Try again</button> : null}
+                      {show.again ? <button className="btn btn-s" style={{ height: 40 }} onClick={() => s.retryPart(show, p.id)}><Icon name="refresh" size={16} />{t("Try again")}</button> : null}
                     </div>
                   ) : <Shot it={p} box={box} now={now} s={s} small />}
-                  <div className="cmp-l"><span className="clamp1">{p.name}</span>{p.unsaved ? <span className="sm t3">Not saved</span> : <Price n={p.cost} />}</div>
+                  <div className="cmp-l"><span className="clamp1">{p.name}</span>{p.unsaved ? <span className="sm t3">{t("Not saved")}</span> : <Price n={p.cost} />}</div>
                 </div>
               );
             })}
@@ -259,7 +260,7 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
               {tiles ? (
                 <div className="next4">
                   {nextActions(s, item).map((a) => (
-                    <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(s.busyTool)} aria-label={`${a.label}, ${a.cost} credits`}>
+                    <button key={a.key} className="nx" onClick={a.run} disabled={Boolean(s.busyTool)} aria-label={t("{name}, {n} credits", { name: a.label, n: a.cost })}>
                       <span className="nx-t">{s.busyTool === a.key ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name={a.icon} size={18} />}<Price n={a.cost} /></span>
                       <span className="nx-l clamp1">{a.short}</span>
                     </button>
@@ -283,12 +284,12 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
     main = (
       <div className="start">
         <div className="start-h">
-          <h1 className="d">{video ? "What should the video show?" : "What do you want to make?"}</h1>
-          <p className="t2">Write it {wide ? "on the left" : "below"}, or start from one of these.</p>
+          <h1 className="d">{video ? t("What should the video show?") : t("What do you want to make?")}</h1>
+          <p className="t2">{wide ? t("Write it on the left, or start from one of these.") : t("Write it below, or start from one of these.")}</p>
         </div>
         <div className="ideas">
           {cards.map((x) => (
-            <button key={x.key} className="idea2" onClick={() => onIdea(x.prompt)} aria-label={`Use this idea: ${x.title.slice(0, 80)}`}>
+            <button key={x.key} className="idea2" onClick={() => onIdea(x.prompt)} aria-label={t("Use this idea: {title}", { title: x.title.slice(0, 80) })}>
               <img src={x.src} alt="" loading="lazy" decoding="async" />
               <span><b className="clamp2">{x.title}</b></span>
             </button>
@@ -300,7 +301,7 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
   return (
     <>
       <Glow src={glow} />
-      <section className={`stage2${show ? "" : " scroll"}`} aria-label="Latest result" ref={ref}>{main}</section>
+      <section className={`stage2${show ? "" : " scroll"}`} aria-label={t("Latest result")} ref={ref}>{main}</section>
     </>
   );
 }
@@ -330,19 +331,19 @@ export default function Create({ s }) {
   const auto = !video && !s.ref && !cmp && s.auto ? autoPick(`${s.prompt} ${s.format !== "free" ? FORMATS[s.format]?.label || "" : ""}`, s.wallet, s.off) : null;
   const im = imageModel(auto ? auto.id : s.imgModel);
   const cost = s.ref ? (video ? TOOLS.animate.cost : TOOLS.reference.cost) : video ? plan?.cost : cmp ? cmp.cost : im.cost;
-  const action = s.ref ? (video ? "Animate image" : "Generate from image") : video ? "Generate video" : cmp ? `Compare ${cmp.models.length} models` : "Generate";
-  const placeholder = s.ref ? (video ? "Describe the motion (optional)" : "Describe the new image") : video ? "Describe the video you want" : "Describe the image you want";
+  const action = s.ref ? (video ? t("Animate image") : t("Generate from image")) : video ? t("Generate video") : cmp ? t("Compare {n} models", { n: cmp.models.length }) : t("Generate");
+  const placeholder = s.ref ? (video ? t("Describe the motion (optional)") : t("Describe the new image")) : video ? t("Describe the video you want") : t("Describe the image you want");
   const lockedRatio = !video && s.format !== "free" ? FORMATS[s.format]?.ratio : null; // a format fixes the shape
   const canGo = Boolean(s.prompt.trim()) || (video && s.ref);
   const project = s.projectsOn ? s.projects.find((p) => p.id === s.project) : null; // new creations are saved into it
-  const modelName = cmp ? `${cmp.models.length} models` : auto ? "Auto" : video ? vm.name : im.name;
-  const modelLabel = cmp ? `Comparing ${cmp.models.length} models. Change` : auto ? "Model: Auto. Change" : `Model: ${video ? vm.name : im.name}. Change`;
+  const modelName = cmp ? t("{n} models", { n: cmp.models.length }) : auto ? t("Auto") : video ? vm.name : im.name;
+  const modelLabel = cmp ? t("Comparing {n} models. Change", { n: cmp.models.length }) : t("Model: {name}. Change", { name: auto ? t("Auto") : video ? vm.name : im.name });
   const pickFile = () => { if (!s.needAccount({ tab: "create" })) fileRef.current?.click(); };
 
   const mode = (
-    <div className="seg" role="tablist" aria-label="What to make">
-      <button role="tab" aria-selected={!video} className={video ? "" : "on"} onClick={() => s.setMode("image")}><Icon name="image" size={18} />Image</button>
-      <button role="tab" aria-selected={video} className={video ? "on" : ""} onClick={() => s.setMode("video")}><Icon name="video" size={18} />Video</button>
+    <div className="seg" role="tablist" aria-label={t("What to make")}>
+      <button role="tab" aria-selected={!video} className={video ? "" : "on"} onClick={() => s.setMode("image")}><Icon name="image" size={18} />{t("Image")}</button>
+      <button role="tab" aria-selected={video} className={video ? "on" : ""} onClick={() => s.setMode("video")}><Icon name="video" size={18} />{t("Video")}</button>
     </div>
   );
   const text = (
@@ -354,29 +355,29 @@ export default function Create({ s }) {
     <div className="refcard">
       <span className="tile"><Picture src={s.ref.url} eager /></span>
       <div className="grow">
-        <p className="b sm">{video ? "Start frame" : "Reference image"}</p>
-        <p className="sm t3 clamp1">{video ? "The video begins from this image" : "The new image follows its look"}</p>
+        <p className="b sm">{video ? t("Start frame") : t("Reference image")}</p>
+        <p className="sm t3 clamp1">{video ? t("The video begins from this image") : t("The new image follows its look")}</p>
       </div>
-      <button className="ib" aria-label="Remove the image" onClick={() => s.setRef(null)}><Icon name="x" /></button>
+      <button className="ib" aria-label={t("Remove the image")} onClick={() => s.setRef(null)}><Icon name="x" /></button>
     </div>
   ) : null;
   const tags = (
     <>
       {s.format !== "free" && FORMATS[s.format] && !video ? (
         <div className="r" style={{ gap: 4 }}>
-          <span className="chip grow clamp1" style={{ flex: "0 1 auto" }}>Format: {FORMATS[s.format].label}</span>
-          <button className="ib" aria-label="Remove the format" onClick={() => s.setFormat("free")}><Icon name="x" size={18} /></button>
+          <span className="chip grow clamp1" style={{ flex: "0 1 auto" }}>{t("Format: {name}", { name: FORMATS[s.format].label })}</span>
+          <button className="ib" aria-label={t("Remove the format")} onClick={() => s.setFormat("free")}><Icon name="x" size={18} /></button>
         </div>
       ) : null}
       {project ? (
         <div className="r" style={{ gap: 4 }}>
-          <span className="chip grow clamp1" style={{ flex: "0 1 auto" }}><Icon name="folder" size={16} />Saving to: {project.name}</span>
-          <button className="ib" aria-label="Stop saving into this project" onClick={() => s.setProject(null)}><Icon name="x" size={18} /></button>
+          <span className="chip grow clamp1" style={{ flex: "0 1 auto" }}><Icon name="folder" size={16} />{t("Saving to: {name}", { name: project.name })}</span>
+          <button className="ib" aria-label={t("Stop saving into this project")} onClick={() => s.setProject(null)}><Icon name="x" size={18} /></button>
         </div>
       ) : null}
     </>
   );
-  const autoline = auto && s.prompt.trim() ? <p className="sm t2 autoline" role="status"><span className="b" style={{ color: "var(--text)" }}>{im.name}.</span> {auto.why}.{auto.fitted ? " Fits your balance." : ""}</p> : null;
+  const autoline = auto && s.prompt.trim() ? <p className="sm t2 autoline" role="status"><span className="b" style={{ color: "var(--text)" }}>{im.name}.</span> {t(auto.why)}.{auto.fitted ? t(" Fits your balance.") : ""}</p> : null;
   const go = (
     <button className="btn btn-p btn-wide btn-split" onClick={s.generate} disabled={!canGo}>
       <span>{action}</span>{cost ? <Price n={cost} /> : null}
@@ -384,29 +385,29 @@ export default function Create({ s }) {
   );
   const file = <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) s.upload(f); }} />;
   const more = Boolean(stage || wait); // the start screen already shows the ideas; later they are one tap away
-  const short = s.ref ? (video ? "Animate" : "Generate") : cmp ? `Compare ${cmp.models.length}` : "Generate";
+  const short = s.ref ? (video ? t("Animate") : t("Generate")) : cmp ? t("Compare {n}", { n: cmp.models.length }) : t("Generate");
   const stageEl = <Stage run={wait ? null : stage} wait={wait} s={s} now={now} video={video} wide={wide} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
 
   if (wide) {
     // Desktop: settings in a column on the left, the result large in the rest of the window.
     return (
       <div className="create wide">
-        <aside className="panel" aria-label="What to make">
+        <aside className="panel" aria-label={t("What to make")}>
           <div className="panel-top"><Brand wordmark /><Balance s={s} /></div>
           <div className="panel-body">
             {mode}
             <div className="field2">{text}</div>
             {s.ref ? <div className="set">{refcard}</div> : (
-              <button className="set-add" disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="plus" size={18} />}{s.uploading ? "Uploading" : video ? "Add a start frame" : "Add a reference image"}</button>
+              <button className="set-add" disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" style={{ width: 16, height: 16 }} /> : <Icon name="plus" size={18} />}{s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")}</button>
             )}
-            {more ? <button className="set-add" onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={18} />Ideas to start from</button> : null}
+            {more ? <button className="set-add" onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={18} />{t("Ideas to start from")}</button> : null}
             <div className="set">
-              {s.ref ? <div className="set-row"><span className="t2">Model</span><span className="b clamp1">{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span></div> : (
+              {s.ref ? <div className="set-row"><span className="t2">{t("Model")}</span><span className="b clamp1">{video ? TOOLS.animate.detail : TOOLS.reference.detail}</span></div> : (
                 <>
-                  <Row name="Model" value={modelName} label={modelLabel} onClick={() => s.setSheet({ type: "models" })} />
-                  {video ? <Row name="Length, quality, shape" value={`${plan?.d} s, ${plan?.r}, ${plan?.ratio}`} label="Length, quality and shape. Change" onClick={() => s.setSheet({ type: "video" })} />
-                    : lockedRatio ? <div className="set-row"><span className="t2">Shape</span><span className="b">{lockedRatio}</span></div>
-                    : <Row name="Shape" value={s.ratio} label={`Shape: ${s.ratio}. Change`} onClick={() => s.setSheet({ type: "ratio" })} />}
+                  <Row name={t("Model")} value={modelName} label={modelLabel} onClick={() => s.setSheet({ type: "models" })} />
+                  {video ? <Row name={t("Length, quality, shape")} value={`${plan?.d} s, ${plan?.r}, ${plan?.ratio}`} label={t("Length, quality and shape. Change")} onClick={() => s.setSheet({ type: "video" })} />
+                    : lockedRatio ? <div className="set-row"><span className="t2">{t("Shape")}</span><span className="b">{lockedRatio}</span></div>
+                    : <Row name={t("Shape")} value={s.ratio} label={t("Shape: {ratio}. Change", { ratio: s.ratio })} onClick={() => s.setSheet({ type: "ratio" })} />}
                 </>
               )}
             </div>
@@ -416,7 +417,7 @@ export default function Create({ s }) {
           <div className="panel-foot">
             <Jobs runs={jobs} s={s} now={now} />
             {go}
-            <p className="sm t3" style={{ textAlign: "center" }}>Ctrl + Enter to generate</p>
+            <p className="sm t3" style={{ textAlign: "center" }}>{t("Ctrl + Enter to generate")}</p>
           </div>
         </aside>
         <main className="canvas">{stageEl}</main>
@@ -441,8 +442,8 @@ export default function Create({ s }) {
           {refcard}
           <div className="r" style={{ gap: 4, alignItems: "flex-start" }}>
             {text}
-            {more && !s.prompt.trim() ? <button className="plus" aria-label="Ideas to start from" onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={22} /></button> : null}
-            <button className="plus" aria-label={s.uploading ? "Uploading" : video ? "Add a start frame" : "Add a reference image"} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
+            {more && !s.prompt.trim() ? <button className="plus" aria-label={t("Ideas to start from")} onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={22} /></button> : null}
+            <button className="plus" aria-label={s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
           </div>
           {autoline}
           <div className="gorow">
@@ -455,12 +456,12 @@ export default function Create({ s }) {
                     <span className="chip">{modelName}<Icon name="down" size={16} /></span>
                   </button>
                   {video ? (
-                    <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label="Length, quality and shape. Change">
+                    <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label={t("Length, quality and shape. Change")}>
                       <span className="chip">{plan?.d} s, {plan?.r}, {plan?.ratio}</span>
                     </button>
                   ) : (
                     lockedRatio ? <span className="chip" style={{ background: "none", padding: "0 4px" }}><Icon name="ratio" size={16} />{lockedRatio}</span> : (
-                      <button className="chip-tap" onClick={() => s.setSheet({ type: "ratio" })} aria-label={`Shape: ${s.ratio}. Change`}>
+                      <button className="chip-tap" onClick={() => s.setSheet({ type: "ratio" })} aria-label={t("Shape: {ratio}. Change", { ratio: s.ratio })}>
                         <span className="chip"><Icon name="ratio" size={16} />{s.ratio}</span>
                       </button>
                     )
@@ -468,7 +469,7 @@ export default function Create({ s }) {
                 </>
               )}
             </div>
-            <button className="go2" onClick={s.generate} disabled={!canGo} aria-label={`${action}${cost ? `, ${cost} credits` : ""}`}><span>{short}</span>{cost ? <Price n={cost} /> : null}</button>
+            <button className="go2" onClick={s.generate} disabled={!canGo} aria-label={cost ? t("{name}, {n} credits", { name: action, n: cost }) : action}><span>{short}</span>{cost ? <Price n={cost} /> : null}</button>
           </div>
         </div>
       </div>

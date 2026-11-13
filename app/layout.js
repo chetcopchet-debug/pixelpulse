@@ -19,9 +19,14 @@ export const metadata = {
 };
 export const viewport = { themeColor: '#000000', width: 'device-width', initialScale: 1, viewportFit: 'cover' };
 
+// Runs before the page is drawn: tells the browser (and screen readers, and its own translate offer) which
+// language the page is in. The same choice the studio makes: the saved language, else the browser's, else English.
+const SET_LANG = `(function(){try{var T={en:'en',es:'es',pt:'pt-BR',fr:'fr',de:'de',it:'it',ja:'ja',ko:'ko',zh:'zh-CN',id:'id'};var m=document.cookie.match(/(?:^|; )pp_lang=([a-z]{2})/);var l=m?m[1]:localStorage.getItem('pp_lang');if(!T[l]){l='en';var n=navigator.languages||[navigator.language];for(var i=0;i<n.length;i++){var b=String(n[i]||'').toLowerCase().split(/[-_]/)[0];if(b==='in')b='id';if(T[b]){l=b;break}}}document.documentElement.lang=T[l]}catch(e){}})()`;
+
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${display.variable} ${text.variable}`}>
+    <html lang="en" className={`${display.variable} ${text.variable}`} suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: SET_LANG }} /></head>
       <body style={{ margin: 0, padding: 0, background: '#07070a' }}>{children}</body>
     </html>
   );

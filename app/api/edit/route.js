@@ -16,7 +16,7 @@ async function prepare(body) {
   const english = await toEnglishPrompt(prompt);
   const bad = checkPromptText(english) || checkPersonEditText(english);
   if (bad) return { error: blockedMessage(bad) };
-  const args = [body?.translate === false ? prompt : english]; // translation switched off: the check above still read it in English
+  const args = [english];
   args.promptLabel = prompt;
   return { args };
 }
