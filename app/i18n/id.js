@@ -590,4 +590,6 @@ export default {
   "{name} is the best for this prompt. It needs 1 more credit.": "{name} adalah yang terbaik untuk prompt ini. Kurang 1 kredit.",
   "{name} is the best for this prompt. It needs {n} more credits.": "{name} adalah yang terbaik untuk prompt ini. Kurang {n} kredit.",
   "Create one like this": "Buat yang seperti ini",
+  "More": "Selengkapnya",
+  "Less": "Lebih sedikit",
 };

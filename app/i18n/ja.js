@@ -590,4 +590,6 @@ export default {
   "{name} is the best for this prompt. It needs 1 more credit.": "このプロンプトには{name}が最適です。あと1クレジット必要です。",
   "{name} is the best for this prompt. It needs {n} more credits.": "このプロンプトには{name}が最適です。あと{n}クレジット必要です。",
   "Create one like this": "これと同じように作る",
+  "More": "もっと見る",
+  "Less": "閉じる",
 };
