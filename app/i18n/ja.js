@@ -563,4 +563,8 @@ export default {
   "The prompt that was used": "使われたプロンプト",
   "Your idea was filled in before it was made. This is what the model got.": "アイデアは作成前に補われました。モデルに渡された内容です。",
   "Your idea": "あなたのアイデア",
+  "Length and quality": "長さと画質",
+  "Length and quality. Change": "長さと画質。変更",
+  "Prices are for a video that starts from your image, at the standard setting.": "料金は、あなたの画像から始まる動画の標準設定のものです。",
+  "The video keeps the shape of your image.": "動画は画像の縦横比を保ちます。",
 };

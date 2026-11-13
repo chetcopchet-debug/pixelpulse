@@ -563,4 +563,8 @@ export default {
   "The prompt that was used": "사용된 프롬프트",
   "Your idea was filled in before it was made. This is what the model got.": "아이디어를 만들기 전에 보완했어요. 모델이 받은 내용이에요.",
   "Your idea": "내 아이디어",
+  "Length and quality": "길이와 화질",
+  "Length and quality. Change": "길이와 화질. 변경",
+  "Prices are for a video that starts from your image, at the standard setting.": "가격은 내 이미지에서 시작하는 동영상의 기본 설정 기준이에요.",
+  "The video keeps the shape of your image.": "동영상은 이미지의 비율을 그대로 유지해요.",
 };

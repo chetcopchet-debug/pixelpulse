@@ -38,3 +38,15 @@ test('server rejects combos the model does not support', () => {
   assert.equal(videoQuote('nope', 5, '720p'), null);
   assert.equal(videoQuote('constructor', 5, '720p'), null);
 });
+
+test('a video that starts from an image: only on models that can, and with the unverified-price buffer', async () => {
+  const { videoQuote, videoTakesImage, VIDEO_PRICING, APPROX_BUFFER, creditsForUsd } = await import('../lib/videoPricing.js');
+  assert.equal(videoTakesImage('wan'), false);
+  assert.equal(videoQuote('wan', 5, '480p', '16:9', true), null); // Wan's picker model is text only
+  for (const id of ['seedance-25', 'kling-4', 'veo', 'kling-4-flash', 'omni', 'grok-video', 'h3-lite']) {
+    const p = VIDEO_PRICING[id], text = videoQuote(id, p.def.d, p.def.r, '16:9'), img = videoQuote(id, p.def.d, p.def.r, '16:9', true);
+    assert.ok(img && img.cost >= text.cost, `${id}: never cheaper than text-to-video`);
+    const list = p.usd(p.def.d, p.def.r);
+    assert.equal(img.cost, creditsForUsd(Math.round(list * APPROX_BUFFER * 1000) / 1000), `${id}: list price plus the buffer`);
+  }
+});

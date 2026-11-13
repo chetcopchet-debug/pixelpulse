@@ -1,7 +1,8 @@
 // What the interface shows for each model and tool. Prices come from the same tables the server charges from.
 import { t, N } from "../i18n/index.js";
 import { IMAGE_MODELS, VIDEO_MODELS, RETIRED } from "../../lib/catalog.js";
-import { VIDEO_PRICING, videoQuote, videoFrom } from "../../lib/videoPricing.js";
+import { VIDEO_PRICING, videoQuote, videoFrom, videoTakesImage } from "../../lib/videoPricing.js";
+export { videoTakesImage };
 
 export const imageModels = IMAGE_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost }));
 export const videoModels = VIDEO_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost, from: videoFrom(m.id).cost, eta: m.eta || 120 }));
@@ -51,13 +52,14 @@ export const TOOLS = {
 };
 
 // Options and price for one video run. The ratio falls back to one the model supports.
-export function videoPlan(modelId, d, r, ratio) {
+// `image`: the video starts from a picture (only models that can; see videoTakesImage).
+export function videoPlan(modelId, d, r, ratio, image = false) {
   const p = VIDEO_PRICING[modelId];
   if (!p) return null;
-  const q = videoQuote(modelId, d ?? p.def.d, r ?? p.def.r, ratio) || videoQuote(modelId, p.def.d, p.def.r, ratio);
+  const q = videoQuote(modelId, d ?? p.def.d, r ?? p.def.r, ratio, image) || videoQuote(modelId, p.def.d, p.def.r, ratio, image);
   return q ? { ...q, durations: p.durations, resolutions: p.resolutions, ratios: p.ratios } : null;
 }
-export const videoOptionCost = (modelId, d, r) => videoQuote(modelId, d, r, "16:9")?.cost ?? null;
+export const videoOptionCost = (modelId, d, r, image = false) => videoQuote(modelId, d, r, "16:9", image)?.cost ?? null;
 
 // The Create screen shows one thing large: whatever produced a result most recently. A single image or video
 // counts from the moment it finished; a comparison counts from its start and again each time one of its images

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
 import { autoPick } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
-import { imageModel, imageModels, videoModel, videoModels, videoPlan, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers } from "./models";
+import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers } from "./models";
 import { setDownloadMark } from "./download";
 import { posterUrl as posterUrlOf } from "../../lib/thumbs";
 
@@ -395,20 +395,24 @@ export function useStudio() {
   }, [sync, addItem, patchRun, say, awaySince]);
 
   const startVideo = useCallback((o) => {
-    // o.source: animate an existing image (fixed model). Otherwise text-to-video on the chosen model.
+    // o.source: start from an existing image. With a model from the picker that can do it (o.model), the video is
+    // made on that model, at its own length and quality. Otherwise it is "Animate": Wan's image model, fixed price.
+    // Without o.source: text-to-video on the chosen model.
     const m = videoModel(o.model);
-    const plan = o.source ? null : videoPlan(m.id, o.d, o.r, o.ratio);
-    if (!o.source && !plan) { say(t("That length and quality aren't available on this model.")); return false; }
-    const cost = o.source ? TOOLS.animate.cost : plan.cost;
-    const label = o.source ? `${TOOLS.animate.label}, ${TOOLS.animate.detail}` : `${m.name}, ${plan.d} s, ${plan.r}`;
-    if (!afford(cost, { paidOnly: true, label: o.source ? TOOLS.animate.label : m.name })) return false;
+    const picked = Boolean(o.source && o.model && videoTakesImage(m.id));
+    const fixed = Boolean(o.source) && !picked;
+    const plan = fixed ? null : videoPlan(m.id, o.d, o.r, o.source ? o.source.ratio : o.ratio, picked);
+    if (!fixed && !plan) { say(t("That length and quality aren't available on this model.")); return false; }
+    const cost = fixed ? TOOLS.animate.cost : plan.cost;
+    const label = fixed ? `${TOOLS.animate.label}, ${TOOLS.animate.detail}` : `${m.name}, ${plan.d} s, ${plan.r}`;
+    if (!afford(cost, { paidOnly: true, label: fixed ? TOOLS.animate.label : m.name })) return false;
     const key = uid();
-    setRuns((rs) => [...trim(rs), { key, kind: "video", prompt: o.prompt, label, ratio: o.source ? o.source.ratio || "1:1" : plan.ratio, cost, status: "running", t0: Date.now(), eta: o.source ? 75 : Math.round(m.eta * (plan.d > 6 ? 1.6 : 1)), poster: o.source?.url, again: { ...o, kind: "video" } }]);
+    setRuns((rs) => [...trim(rs), { key, kind: "video", prompt: o.prompt, label, ratio: o.source ? o.source.ratio || "1:1" : plan.ratio, cost, status: "running", t0: Date.now(), eta: fixed ? 75 : Math.round(m.eta * (plan.d > 6 ? 1.6 : 1)), poster: o.source?.url, again: { ...o, kind: "video" } }]);
     markSeen();
     (async () => {
       try {
         const pid = projectRef.current; // the video is filed in the project that is open when it starts
-        const res = await post("/api/animate", { ...(o.source ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(o.improve ? { improve: true } : {}) }), ...(pid ? { project: pid } : {}) });
+        const res = await post("/api/animate", { ...(fixed ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : picked ? { model: m.id, id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}), duration: plan.d, resolution: plan.r } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(o.improve ? { improve: true } : {}) }), ...(pid ? { project: pid } : {}) });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
         if (!res.ok || !d.job) throw new Error(plain(d.error) || t("The video couldn't start. Your credits were returned."));
@@ -481,7 +485,7 @@ export function useStudio() {
     if (needAccount({ tab: "create" })) return;
     const text = prompt.trim();
     if (mode === "video") {
-      if (ref) { if (startVideo({ source: ref, prompt: text })) { setPrompt(""); setRef(null); } return; }
+      if (ref) { if (startVideo({ source: ref, prompt: text, model: vidModel, d: vDur, r: vRes })) { setPrompt(""); setRef(null); } return; }
       if (!text) { say(t("Describe the video first.")); return; }
       if (startVideo({ model: vidModel, prompt: text, ratio, d: vDur, r: vRes, improve })) setPrompt("");
       return;
