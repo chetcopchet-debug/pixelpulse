@@ -502,7 +502,13 @@ export function useStudio() {
   useEffect(() => { if (!prompt.trim()) setPolish(null); }, [prompt]); // an empty box has nothing to take back
 
   // The Generate button.
+  const askedWallet = useRef(false);
+  const generateRef = useRef(null);
   const generate = useCallback(() => {
+    // The balance is not known yet (the page has only just opened): find it out first, then press again. So a
+    // price the wallet cannot cover opens "Add credits" and never starts a creation. Asked once; if the balance
+    // cannot be read, the server decides as before.
+    if (!walletRef.current.loaded && !askedWallet.current) { askedWallet.current = true; refreshWallet().finally(() => setTimeout(() => generateRef.current?.(), 60)); return; }
     if (needAccount({ tab: "create" })) return;
     const text = prompt.trim();
     if (mode === "video") {
@@ -515,7 +521,8 @@ export function useStudio() {
     if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
     const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
     if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve: improve && !polish })) setPrompt("");
-  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, improve, polish, startVideo, startImage, startCompare, say, needAccount]);
+  }, [prompt, mode, ref, vidModel, ratio, vDur, vRes, imgModel, auto, compare, format, improve, polish, startVideo, startImage, startCompare, say, needAccount, refreshWallet]);
+  generateRef.current = generate;
 
   // ---- tools on an existing image ----
   const runTool = useCallback(async (tool, item, extra = {}) => {
