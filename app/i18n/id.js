@@ -592,4 +592,12 @@ export default {
   "Create one like this": "Buat yang seperti ini",
   "More": "Selengkapnya",
   "Less": "Lebih sedikit",
+  "Today's free improvements are used. Your prompt is used as written.": "Penyempurnaan gratis hari ini sudah habis. Prompt Anda dipakai apa adanya.",
+  "Free improvements are paused for today. Your prompt is used as written.": "Penyempurnaan gratis dijeda untuk hari ini. Prompt Anda dipakai apa adanya.",
+  "Couldn't improve the prompt right now. It is used as written.": "Prompt tidak bisa disempurnakan saat ini. Dipakai apa adanya.",
+  "We couldn't translate your prompt right now, so it was used as written.": "Kami tidak bisa menerjemahkan prompt Anda saat ini, jadi dipakai apa adanya.",
+  "Free improvements are paused for today. They come back tomorrow.": "Penyempurnaan gratis dijeda untuk hari ini. Besok tersedia lagi.",
+  "Couldn't save to favorites. Try again.": "Tidak bisa menyimpan ke favorit. Coba lagi.",
+  "Couldn't remove from favorites. Try again.": "Tidak bisa menghapus dari favorit. Coba lagi.",
+  "Couldn't add it to the project. It is in your Library.": "Tidak bisa menambahkannya ke proyek. Ada di Perpustakaan Anda.",
 };

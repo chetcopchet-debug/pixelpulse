@@ -592,4 +592,12 @@ export default {
   "Create one like this": "이런 이미지 만들기",
   "More": "더 보기",
   "Less": "접기",
+  "Today's free improvements are used. Your prompt is used as written.": "오늘의 무료 개선을 모두 사용했습니다. 프롬프트는 그대로 사용됩니다.",
+  "Free improvements are paused for today. Your prompt is used as written.": "무료 개선이 오늘은 일시 중지되었습니다. 프롬프트는 그대로 사용됩니다.",
+  "Couldn't improve the prompt right now. It is used as written.": "지금은 프롬프트를 개선할 수 없습니다. 그대로 사용됩니다.",
+  "We couldn't translate your prompt right now, so it was used as written.": "지금은 프롬프트를 번역할 수 없어 그대로 사용했습니다.",
+  "Free improvements are paused for today. They come back tomorrow.": "무료 개선이 오늘은 일시 중지되었습니다. 내일 다시 사용할 수 있습니다.",
+  "Couldn't save to favorites. Try again.": "즐겨찾기에 저장하지 못했습니다. 다시 시도해 주세요.",
+  "Couldn't remove from favorites. Try again.": "즐겨찾기에서 삭제하지 못했습니다. 다시 시도해 주세요.",
+  "Couldn't add it to the project. It is in your Library.": "프로젝트에 추가하지 못했습니다. 라이브러리에 있습니다.",
 };

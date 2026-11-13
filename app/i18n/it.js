@@ -592,4 +592,12 @@ export default {
   "Create one like this": "Creane una così",
   "More": "Altro",
   "Less": "Meno",
+  "Today's free improvements are used. Your prompt is used as written.": "Le migliorie gratuite di oggi sono finite. Il tuo prompt viene usato così com'è.",
+  "Free improvements are paused for today. Your prompt is used as written.": "Le migliorie gratuite sono in pausa per oggi. Il tuo prompt viene usato così com'è.",
+  "Couldn't improve the prompt right now. It is used as written.": "Non è stato possibile migliorare il prompt ora. Viene usato così com'è.",
+  "We couldn't translate your prompt right now, so it was used as written.": "Non siamo riusciti a tradurre il tuo prompt ora, quindi è stato usato così com'è.",
+  "Free improvements are paused for today. They come back tomorrow.": "Le migliorie gratuite sono in pausa per oggi. Tornano domani.",
+  "Couldn't save to favorites. Try again.": "Non è stato possibile salvare nei preferiti. Riprova.",
+  "Couldn't remove from favorites. Try again.": "Non è stato possibile rimuovere dai preferiti. Riprova.",
+  "Couldn't add it to the project. It is in your Library.": "Non è stato possibile aggiungerlo al progetto. È nella tua Libreria.",
 };

@@ -592,4 +592,12 @@ export default {
   "Create one like this": "これと同じように作る",
   "More": "もっと見る",
   "Less": "閉じる",
+  "Today's free improvements are used. Your prompt is used as written.": "今日の無料改善は使い切りました。プロンプトはそのまま使われます。",
+  "Free improvements are paused for today. Your prompt is used as written.": "無料改善は今日は一時停止中です。プロンプトはそのまま使われます。",
+  "Couldn't improve the prompt right now. It is used as written.": "今はプロンプトを改善できませんでした。そのまま使われます。",
+  "We couldn't translate your prompt right now, so it was used as written.": "今はプロンプトを翻訳できなかったため、そのまま使いました。",
+  "Free improvements are paused for today. They come back tomorrow.": "無料改善は今日は一時停止中です。明日また使えます。",
+  "Couldn't save to favorites. Try again.": "お気に入りに保存できませんでした。もう一度お試しください。",
+  "Couldn't remove from favorites. Try again.": "お気に入りから削除できませんでした。もう一度お試しください。",
+  "Couldn't add it to the project. It is in your Library.": "プロジェクトに追加できませんでした。ライブラリにあります。",
 };

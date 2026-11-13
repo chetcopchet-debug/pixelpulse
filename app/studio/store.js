@@ -192,7 +192,7 @@ export function useStudio() {
     }
     const it = pid && !item.project ? { ...item, project: pid } : item;
     if (it !== item) {
-      post("/api/projects/items", { project: pid, ids: [item.id] }).catch(() => {});
+      post("/api/projects/items", { project: pid, ids: [item.id] }).then((res) => { if (!res.ok) throw new Error("not filed"); }).catch(() => say(t("Couldn't add it to the project. It is in your Library.")));
       setProjects((ps) => ps.map((p) => (p.id === pid ? { ...p, count: p.count + 1, cover: p.cover || (it.video ? null : it.url) } : p)));
     }
     setItems((prev) => [it, ...prev.filter((h) => h.id !== it.id)]);
@@ -274,10 +274,17 @@ export function useStudio() {
       const next = new Set(prev); const on = !next.has(item.id);
       if (on) next.add(item.id); else next.delete(item.id);
       store.write("pp_favs", [...next]);
-      if (walletRef.current.account) post("/api/favorites", on ? { add: [item.id] } : { remove: [item.id] }).catch(() => {});
+      // Saved in the account. If that did not work, the heart goes back and the person is told.
+      if (walletRef.current.account) post("/api/favorites", on ? { add: [item.id] } : { remove: [item.id] }).then(async (res) => {
+        const d = await json(res);
+        if (!res.ok || (on && d.cloud && Array.isArray(d.ids) && !d.ids.includes(item.id))) throw new Error("not saved");
+      }).catch(() => {
+        setFavs((cur) => { const back = new Set(cur); if (on) back.delete(item.id); else back.add(item.id); store.write("pp_favs", [...back]); return back; });
+        say(on ? t("Couldn't save to favorites. Try again.") : t("Couldn't remove from favorites. Try again."));
+      });
       return next;
     });
-  }, []);
+  }, [say]);
 
   // The project that is open now, as a field for a request. The server files the result there itself, so it is
   // in the right project even if the page is closed before the result comes back.
@@ -308,14 +315,18 @@ export function useStudio() {
   const improveFirst = useCallback(async (key, o, kind) => {
     if (!o.improve || !o.prompt || !shortIdea(o.prompt)) return "";
     patchRun(key, { phase: "improving" });
-    let out = "";
+    let out = "", why = "busy";
     try {
       const d = await json(await post("/api/improve", { prompt: o.prompt, kind, auto: true, ...(kind === "video" ? { model: o.model } : {}) }));
-      if (d.improved && typeof d.prompt === "string") out = d.prompt;
+      if (d.improved && typeof d.prompt === "string") out = d.prompt; else if (d.why) why = d.why;
     } catch {}
+    // Never quietly: when the idea was not improved, the person is told why, and that it is made as written.
+    if (!out) say(why === "limit" ? t("Today's free improvements are used. Your prompt is used as written.")
+      : why === "budget" ? t("Free improvements are paused for today. Your prompt is used as written.")
+      : t("Couldn't improve the prompt right now. It is used as written."));
     patchRun(key, { phase: null, t0: Date.now(), ...(out ? { used: out } : {}) }); // the estimate counts from here
     return out;
-  }, [patchRun]);
+  }, [patchRun, say]);
 
   // Returns true once the run is on screen; the request itself continues in the background.
   const startImage = useCallback((o) => {
@@ -339,6 +350,7 @@ export function useStudio() {
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label); return; }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || t("The image didn't finish. Any credits were returned."));
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id, project_id: d.project });
+        if (d.notice === "untranslated") say(t("We couldn't translate your prompt right now, so it was used as written."));
         if (d.stored) addItem(item, { keep: "project" in d });
         patchRun(key, { status: "done", item, unsaved: !d.stored, doneAt: Date.now(), lost: false, away: Boolean(d.stored) && awaySince(Date.now() - 1500), ...(typeof d.usedPrompt === "string" ? { used: d.usedPrompt } : {}) });
       } catch (e) { patchRun(key, { status: "failed", error: e.message || t("Something went wrong. Any credits were returned.") }); }
@@ -367,6 +379,7 @@ export function useStudio() {
         if (res.status === 402 || res.status === 401) { refused(d, m.cost, m.name); throw new Error(d.needSignIn ? t("Sign in to create.") : t("Not enough credits for this one.")); }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || t("This one didn't finish. Its credits were returned."));
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: d.tier || m.id, project_id: d.project });
+        if (d.notice === "untranslated") say(t("We couldn't translate your prompt right now, so it was used as written."));
         if (d.stored) addItem(item, { keep: "project" in d });
         patchPart(key, m.id, { status: "done", item, unsaved: !d.stored, doneAt: Date.now(), lost: false, away: awaySince(Date.now() - 1500) });
         return;
@@ -436,6 +449,7 @@ export function useStudio() {
         const res = await post("/api/animate", { ...(fixed ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : picked ? { model: m.id, id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}), duration: plan.d, resolution: plan.r } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(better ? { improved: better } : {}) }), ...(pid ? { project: pid } : {}) });
         const d = await json(res); sync(d);
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
+        if (d.notice === "untranslated") say(t("We couldn't translate your prompt right now, so it was used as written."));
         if (typeof d.usedPrompt === "string") patchRun(key, { used: d.usedPrompt }); // shown beside the caption when the video is ready
         if (!res.ok || !d.job) throw new Error(plain(d.error) || t("The video couldn't start. Your credits were returned."));
         await pollJob(key, d.job);
@@ -523,6 +537,7 @@ export function useStudio() {
       else if (d.error) say(plain(d.error));
       else if (d.improved && d.prompt) { setPolish({ original: polish ? polish.original : prompt, last: d.prompt, seen: [...(again ? polish.seen : []), d.prompt].slice(-3), pro }); setPrompt(d.prompt); }
       else if (d.why === "limit") setSheet({ type: "improvepro", limit: d.limit }); // today's free ones are used: offer Pro
+      else if (d.why === "budget") say(t("Free improvements are paused for today. They come back tomorrow."));
       else say(pro ? t("Couldn't improve the prompt right now. Your credit was returned.") : t("Couldn't improve the prompt right now. Try again in a moment."));
     } catch { say(t("Couldn't improve the prompt right now. Try again in a moment.")); }
     finally { setImproving(false); }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { refusalLog } from '../../../lib/refusals';
 import { accountGate } from '../../../lib/needAccount';
 import { getClientIp, chargePaidCredits, paidFor } from '../../../lib/credits';
 import { reserveSpend } from '../../../lib/usage';
@@ -55,7 +56,7 @@ const startFailed = (r) => (r?.status === 429 ? `${THROTTLED_MSG} Your credits w
 const hookFor = (request, fields) => webhookFields(new URL(request.url).origin, makeJob({ ...fields, w: 1 }), process.env.VERCEL_AUTOMATION_BYPASS_SECRET);
 
 // POST { id, prompt? } -> { job } (start). Charged up front from PAID credits; refunded if the video fails.
-export async function POST(request) {
+async function handlePost(request) {
   // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
   const stop = accountGate(request); if (stop) return stop;
   const admin = isAdmin(request);
@@ -142,8 +143,8 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   // that starts from a picture: the words there are only the motion, and with none the model gets a plain gentle one.
   // `improved`: the screen already improved the idea (/api/improve); the video is made from that text.
   const given = typeof body?.improved === 'string' && raw && !fromImage ? body.improved.trim().slice(0, 2000) : '';
-  const prepared = given ? { ...(await preparePrompt(given, { admin, budgetMs: 25_000 })), improved: true } : raw
-    ? await preparePrompt(raw, { admin, budgetMs: 25_000, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'video' : false, sound: VIDEO_WITH_SOUND.includes(body.model) })
+  const prepared = given ? { ...(await preparePrompt(given, { admin: true, budgetMs: 25_000 })), improved: true } : raw
+    ? await preparePrompt(raw, { admin: true, budgetMs: 25_000, improve: body?.improve === true && !fromImage && shortIdea(raw) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'video' : false, sound: VIDEO_WITH_SOUND.includes(body.model) })
     : { prompt: DEFAULT_MOTION, improved: false };
   const en = prepared.prompt;
   const bad = checkPromptText(en);
@@ -177,7 +178,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   await logGeneration({ userId: creator.id, ip, mode: `${fromImage ? 'i2v' : 't2v'}:${body.model}`, prompt: given ? `${raw} [made from: ${given}]` : raw, ...(row ? { inputRef: row.id } : {}), outputRef: `pred:${p.id}`, moderation: fromImage ? 'passed:input-only' : 'passed:text-only' });
   await recordJob({ ...fields, p: p.id });
   const job = makeJob({ ...fields, p: p.id });
-  const res = NextResponse.json({ job, status: 'processing', ...(prepared.improved ? { usedPrompt: en } : {}), ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
+  const res = NextResponse.json({ job, status: 'processing', ...(prepared.untranslated ? { notice: 'untranslated' } : {}), ...(prepared.improved ? { usedPrompt: en } : {}), ...(admin ? { admin: true } : { paid: await paidFor(creator) }) });
   setCreatorCookie(res, creator);
   return res;
 }
@@ -213,3 +214,6 @@ export async function GET(request) {
   if (out.status === 'failed') return NextResponse.json({ status: 'failed', error: failText(out), paid: await paidFor(creator) });
   return NextResponse.json({ status: 'processing' });
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('animate', handlePost);

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
+import { refusalLog } from '../../../lib/refusals';
 import { accountGate, SIGN_IN_MSG } from '../../../lib/needAccount';
 import { setCreditsCookie, getClientIp, freeState, chargeCredits, paidFor } from '../../../lib/credits';
-import { readAccount } from '../../../lib/account';
+import { readAccount, isTestAccount } from '../../../lib/account';
 import { THROTTLED_MSG } from '../../../lib/replicate';
 import { persistImage, runPrediction, buildFinalPrompt, MAX_PROMPT_LENGTH, VALID_STYLES, VALID_RATIOS } from '../../../lib/generation';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
@@ -31,7 +32,7 @@ function jsonError(message, status, credits) {
   return NextResponse.json({ error: message, ...(credits !== undefined ? { credits } : {}) }, { status });
 }
 
-export async function POST(request) {
+async function handlePost(request) {
   const startedAt = Date.now(); // the whole request has 60 seconds; see runPrediction
   // Creating needs an account: a visitor who is not signed in is sent to the sign-in screen.
   const stop = accountGate(request); if (stop) return stop;
@@ -109,7 +110,8 @@ export async function POST(request) {
   }
   if (!charge.ok) return notEnough();
 
-  const spend = await reserveSpend(tierDef.usd || 0.01, { admin: admin || charge.source === 'paid' });
+  const outside = admin || isTestAccount(request); // not from the free budget
+  const spend = await reserveSpend(tierDef.usd || 0.01, { admin: outside || charge.source === 'paid' });
   if (!spend.ok) {
     await charge.refund();
     return jsonError(PAUSED_MSG, 503, admin ? null : currentCredits());
@@ -127,8 +129,8 @@ export async function POST(request) {
     const given = typeof body?.improved === 'string' && !guideParent ? body.improved.trim().slice(0, 2000) : '';
     const keepText = TEXT_TIERS.includes(selectedTier) && storedTier === selectedTier;
     const prepared = given
-      ? { ...(await preparePrompt(given, { keepText, admin, budgetMs: 25_000 })), improved: true }
-      : await preparePrompt(prompt.trim(), { keepText, admin, budgetMs: 25_000, improve: body?.improve === true && !guideParent && shortIdea(prompt.trim()) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'image' : false });
+      ? { ...(await preparePrompt(given, { keepText, admin: outside, budgetMs: 25_000 })), improved: true }
+      : await preparePrompt(prompt.trim(), { keepText, admin: outside, budgetMs: 25_000, improve: body?.improve === true && !guideParent && shortIdea(prompt.trim()) && await improveAllowed(creator.id, admin, admin ? false : await hasPro(creator.id)) ? 'image' : false });
     const englishPrompt = prepared.prompt;
 
     const badEnglish = checkPromptText(englishPrompt);
@@ -188,6 +190,7 @@ export async function POST(request) {
       ...(stored?.id ? {} : { persistError: stored?.error || 'unknown error' }),
       ...(stored?.id && FORMATS[format]?.autoCutout ? { cutoutPass: issueCutoutPass(stored.id, creator.id) } : {}),
       tier: storedTier, format, project: pj,
+      ...(prepared.untranslated ? { notice: 'untranslated' } : {}), // said on the screen: nothing happens quietly
       ...(prepared.improved ? { usedPrompt: englishPrompt } : {}), // the filled-in prompt, so the person can see what was made from their idea
       credits: currentCredits(), ...(admin ? {} : { paid: await paidFor(creator) }),
       ...(admin ? { admin: true } : {}),
@@ -203,3 +206,6 @@ export async function POST(request) {
     return res;
   }
 }
+
+// Every refusal is written to the log with its reason (lib/refusals.js).
+export const POST = refusalLog('generate', handlePost);
