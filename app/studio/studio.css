@@ -1,11 +1,13 @@
 /* Yelvo studio. The interface is black, white and grey; colour comes only from people's work
-   and from the yellow coin that marks credits and prices. Dark is the default theme. */
+   and from one lime: the logo, the main action on a screen, and the coin that marks credits and prices.
+   Dark is the default theme. */
 .pp {
   --bg: #000000; --card: #151515; --fill: #222222; --fill-2: #2F2F2F;
   --line: #2A2A2A; --line-2: #4D4D4D;
   --text: #F4F4F4; --text-2: #B5B5B5; --text-3: #8F8F8F;
   --primary: #FFFFFF; --on-primary: #000000;
-  --coin: #FFC928; --coin-ring: #FFC928;
+  --accent: #C8FF3D; --on-accent: #0A0A0A;
+  --coin: #C8FF3D; --coin-ring: #C8FF3D;
   --pos: #5FD592; --neg: #FF8A80;
   --scrim: rgba(0, 0, 0, .68);
   --lift: 0 0 0 1px #2A2A2A;
@@ -24,7 +26,7 @@
   --line: #DDDDDD; --line-2: #B8B8B8;
   --text: #111111; --text-2: #4A4A4A; --text-3: #666666;
   --primary: #111111; --on-primary: #FFFFFF;
-  --coin-ring: #A87900;
+  --coin-ring: #5E8A00;
   --pos: #0B6E34; --neg: #B3261E;
   --scrim: rgba(17, 17, 17, .5);
   --lift: 0 1px 2px rgba(0, 0, 0, .06), 0 10px 28px rgba(0, 0, 0, .10);
@@ -36,7 +38,7 @@
     --line: #DDDDDD; --line-2: #B8B8B8;
     --text: #111111; --text-2: #4A4A4A; --text-3: #666666;
     --primary: #111111; --on-primary: #FFFFFF;
-    --coin-ring: #A87900;
+    --coin-ring: #5E8A00;
     --pos: #0B6E34; --neg: #B3261E;
     --scrim: rgba(17, 17, 17, .5);
     --lift: 0 1px 2px rgba(0, 0, 0, .06), 0 10px 28px rgba(0, 0, 0, .10);
@@ -55,7 +57,9 @@ html:has(.pp) body { background: transparent !important; }
 :where(.pp) p, :where(.pp) ul { margin: 0; padding: 0; }
 .pp :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
-.pp .d { font-family: var(--font-display), 'Arial Narrow', Arial, sans-serif; font-weight: 700; letter-spacing: -0.02em; }
+.pp .d { font-family: var(--font-display), 'Arial Narrow', Arial, sans-serif; font-weight: 600; letter-spacing: -0.04em; }
+/* The name beside the logo: small letters, heavier than a heading. */
+.pp .wm { font-family: var(--font-display), Arial, sans-serif; font-weight: 700; letter-spacing: -0.04em; font-size: 21px; line-height: 24px; text-transform: lowercase; }
 .pp .t2 { color: var(--text-2); }
 .pp .t3 { color: var(--text-3); }
 .pp .b { font-weight: 600; }
@@ -71,13 +75,18 @@ html:has(.pp) body { background: transparent !important; }
 
 .pp .ic { width: 20px; height: 20px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .pp .coin { display: inline-block; width: 10px; height: 10px; flex: none; border-radius: 50%; background: var(--coin); box-shadow: inset 0 0 0 1.5px var(--coin-ring); }
+/* On a lime button the coin is dark, so the price can still be seen. */
+.pp .btn-p .coin, .pp .go2 .coin { background: var(--on-accent); box-shadow: none; }
 .pp .price { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* buttons */
 .pp .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 18px; border-radius: 14px; font-weight: 600; font-size: 15px; line-height: 20px; white-space: nowrap; transition: opacity .15s, transform .1s; }
 .pp .btn:active { transform: scale(.985); }
 .pp .btn:disabled { opacity: .45; transform: none; }
-.pp .btn-p { background: var(--primary); color: var(--on-primary); }
+.pp .btn-p { background: var(--accent); color: var(--on-accent); }
+/* A main button that cannot be pressed yet is grey, not a dimmed lime. */
+.pp .btn-p:disabled, .pp .go2:disabled { background: var(--fill-2); color: var(--text-3); opacity: 1; }
+.pp .btn-p:disabled .coin, .pp .go2:disabled .coin { background: var(--text-3); }
 .pp .btn-s { background: var(--fill); }
 .pp .btn-wide { width: 100%; }
 .pp .btn-split { justify-content: space-between; padding: 0 16px 0 18px; }
@@ -96,9 +105,7 @@ html:has(.pp) body { background: transparent !important; }
 .pp .pill-tap { display: inline-flex; align-items: center; height: 44px; }
 
 /* frame */
-.pp .logo { position: relative; width: 26px; height: 26px; flex: none; }
-.pp .logo::before { content: ''; position: absolute; left: 0; bottom: 0; width: 20px; height: 20px; border-radius: 6px; background: var(--text); }
-.pp .logo::after { content: ''; position: absolute; right: 0; top: 0; width: 11px; height: 11px; border-radius: 50%; background: var(--coin); box-shadow: 0 0 0 2px var(--bg); }
+.pp .logo { width: 28px; height: 28px; flex: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23C8FF3D'/%3E%3Cpath d='M19 17 32 35 45 17M32 35V48' fill='none' stroke='%230A0A0A' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat; }
 .pp .top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: var(--top-h); padding: 0 12px 0 16px; background: var(--bg); }
 .pp .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; height: calc(var(--nav-h) + var(--safe-b)); padding-bottom: var(--safe-b); background: var(--card); border-top: 1px solid var(--line); }
 .pp .nav > button { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; line-height: 14px; font-weight: 600; color: var(--text-3); }
@@ -114,7 +121,7 @@ html:has(.pp) body { background: transparent !important; }
 .pp .card.flat { background: var(--fill); box-shadow: none; }
 /* bottom bar: Create stands out in the middle */
 .pp .nav > button.mid { color: var(--text); }
-.pp .plusb { display: flex; align-items: center; justify-content: center; width: 52px; height: 30px; border-radius: 12px; background: var(--primary); color: var(--on-primary); }
+.pp .plusb { display: flex; align-items: center; justify-content: center; width: 52px; height: 30px; border-radius: 12px; background: var(--accent); color: var(--on-accent); }
 /* Explore: the gallery */
 .pp .strip { padding-top: 6px; padding-bottom: 18px; }
 .pp .strip h1 { font-size: 28px; line-height: 32px; max-width: 560px; }
@@ -261,8 +268,7 @@ html:has(.pp) body { background: transparent !important; }
 .pp .ideas.in-sheet .idea2 { height: 150px; }
 .pp .mini2 .refcard { padding: 0; }
 .pp .plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -10px -6px -10px 0; color: var(--text-2); }
-.pp .go2 { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 12px; background: var(--primary); color: var(--on-primary); font-weight: 600; font-size: 14px; line-height: 20px; white-space: nowrap; }
-.pp .go2:disabled { opacity: .45; }
+.pp .go2 { flex: none; display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 12px; background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 14px; line-height: 20px; white-space: nowrap; }
 .pp .dock2 { position: relative; z-index: 1; flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; }
 .pp .jobs { display: flex; flex-direction: column; gap: 6px; }
 .pp .job { position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 5px 12px; border-radius: 12px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; font-size: 13px; line-height: 18px; }
@@ -298,7 +304,7 @@ html:has(.pp) body { background: transparent !important; }
 
 /* explore */
 .pp .hero { padding: 20px 20px 0; }
-.pp .hero h1 { font-size: 40px; line-height: 42px; }
+.pp .hero h1 { font-size: 35px; line-height: 39px; }
 .pp .hero p { margin-top: 14px; font-size: 16px; line-height: 24px; color: var(--text-2); max-width: 520px; }
 .pp .cta { width: 100%; max-width: 360px; height: 56px; margin-top: 24px; font-size: 17px; border-radius: 16px; }
 .pp .section { margin-top: 48px; }
@@ -406,9 +412,9 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .site-top { padding: 0 16px 0 20px; max-width: 1000px; margin: 0 auto; }
 .pp .doc { max-width: 720px; margin: 0 auto; padding: 8px 20px 0; }
 .pp .doc.wide { max-width: 960px; }
-.pp .doc h1 { font-family: var(--font-display), 'Arial Narrow', Arial, sans-serif; font-weight: 700; letter-spacing: -0.02em; font-size: 34px; line-height: 38px; margin: 16px 0 8px; }
+.pp .doc h1 { font-family: var(--font-display), 'Arial Narrow', Arial, sans-serif; font-weight: 600; letter-spacing: -0.04em; font-size: 34px; line-height: 38px; margin: 16px 0 8px; }
 .pp .lead { font-size: 16px; line-height: 24px; color: var(--text-2); max-width: 560px; }
-.pp .prose h2, .pp .doc h2.sec { font-family: var(--font-display), 'Arial Narrow', Arial, sans-serif; font-weight: 700; letter-spacing: -0.02em; font-size: 20px; line-height: 26px; margin: 32px 0 8px; }
+.pp .prose h2, .pp .doc h2.sec { font-family: var(--font-display), 'Arial Narrow', Arial, sans-serif; font-weight: 600; letter-spacing: -0.04em; font-size: 20px; line-height: 26px; margin: 32px 0 8px; }
 .pp .prose p, .pp .prose li { font-size: 15px; line-height: 24px; color: var(--text-2); }
 .pp .prose p { margin: 0 0 12px; }
 .pp .prose ul { padding-left: 20px; margin: 0 0 12px; }
@@ -418,7 +424,7 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .notice { padding: 12px 14px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-2); color: var(--text); font-size: 14px; line-height: 20px; }
 .pp .cards { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
 .pp .pcard { display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
-.pp .pcard .amount { font-family: var(--font-display), Arial, sans-serif; font-weight: 700; letter-spacing: -0.02em; font-size: 32px; line-height: 36px; }
+.pp .pcard .amount { font-family: var(--font-display), Arial, sans-serif; font-weight: 600; letter-spacing: -0.04em; font-size: 32px; line-height: 36px; }
 .pp .ptable { border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
 .pp .ptable > div { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 16px; }
 .pp .ptable > div + div { border-top: 1px solid var(--line); }
@@ -462,7 +468,7 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
   .pp .screen.library > .top, .pp .screen.library > h1, .pp .screen.library > .filters, .pp .screen.library .day { padding-left: 24px; padding-right: 24px; }
   .pp .grid3 { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 8px; padding: 0 24px; }
   .pp .grid3 .tile { border-radius: 12px; }
-  .pp .hero h1 { font-size: 56px; line-height: 58px; }
+  .pp .hero h1 { font-size: 50px; line-height: 54px; }
   .pp .steps { grid-template-columns: repeat(3, 1fr); }
   /* create on a wide screen: settings in a column, the viewing window in the middle, what to do next on the right */
   .pp .create.wide { left: 88px; bottom: 0; flex-direction: row; }

@@ -14,7 +14,7 @@ export default async function Page({ children, wide, bare }) {
     <ThemeRoot>
       <header className="top site-top">
         <a href="/" className="r" style={{ gap: 10, minHeight: 44 }} aria-label={t("Yelvo, home")}>
-          <i className="logo" aria-hidden="true" /><span className="d" style={{ fontSize: 20, lineHeight: "24px" }}>Yelvo</span>
+          <i className="logo" aria-hidden="true" /><span className="wm">Yelvo</span>
         </a>
         {bare ? null : <a className="btn btn-s" style={{ height: 44, padding: "0 14px" }} href="/?tab=create">{t("Open the studio")}</a>}
       </header>
