@@ -485,23 +485,29 @@ export function useStudio() {
 
   // The improve button in the prompt box: the idea is filled in right there, so it can be read and changed before
   // anything is made. Undo puts the person's own words back.
-  const improveNow = useCallback(async () => {
+  // level: undefined = the standard improvement (free, a number a day); "pro" = the strongest model, one credit.
+  const improveNow = useCallback(async (level) => {
     if (needAccount({ tab: "create" })) return;
     const text = prompt.trim();
     if (!text || improving) return;
+    const pro = level === "pro";
+    if (pro && !afford(1, { label: t("Improve Pro") })) return;
     // Pressed again on a version it wrote: another take on the person's own idea, different from the ones before.
     // Pressed after they changed the text: what is in the box now is the idea.
     const again = polish && text === (polish.last || "").trim();
     const idea = again ? polish.original : prompt;
-    setImproving(true);
+    setImproving(pro ? "pro" : "std");
     try {
-      const d = await json(await post("/api/improve", { prompt: idea.trim(), kind: mode === "video" ? "video" : "image", ...(again ? { avoid: polish.seen } : {}) }));
-      if (d.error) say(plain(d.error));
-      else if (d.improved && d.prompt) { setPolish({ original: polish ? polish.original : prompt, last: d.prompt, seen: [...(again ? polish.seen : []), d.prompt].slice(-3) }); setPrompt(d.prompt); }
-      else say(d.why === "limit" ? t("You've used today's prompt improvements. Your prompt will be used as you write it.") : t("Couldn't improve the prompt right now. Try again in a moment."));
+      const res = await post("/api/improve", { prompt: idea.trim(), kind: mode === "video" ? "video" : "image", ...(pro ? { level: "pro" } : {}), ...(mode === "video" ? { model: vidModel } : {}), ...(again ? { avoid: polish.seen } : {}) });
+      const d = await json(res); if (pro) sync(d);
+      if (res.status === 402) refused(d, 1, t("Improve Pro"));
+      else if (d.error) say(plain(d.error));
+      else if (d.improved && d.prompt) { setPolish({ original: polish ? polish.original : prompt, last: d.prompt, seen: [...(again ? polish.seen : []), d.prompt].slice(-3), pro }); setPrompt(d.prompt); }
+      else if (d.why === "limit") setSheet({ type: "improvepro", limit: d.limit }); // today's free ones are used: offer Pro
+      else say(pro ? t("Couldn't improve the prompt right now. Your credit was returned.") : t("Couldn't improve the prompt right now. Try again in a moment."));
     } catch { say(t("Couldn't improve the prompt right now. Try again in a moment.")); }
     finally { setImproving(false); }
-  }, [prompt, mode, improving, polish, needAccount, say]);
+  }, [prompt, mode, vidModel, improving, polish, needAccount, afford, refused, sync, say]);
   const undoImprove = useCallback(() => { if (polish) { setPrompt(polish.original); setPolish(null); } }, [polish]);
   useEffect(() => { if (!prompt.trim()) setPolish(null); }, [prompt]); // an empty box has nothing to take back
 

@@ -10,7 +10,7 @@ import Library from "./Library";
 import { Settings, Pricing, Help } from "./Pages";
 import Viewer from "./Viewer";
 import AreaEditor from "./AreaEditor";
-import { ModelSheet, RatioSheet, VideoSheet, PricingSheet, SignInSheet, AskSheet, ProjectSheet, IdeasSheet, UsedSheet, MeSheet, LangSheet } from "./Sheets";
+import { ModelSheet, RatioSheet, VideoSheet, PricingSheet, SignInSheet, AskSheet, ProjectSheet, IdeasSheet, UsedSheet, ImproveProSheet, MeSheet, LangSheet } from "./Sheets";
 
 // Three tabs. Create is the one in the middle and stands out. Everything about the account is in the profile menu.
 const TABS = [["explore", "compass", N("Explore")], ["create", "plus", N("Create")], ["library", "library", N("Library")]];
@@ -58,6 +58,7 @@ export default function Studio() {
       {sh?.type === "me" ? <MeSheet s={s} onClose={close} /> : null}
       {sh?.type === "lang" ? <LangSheet s={s} onClose={close} /> : null}
       {sh?.type === "ideas" ? <IdeasSheet s={s} onClose={close} /> : null}
+      {sh?.type === "improvepro" ? <ImproveProSheet s={s} limit={sh.limit} onClose={close} /> : null}
       {sh?.type === "used" ? <UsedSheet s={s} text={sh.text} idea={sh.idea} onClose={close} /> : null}
       {sh?.type === "project" ? <ProjectSheet s={s} mode={sh.mode} item={sh.item} id={sh.id} onClose={close} /> : null}
 
