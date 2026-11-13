@@ -589,4 +589,5 @@ export default {
   "Your prompt has speech, music or sound": "Prompt Anda berisi ucapan, musik, atau suara",
   "{name} is the best for this prompt. It needs 1 more credit.": "{name} adalah yang terbaik untuk prompt ini. Kurang 1 kredit.",
   "{name} is the best for this prompt. It needs {n} more credits.": "{name} adalah yang terbaik untuk prompt ini. Kurang {n} kredit.",
+  "Create one like this": "Buat yang seperti ini",
 };

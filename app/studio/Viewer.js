@@ -74,6 +74,12 @@ export default function Viewer({ s }) {
   const canEdit = !readonly && !item.video && item.id;
   const busy = s.busyTool;
   const next = nextActions(s, item);
+  // The picture's box has the picture's own shape (up to most of the screen's height), and the picture is fitted
+  // inside it whole. Sized this way it is never cut, in any browser; the blurred copy fills what is left.
+  const [rw, rh] = String(shown.ratio || "").split(":").map(Number);
+  const fit = !shown.video && rw > 0 && rh > 0 ? { aspectRatio: `${rw} / ${rh}` } : null;
+  // From the gallery: what a visitor can do with someone else's picture.
+  const exploreActions = explore && item.id && !item.video ? next.filter((a) => a.key === "animate" || a.key === "variations") : [];
   const copy = async () => { try { await navigator.clipboard.writeText(item.prompt || ""); s.say(t("Prompt copied")); } catch { s.say(t("Couldn't copy. Select the text instead.")); } };
   const save = async () => { if (saving) return; setSaving(true); await download(shown); setSaving(false); };
 
@@ -84,12 +90,12 @@ export default function Viewer({ s }) {
           <button className="ib" aria-label={t("Close")} onClick={() => s.setViewer(null)}><Icon name="x" /></button>
           <div className="r">
             {explore ? null : <button className="ib" aria-label={t("Download")} onClick={save}>{saving ? <i className="spin" /> : <Icon name="download" />}</button>}
-            {!readonly && item.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? t("Remove from favorites") : t("Add to favorites")} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : null} /></button> : null}
+            {(!readonly || explore) && item.id ? <button className={`ib${fav ? " on" : ""}`} aria-label={fav ? t("Remove from favorites") : t("Add to favorites")} aria-pressed={Boolean(fav)} onClick={() => s.toggleFav(item)}><Icon name="heart" style={fav ? { fill: "currentColor" } : null} /></button> : null}
             {!readonly ? <button className="ib" aria-label={t("Delete")} onClick={() => setConfirm(true)}><Icon name="trash" /></button> : null}
           </div>
         </header>
 
-        <div className="stage">
+        <div className={`stage${fit ? " fit" : ""}`} style={fit || undefined}>
           {/* The space around the picture or the video is the same picture, blurred: never plain black. */}
           <div className="vback" style={{ backgroundImage: `url("${shown.video ? posterUrl(shown.url) : thumbUrl(shown.url)}")` }} aria-hidden="true" />
           {shown.video
@@ -135,6 +141,15 @@ export default function Viewer({ s }) {
             <>
               {item.model ? <p className="sm" style={{ marginBottom: 6 }}><span className="t2">{t("Made with")}</span> <span className="b">{madeWith(item.model)}</span><span className="t3 num">, {item.ratio}</span></p> : null}
               <p style={{ margin: "0 0 14px", overflowWrap: "anywhere" }}>{item.prompt}</p>
+              {exploreActions.length ? (
+                <div className="c" style={{ gap: 8, marginBottom: 8 }}>
+                  {exploreActions.map((a) => (
+                    <button key={a.key} className="btn btn-s btn-split btn-wide" onClick={a.run} aria-label={tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: a.key === "variations" ? t("Create one like this") : a.label, n: a.cost })}>
+                      <span className="r" style={{ gap: 6 }}><Icon name={a.icon} size={18} />{a.key === "variations" ? t("Create one like this") : a.short}</span><Price n={a.cost} />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="r" style={{ gap: 8 }}>
                 <button className="btn btn-p grow" onClick={() => s.useAgain(item)}>{t("Use this prompt")}</button>
                 <button className="btn btn-s" style={{ width: 48, padding: 0 }} aria-label={t("Copy prompt")} onClick={copy}><Icon name="copy" size={20} /></button>
