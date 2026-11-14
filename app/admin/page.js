@@ -6,6 +6,8 @@ import { bump, FREE_SPEND_KEY, DAILY_SPEND_CAP_USD, PAID_SPEND_KEY, HELP_SPEND_C
 import { madeWith } from '../studio/models';
 import { converterVersion } from '../../lib/transcode';
 import { billingWarnings, replicateAccount } from '../../lib/replicate';
+import { balanceEstimate, LOW_BALANCE_USD } from '../../lib/balance';
+import BalanceForm from './BalanceForm';
 import { liveCheck } from '../../lib/modelCheck';
 import { payInfo } from '../../lib/payInfo';
 import { VIDEO_FROM_IMAGE } from '../../lib/videoPricing';
@@ -66,6 +68,7 @@ export default async function AdminLogin(props) {
   const converter = showSetup ? await converterVersion().catch(() => null) : null;
   // Replicate: the API does not report the balance, so the page shows what Replicate's own refusals said today.
   const money = admin ? await billingWarnings().catch(() => ({ low: 0, empty: 0 })) : { low: 0, empty: 0 };
+  const bal = admin ? await balanceEstimate().catch(() => null) : null; // what the owner typed in, less what the site counted since
   const account = admin ? await replicateAccount() : null;
   // Payments: what Lemon Squeezy says about the account, the store and the products. Reading only.
   const pay = admin ? await payInfo(Object.values(PLANS).map((pl) => ({ name: pl.name, variantId: process.env[pl.env] }))).catch(() => ({ configured: true, error: 'could not read Lemon Squeezy' })) : null;
@@ -158,6 +161,7 @@ export default async function AdminLogin(props) {
           </div>
 
           <h2 className="sec">Replicate account</h2>
+          {bal && bal.low && money.empty === 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>The Replicate balance is estimated at ${bal.left.toFixed(2)}, under ${LOW_BALANCE_USD}.</b> Add credit soon: below $5 Replicate slows the site down. After adding, type the new balance below.</p>}
           {money.empty > 0 && <p className="notice bad" role="alert" style={{ marginBottom: 10 }}><b>The Replicate balance is used up.</b> Replicate refused {money.empty} {money.empty === 1 ? 'run' : 'runs'} today for lack of credit. Nothing can be generated until credit is added.</p>}
           {money.empty === 0 && money.low > 0 && <p className="notice" role="alert" style={{ marginBottom: 10 }}><b>The Replicate balance is under $5.</b> Replicate slowed down {money.low} {money.low === 1 ? 'start' : 'starts'} today: below $5 it allows 6 starts a minute, one at a time. The site waits and retries, but people will see delays and some failures until credit is added.</p>}
           <div className="ptable">
@@ -166,8 +170,13 @@ export default async function AdminLogin(props) {
               <span className={`b sm ${account?.name ? 'ok' : 'bad'}`}>{account?.name ? 'Connected' : 'Problem'}</span>
             </div>
             <div>
-              <span className="grow"><span className="b">Balance</span><span className="sm t2" style={{ display: 'block' }}>Replicate does not give the balance through its API, so the amount cannot be shown here. This line turns into a warning as soon as Replicate itself reports a low or empty balance. <a className="link" href="https://replicate.com/account/billing" target="_blank" rel="noreferrer">Open Replicate billing</a></span></span>
-              <span className={`b sm ${money.empty > 0 ? 'bad' : money.low > 0 ? 'bad' : 'ok'}`} style={{ whiteSpace: 'nowrap' }}>{money.empty > 0 ? 'Empty' : money.low > 0 ? 'Under $5' : 'No warnings today'}</span>
+              <span className="grow"><span className="b">Balance</span>
+                {bal ? <span className="sm t2" style={{ display: 'block' }}>About <b>${bal.left.toFixed(2)}</b> left. An estimate: ${bal.entered.toFixed(2)} typed in on {bal.since}, less ${bal.spent.toFixed(2)} the site has counted since. Replicate&apos;s real charges can differ a little, so correct it from time to time.</span>
+                  : <span className="sm t2" style={{ display: 'block' }}>Replicate does not give the balance through its API. Type it in once and this line will estimate what is left, and warn under ${LOW_BALANCE_USD}.</span>}
+                <span className="sm t2" style={{ display: 'block' }}>Replicate&apos;s own notices (under $5, or empty) also turn this line into a warning. <a className="link" href="https://replicate.com/account/billing" target="_blank" rel="noreferrer">Open Replicate billing</a></span>
+                <BalanceForm has={Boolean(bal)} />
+              </span>
+              <span className={`b sm ${money.empty > 0 || money.low > 0 || bal?.low ? 'bad' : 'ok'}`} style={{ whiteSpace: 'nowrap' }}>{money.empty > 0 ? 'Empty' : money.low > 0 ? 'Under $5' : bal ? (bal.low ? `About $${bal.left.toFixed(2)}` : `About $${bal.left.toFixed(2)}`) : 'No warnings today'}</span>
             </div>
           </div>
 
