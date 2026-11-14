@@ -13,11 +13,12 @@ import { isDeadSlug } from '../../../lib/modelHealth';
 const MODEL_OFF_MSG = 'This model is temporarily unavailable. Pick another model.';
 import { MODEL_TIERS, DEFAULT_TIER, guidedTier, TEXT_TIERS } from '../../../lib/models';
 import { getSupabase } from '../../../lib/supabase';
-import { reserveSpend, PAUSED_MSG } from '../../../lib/usage';
+import { reserveSpend, PAUSED_MSG, bump } from '../../../lib/usage';
 import { applyFormat, isFormat, FORMATS } from '../../../lib/formats';
 import { issueCutoutPass } from '../../../lib/cutoutPass';
 import { preparePrompt, shortIdea, improveAllowed } from '../../../lib/translate';
 import { hasPro } from '../../../lib/paid';
+import { firstTime, DUPLICATE_MSG } from '../../../lib/once';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
 
@@ -49,6 +50,8 @@ async function handlePost(request) {
   } catch {
     return jsonError('Invalid request. / בקשה לא תקינה.', 400);
   }
+  // The same press sent twice: only the first goes ahead (lib/once.js). Nothing was charged for this one.
+  if (!await firstTime(creator.id, body?.rid, bump)) return NextResponse.json({ error: DUPLICATE_MSG, duplicate: true }, { status: 409 });
   const { prompt, style, aspectRatio, remixOf, tier, guideId, guideFollow } = body || {};
   const format = isFormat(body?.format) ? body.format : 'free';
 

@@ -561,6 +561,7 @@ export default {
   "1 credit. Open the menu": "1 积分。打开菜单",
   "Temporarily unavailable": "暂时不可用",
   "This model is temporarily unavailable. Pick another model.": "该模型暂时不可用。请选择其他模型。",
+  "This one is already being made.": "这个已经在生成中了。",
   "Prompt improved. See what was used": "提示词已优化。查看实际使用的内容",
   "Improve my prompt": "优化我的提示词",
   "Short ideas are filled in before they are made. Text in quotes stays as you wrote it.": "简短的想法会在生成前被补充完整。引号内的文字保持原样。",

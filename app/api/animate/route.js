@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { refusalLog } from '../../../lib/refusals';
 import { accountGate } from '../../../lib/needAccount';
 import { getClientIp, chargePaidCredits, paidFor } from '../../../lib/credits';
-import { reserveSpend } from '../../../lib/usage';
+import { reserveSpend, bump } from '../../../lib/usage';
 import { getSupabase } from '../../../lib/supabase';
 import { getCreatorId, setCreatorCookie, isUuid } from '../../../lib/identity';
 import { isAdmin } from '../../../lib/admin';
@@ -10,6 +10,7 @@ import { rateLimit } from '../../../lib/ratelimit';
 import { MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
 import { toEnglishPrompt, preparePrompt, shortIdea, improveAllowed } from '../../../lib/translate';
 import { hasPro } from '../../../lib/paid';
+import { firstTime, DUPLICATE_MSG } from '../../../lib/once';
 import { checkPromptText, blockedMessage, checkOutputImage } from '../../../lib/moderation';
 import { PREMIUM, VIDEO_TIERS } from '../../../lib/models';
 import { makeJob, readJob } from '../../../lib/animateJob';
@@ -66,6 +67,8 @@ async function handlePost(request) {
   if (!admin && await isBanned(creator.id)) return NextResponse.json({ error: BANNED_MSG }, { status: 403 });
   // Three videos blocked by the safety check today: no more videos until midnight UTC.
   if (!admin && await videoStrikesToday(creator.id) >= VIDEO_STRIKES_A_DAY) return NextResponse.json({ error: VIDEO_PAUSED_MSG }, { status: 429 });
+  // The same press sent twice: only the first goes ahead (lib/once.js). Nothing was charged for this one.
+  if (!await firstTime(creator.id, body?.rid, bump)) return NextResponse.json({ error: DUPLICATE_MSG, duplicate: true }, { status: 409 });
   // A model from the picker: text-to-video, or (with an image id) a video that starts from that picture.
   // Wan with a picture is the fixed "Animate" below: its picker model is text only.
   if (typeof body?.model === 'string' && !(body.model === 'wan' && body?.id)) return startTextVideo(request, body, { admin, creator, ip });
