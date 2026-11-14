@@ -36,20 +36,40 @@ const Sec = ({ children }) => <h2 className="sec">{children}</h2>;
 
 function Purchases() {
   const [st, setSt] = useState({ status: "loading", items: [] });
+  const [sub, setSub] = useState({ busy: false, err: "" });
   useEffect(() => {
     let live = true;
-    fetch("/api/account/purchases", { cache: "no-store" }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))).then(({ ok, d }) => { if (live) setSt(ok ? { status: "ready", items: d.items || [] } : { status: "error", items: [] }); }).catch(() => { if (live) setSt({ status: "error", items: [] }); });
+    fetch("/api/account/purchases", { cache: "no-store" }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))).then(({ ok, d }) => { if (live) setSt(ok ? { status: "ready", items: d.items || [], subscribed: Boolean(d.subscribed) } : { status: "error", items: [] }); }).catch(() => { if (live) setSt({ status: "error", items: [] }); });
     return () => { live = false; };
   }, []);
+  // "Manage subscription": the payment company's own page, where Yelvo Pro is cancelled or the card is changed.
+  const manage = async () => {
+    setSub({ busy: true, err: "" });
+    try {
+      const r = await fetch("/api/account/subscription", { method: "POST" }); const d = await r.json().catch(() => ({}));
+      if (d.url) { window.location.href = d.url; return; }
+      setSub({ busy: false, err: tm(d.error) || t("Something went wrong. Try again.") });
+    } catch { setSub({ busy: false, err: t("Something went wrong. Try again.") }); }
+  };
   if (st.status === "loading") return <div className="lrow t2"><i className="spin" />{t("Loading")}</div>;
   if (st.status === "error") return <div className="lrow t2">{t("Your purchases could not be loaded. Try again in a moment.")}</div>;
   if (!st.items.length) return <div className="lrow t2">{t("No purchases yet.")}</div>;
-  return st.items.map((p) => (
-    <div key={p.id} className="lrow two">
-      <span className="grow"><span className="b" style={{ display: "block" }}>{tm(p.name)}</span><span className="sm t2" style={{ display: "block" }}>{new Date(p.at).toLocaleDateString(langTag(), { year: "numeric", month: "short", day: "numeric" })}{p.price ? `, ${p.price}` : ""}</span></span>
-      <Price n={num(p.credits)} />
-    </div>
-  ));
+  return (
+    <>
+      {st.subscribed ? (
+        <div className="lrow two">
+          <span className="grow"><span className="b" style={{ display: "block" }}>{t("Yelvo Pro is active")}</span><span className="sm t2" style={{ display: "block" }}>{sub.err || t("Renews automatically every month until you cancel.")}</span></span>
+          <button className="btn btn-s" style={{ height: 40 }} disabled={sub.busy} onClick={manage}>{sub.busy ? <i className="spin" style={{ width: 16, height: 16 }} /> : t("Manage subscription")}</button>
+        </div>
+      ) : null}
+      {st.items.map((p) => (
+        <div key={p.id} className="lrow two">
+          <span className="grow"><span className="b" style={{ display: "block" }}>{tm(p.name)}</span><span className="sm t2" style={{ display: "block" }}>{new Date(p.at).toLocaleDateString(langTag(), { year: "numeric", month: "short", day: "numeric" })}{p.price ? `, ${p.price}` : ""}</span></span>
+          <Price n={num(p.credits)} />
+        </div>
+      ))}
+    </>
+  );
 }
 
 export function Settings({ s }) {

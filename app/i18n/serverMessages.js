@@ -18,6 +18,8 @@ export const SERVER_MESSAGES = [
   N("Account not found."),
   N("Sign in to see your purchases."),
   N("Could not load your purchases."),
+  N("No subscription was found for this account."),
+  N("The subscription page could not be opened. Try again, or contact us."),
   N("Amplify limit reached (20/hour). Try again later."),
   N("This model is temporarily unavailable. Pick another model."),
   N("Improve Pro costs 1 credit."),
