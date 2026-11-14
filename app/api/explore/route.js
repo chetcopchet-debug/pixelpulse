@@ -15,7 +15,7 @@ export async function GET() {
   const supabase = getSupabase();
   if (!supabase) return NextResponse.json({ items: [] });
   const { data, error } = await supabase.from('images')
-    .select('id, prompt, aspect_ratio, public_url, storage_path, model, featured_at, hidden, removed_at')
+    .select('id, prompt, title, aspect_ratio, public_url, storage_path, model, featured_at, hidden, removed_at')
     .not('featured_at', 'is', null).order('featured_at', { ascending: false }).limit(80);
   if (error) { console.error('Explore:', error.message); return NextResponse.json({ items: [] }); }
   const rows = data.filter((r) => !r.hidden && !r.removed_at && r.public_url);
@@ -23,6 +23,6 @@ export async function GET() {
   const have = new Map(await Promise.all(videos.map(async (r) => [r.id, await hasPreview(r.public_url)])));
   const missing = videos.find((r) => !have.get(r.id));
   if (missing) after(() => makePreview(missing));
-  const items = rows.map((r) => ({ id: r.id, prompt: r.prompt, aspect_ratio: r.aspect_ratio, public_url: r.public_url, model: r.model, created_at: r.featured_at, ...(have.get(r.id) ? { preview: true } : {}) }));
+  const items = rows.map((r) => ({ id: r.id, prompt: r.prompt, ...(r.title ? { title: r.title } : {}), aspect_ratio: r.aspect_ratio, public_url: r.public_url, model: r.model, created_at: r.featured_at, ...(have.get(r.id) ? { preview: true } : {}) }));
   return NextResponse.json({ items }, { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } });
 }

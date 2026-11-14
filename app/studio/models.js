@@ -97,6 +97,7 @@ export const toItem = (r) => ({
   id: r.id || null,
   url: r.public_url,
   prompt: r.prompt || "",
+  title: r.title || null, // a name given by hand (the gallery); without one, the name comes from the prompt
   ratio: r.aspect_ratio || "1:1",
   model: r.model || null,
   at: r.created_at || new Date().toISOString(),
