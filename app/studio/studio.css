@@ -424,6 +424,9 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
   /* On a phone the picture takes about 60% of the screen's height, so what can be done with it shows without scrolling. */
   .pp .stage.fit { max-height: 60vh; max-height: 60svh; }
   .pp .stage > video { max-height: 60vh; max-height: 60svh; }
+  /* A gallery item has one more button ("Try it free"), so its picture is a little lower and every button still shows. */
+  .pp .stage.fit.ex { max-height: 54vh; max-height: 54svh; }
+  .pp .stage.ex > video { max-height: 54vh; max-height: 54svh; }
 }
 .pp .stage.fit > img { width: 100%; height: 100%; max-width: none; max-height: none; object-fit: contain; object-position: center; }
 .pp .stage .seg { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); height: 38px; background: rgba(0, 0, 0, .6); } /* at the bottom: the bar with Close lies over the top */
