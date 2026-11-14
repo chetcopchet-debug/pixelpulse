@@ -603,4 +603,7 @@ export default {
   "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "Pembuatan video dijeda untuk akun Anda sampai tengah malam UTC, karena 3 video Anda hari ini diblokir oleh pemeriksaan keamanan.",
   "This video looks explicit and is not allowed.": "Video ini tampak eksplisit dan tidak diizinkan.",
   "The safety check is busy, so the video could not be kept.": "Pemeriksaan keamanan sedang sibuk, jadi video tidak bisa disimpan.",
+  "Improve": "Sempurnakan",
+  "It looks at your image and writes the prompt for you.": "Ia melihat gambar Anda dan menuliskan prompt untuk Anda.",
+  "Today's free improvements are used. Pro still works, for 1 credit.": "Penyempurnaan gratis hari ini sudah habis. Pro tetap bisa dipakai, dengan 1 kredit.",
 };

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
 import { TOOLS } from "./models";
+import ImproveBar from "./ImproveBar";
 
 // Brush width as a share of the image's shorter side.
 const BRUSHES = [[N("Small brush"), 0.04, 8], [N("Medium brush"), 0.09, 14], [N("Large brush"), 0.18, 22]];
@@ -145,6 +146,16 @@ export default function AreaEditor({ s, item, onClose }) {
     if (ok && alive.current) onClose(); // the result opens next to the original; on a failure the marking stays so it can be tried again
   };
 
+  // Where the marking is, as shares of the picture [left, top, right, bottom], so the improve button's model knows
+  // which part is meant.
+  const markedBox = () => {
+    const ss = strokes.current; if (!ss.length) return {};
+    let x0 = 1, y0 = 1, x1 = 0, y1 = 0;
+    for (const st of ss) for (const [x, y] of st.pts) { x0 = Math.min(x0, x - st.r / 2); y0 = Math.min(y0, y - st.r / 2); x1 = Math.max(x1, x + st.r / 2); y1 = Math.max(y1, y + st.r / 2); }
+    const cl = (v) => Math.round(Math.max(0, Math.min(1, v)) * 1000) / 1000;
+    return { box: [cl(x0), cl(y0), cl(x1), cl(y1)] };
+  };
+
   const help = problem ? problem
     : !count ? t("Paint over the part you want to change.")
     : !text.trim() ? t("Now describe what should be there instead.")
@@ -184,6 +195,7 @@ export default function AreaEditor({ s, item, onClose }) {
             <button className="btn btn-s area-sm" disabled={!count || busy} onClick={clear}>{t("Clear")}</button>
           </div>
           <textarea className="field" maxLength={1500} value={text} disabled={busy || Boolean(problem)} placeholder={t("A red scarf, a cup of coffee, clear blue sky")} aria-label={t("What should be in the marked part")} onChange={(e) => setText(e.target.value)} />
+          {item.id && !problem ? <ImproveBar s={s} text={text} setText={setText} edit="area" image={item.id} more={markedBox} disabled={busy || !count} /> : null}
           <button className="btn btn-p btn-wide btn-split" disabled={busy || !count || !text.trim() || !dims} onClick={go}><span>{busy ? t("Working") : t(tool.label)}</span><Price n={tool.cost} /></button>
         </div>
       </div>
