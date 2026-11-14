@@ -104,7 +104,7 @@ export default function Viewer({ s }) {
           </div>
         </header>
 
-        <div className={`stage${fit ? " fit" : ""}`} style={fit || undefined}>
+        <div className={`stage${fit ? " fit" : ""}${explore ? " ex" : ""}`} style={fit || undefined}>
           {/* The space around the picture or the video is the same picture, blurred: never plain black. */}
           <div className="vback" style={{ backgroundImage: `url("${shown.video ? posterUrl(shown.url) : thumbUrl(shown.url)}")` }} aria-hidden="true" />
           {shown.video
