@@ -608,4 +608,9 @@ export default {
   "Today's free improvements are used. Pro still works, for 1 credit.": "Penyempurnaan gratis hari ini sudah habis. Pro tetap bisa dipakai, dengan 1 kredit.",
   "Draft": "Draf",
   "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "Draf adalah percobaan cepat berkualitas rendah (360p). Pakai untuk menguji ide sebelum membayar kualitas penuh.",
+  "Coming soon": "Segera hadir",
+  "Sign in first, in the studio, and then buy. Your credits are saved to your account.": "Masuk dulu di studio, lalu beli. Kredit Anda disimpan di akun Anda.",
+  "Sign in first, then buy. Your credits are saved to your account.": "Masuk dulu, lalu beli. Kredit Anda disimpan di akun Anda.",
+  "Try it free with {name}": "Coba gratis dengan {name}",
+  "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "Dengan melanjutkan, Anda menyetujui <a>Ketentuan</a> dan <b>Kebijakan Privasi</b>.",
 };

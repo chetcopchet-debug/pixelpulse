@@ -1,5 +1,5 @@
 import Page from '../studio/Page';
-import { PLANS } from '../../lib/paid';
+import { PLANS, planEnabled } from '../../lib/paid';
 import BuyButton from './BuyButton';
 import { N } from '../i18n/index.js';
 import { rich } from '../i18n/rich.js';
@@ -28,7 +28,7 @@ const FAQ = [
 
 export default async function Pricing() {
   const { t, num } = await getT();
-  const buyLabels = { busy: t("Opening checkout…"), failed: t("Checkout is unavailable right now.") };
+  const buyLabels = { busy: t("Opening checkout…"), failed: t("Checkout is unavailable right now."), soon: t("Coming soon"), signin: t("Sign in first, in the studio, and then buy. Your credits are saved to your account.") };
   return (
     <Page wide>
       <h1>{t("Models & pricing")}</h1>
@@ -44,13 +44,13 @@ export default async function Pricing() {
           <p className="b">{PLANS.pack.name}</p>
           <p className="amount">{PLANS.pack.price} <span className="sm t3" style={{ fontFamily: 'var(--font-text)', letterSpacing: 0 }}>{t("one payment")}</span></p>
           <p className="t2 r" style={{ gap: 6 }}><i className="coin" />{t("{n} credits that never expire.", { n: num(PLANS.pack.credits) })}</p>
-          <BuyButton plan="pack" label={t("Buy {name}", { name: PLANS.pack.name })} labels={buyLabels} />
+          <BuyButton plan="pack" label={t("Buy {name}", { name: PLANS.pack.name })} labels={buyLabels} open={planEnabled('pack')} />
         </div>
         <div className="pcard">
           <p className="b">{PLANS.pro.name}</p>
           <p className="amount">{PLANS.pro.price} <span className="sm t3" style={{ fontFamily: 'var(--font-text)', letterSpacing: 0 }}>{t("a month")}</span></p>
           <p className="t2 r" style={{ gap: 6 }}><i className="coin" />{t("{n} credits every month. Cancel anytime.", { n: num(PLANS.pro.credits) })}</p>
-          <BuyButton plan="pro" label={t("Get {name}", { name: PLANS.pro.name })} labels={buyLabels} />
+          <BuyButton plan="pro" label={t("Get {name}", { name: PLANS.pro.name })} labels={buyLabels} open={planEnabled('pro')} />
         </div>
       </div>
       <p className="sm t3" style={{ marginTop: 12 }}>{t("Prices in USD. Taxes may be added at checkout depending on your country. Sign in first, from the profile menu in the studio, so the credits are saved to your account.")}</p>

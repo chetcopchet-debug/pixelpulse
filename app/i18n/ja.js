@@ -608,4 +608,9 @@ export default {
   "Today's free improvements are used. Pro still works, for 1 credit.": "今日の無料改善は使い切りました。Proは1クレジットで引き続き使えます。",
   "Draft": "下書き",
   "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "下書きは低画質（360p）のすばやいお試しです。フル画質にお金を使う前に、アイデアを試すのに使えます。",
+  "Coming soon": "近日公開",
+  "Sign in first, in the studio, and then buy. Your credits are saved to your account.": "先にスタジオでログインしてから購入してください。クレジットはアカウントに保存されます。",
+  "Sign in first, then buy. Your credits are saved to your account.": "先にログインしてから購入してください。クレジットはアカウントに保存されます。",
+  "Try it free with {name}": "{name}で無料で試す",
+  "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "続行すると、<a>利用規約</a>と<b>プライバシーポリシー</b>に同意したことになります。",
 };
