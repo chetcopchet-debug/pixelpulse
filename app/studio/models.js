@@ -1,8 +1,9 @@
 // What the interface shows for each model and tool. Prices come from the same tables the server charges from.
 import { t, N } from "../i18n/index.js";
 import { IMAGE_MODELS, VIDEO_MODELS, RETIRED } from "../../lib/catalog.js";
-import { VIDEO_PRICING, videoQuote, videoFrom, videoTakesImage } from "../../lib/videoPricing.js";
-export { videoTakesImage };
+import { VIDEO_PRICING, videoQuote, videoFrom, videoTakesImage, VIDEO_NO_FACES, faceAlternative } from "../../lib/videoPricing.js";
+export { videoTakesImage, faceAlternative };
+export const refusesFaces = (id) => VIDEO_NO_FACES.includes(id);
 
 export const imageModels = IMAGE_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost }));
 export const videoModels = VIDEO_MODELS.map((m) => ({ id: m.id, name: m.label, by: m.by, desc: m.desc, cost: m.cost, from: videoFrom(m.id).cost, eta: m.eta || 120 }));

@@ -84,6 +84,7 @@ export const SERVER_MESSAGES = [
   N("This image looks explicit and is not allowed."),
   N("Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check."),
   N("This video looks explicit and is not allowed."),
+  N("This model doesn't accept realistic faces, even AI-made ones."),
   N("The safety check is busy, so the video could not be kept."),
   N("Safety check unavailable, try again later."),
   N("This image looks explicit, so it can’t be published to the feed. It stays in your private gallery."),

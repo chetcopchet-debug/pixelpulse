@@ -7,7 +7,7 @@ import { setServerNow } from "../../lib/videoPricing.js";
 import { shortIdea } from "../../lib/promptLanguage.js";
 import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
-import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers, resLabel } from "./models";
+import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, faceAlternative, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers, resLabel } from "./models";
 import { lionEnter } from "./Lion";
 import { setDownloadMark } from "./download";
 import { posterUrl as posterUrlOf } from "../../lib/thumbs";
@@ -436,7 +436,8 @@ export function useStudio() {
         if (!away) say(t("Your video is ready"));
         return;
       }
-      throw new Error(plain(s.error) || t("The video didn't finish. Your credits were returned."));
+      // `faces`: the model turned the picture down because it shows a realistic face (the credits are back).
+      throw Object.assign(new Error(plain(s.error) || t("The video didn't finish. Your credits were returned.")), { faces: Boolean(s.faces) });
     }
     patchRun(key, { status: "late" });
   }, [sync, addItem, patchRun, say, awaySince]);
@@ -467,7 +468,12 @@ export function useStudio() {
         if (typeof d.usedPrompt === "string") patchRun(key, { used: d.usedPrompt }); // shown beside the caption when the video is ready
         if (!res.ok || !d.job) throw new Error(plain(d.error) || t("The video couldn't start. Your credits were returned."));
         await pollJob(key, d.job);
-      } catch (e) { patchRun(key, { status: "failed", error: e.message || t("The video didn't finish. Your credits were returned.") }); }
+      } catch (e) {
+        // The model does not take realistic faces: trying it again would end the same way, so the line offers the
+        // same video on a model that does (at that model's standard length and quality).
+        const other = e.faces && o.source ? faceAlternative(m.id, walletRef.current.off) : null;
+        patchRun(key, { status: "failed", error: e.message || t("The video didn't finish. Your credits were returned."), ...(other ? { alt: { ...o, kind: "video", model: other, d: undefined, r: undefined } } : {}) });
+      }
     })();
     return true;
   }, [afford, refused, sync, patchRun, dropRun, pollJob, say, improveFirst]);

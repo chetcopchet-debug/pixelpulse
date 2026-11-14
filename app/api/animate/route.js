@@ -185,8 +185,10 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   return res;
 }
 
-// What to tell the person when a job ended without a video. `lost`: the run finished but the file could not be kept.
-const failText = (out) => out.blocked ? `This video looks explicit and is not allowed.${out.charged ? ' Your credits were returned.' : ''}`
+// What to tell the person when a job ended without a video. `faces`: the model does not take realistic faces; the
+// screen then offers a model that does. `lost`: the run finished but the file could not be kept.
+const failText = (out) => out.faces ? `This model doesn't accept realistic faces, even AI-made ones.${out.charged ? ' Your credits were returned.' : ''}`
+  : out.blocked ? `This video looks explicit and is not allowed.${out.charged ? ' Your credits were returned.' : ''}`
   : out.unchecked ? `The safety check is busy, so the video could not be kept.${out.charged ? ' Your credits were returned.' : ''}`
   : `${out.lost ? 'The video was made but could not be saved' : 'The video failed'}${out.charged ? '. Your credits were returned.' : '.'}`;
 
@@ -203,7 +205,7 @@ export async function GET(request) {
     const jobs = [];
     for (const row of rows.slice(0, 3)) { // at most 3 saves per request (each may download a video)
       const out = await finalizeJob(jobFromRow(row));
-      jobs.push({ id: row.prediction_id.slice(0, 12), kind: row.kind, prompt: row.prompt, started: row.created_at, status: out.status, ...(out.item ? { item: out.item } : {}), ...(out.status === 'failed' ? { error: failText(out) } : {}) });
+      jobs.push({ id: row.prediction_id.slice(0, 12), kind: row.kind, prompt: row.prompt, started: row.created_at, status: out.status, ...(out.item ? { item: out.item } : {}), ...(out.status === 'failed' ? { error: failText(out), ...(out.faces ? { faces: true } : {}) } : {}) });
     }
     for (const row of rows.slice(3)) jobs.push({ id: row.prediction_id.slice(0, 12), kind: row.kind, prompt: row.prompt, started: row.created_at, status: 'processing' });
     // Videos saved before conversion existed are converted here, a couple per visit.
@@ -215,7 +217,7 @@ export async function GET(request) {
   if (!job || !job.p || creator.isNew || creator.id !== job.u) return NextResponse.json({ error: 'Unknown video job.' }, { status: 404 });
   const out = await finalizeJob(job);
   if (out.status === 'done') return NextResponse.json({ status: 'done', item: out.item });
-  if (out.status === 'failed') return NextResponse.json({ status: 'failed', error: failText(out), paid: await paidFor(creator) });
+  if (out.status === 'failed') return NextResponse.json({ status: 'failed', error: failText(out), ...(out.faces ? { faces: true } : {}), paid: await paidFor(creator) });
   return NextResponse.json({ status: 'processing' });
 }
 

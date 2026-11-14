@@ -6,9 +6,10 @@ import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
 import { imageModels, videoModels, TOOLS } from "./models";
 import { FREE_DAILY, BUILD } from "./store";
+import { KEEP_FACE_ON } from "../../lib/features.js";
 
 const THEMES = [["dark", N("Dark")], ["light", N("Light")], ["auto", N("Match device")]];
-const ABOUT = [[N("Terms"), "/terms"], [N("Privacy"), "/privacy"], [N("Refunds"), "/refund-policy"], [N("Content policy"), "/content-policy"], [N("Contact us"), "/contact"]];
+const ABOUT = [[N("Terms"), "/terms"], [N("Privacy"), "/privacy"], [N("Refunds"), "/refund-policy"], [N("Acceptable use"), "/content-policy"], [N("Contact us"), "/contact"]];
 
 // A full page that lies over the tabs, with a way back. Used for Settings, Models & pricing and Help.
 function Page({ title, s, children }) {
@@ -118,7 +119,7 @@ const EDITING = [
   [TOOLS.sharpen.label, N("The same image at twice the size"), TOOLS.sharpen.cost],
   [TOOLS.cutout.label, N("A transparent PNG"), TOOLS.cutout.cost],
   [TOOLS.reference.label, N("A new image that follows one you add"), TOOLS.reference.cost],
-  [TOOLS.facelock.label, N("The same face in a new scene. Bought credits only"), TOOLS.facelock.cost],
+  ...(KEEP_FACE_ON ? [[TOOLS.facelock.label, N("The same face in a new scene. Bought credits only"), TOOLS.facelock.cost]] : []),
   [TOOLS.edit.label, N("Describe a change to an image you have"), TOOLS.edit.cost],
   [TOOLS.repaint.label, N("Paint over a part and replace it"), TOOLS.repaint.cost],
   [TOOLS.animate.label, N("A 5 second video from an image. Bought credits only"), TOOLS.animate.cost],

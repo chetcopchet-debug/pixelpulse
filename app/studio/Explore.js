@@ -143,7 +143,7 @@ export default function Explore({ s, signedHint = false }) {
       <footer className="pad exfoot">
         <button className="chip2" onClick={() => s.setSheet({ type: "lang" })} aria-label={t("Language")}><Icon name="globe" size={18} style={{ marginRight: 8 }} />{(LANGS.find((l) => l.id === s.lang) || LANGS[0]).name}</button>
         <nav aria-label={t("About")}>
-          <a href="/terms">{t("Terms")}</a><a href="/privacy">{t("Privacy")}</a><a href="/refund-policy">{t("Refunds")}</a><a href="/content-policy">{t("Content policy")}</a><a href="/contact">{t("Contact us")}</a>
+          <a href="/terms">{t("Terms")}</a><a href="/privacy">{t("Privacy")}</a><a href="/refund-policy">{t("Refunds")}</a><a href="/content-policy">{t("Acceptable use")}</a><a href="/contact">{t("Contact us")}</a>
         </nav>
       </footer>
     </div>
