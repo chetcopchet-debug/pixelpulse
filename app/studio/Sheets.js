@@ -342,6 +342,23 @@ export function ImproveProSheet({ s, limit, onClose }) {
 }
 
 // What the model was given, when a short idea was filled in first.
+// Before the first upload on this device: what may be uploaded. Pressing the button is the agreement; it is
+// remembered here, so the sheet is shown once.
+const UPLOAD_OK = "pp_upload_ok";
+export const uploadAgreed = () => { try { return window.localStorage.getItem(UPLOAD_OK) === "1"; } catch { return false; } };
+export function UploadSheet({ pick, onClose }) {
+  const go = () => { try { window.localStorage.setItem(UPLOAD_OK, "1"); } catch {} onClose(); pick?.(); };
+  return (
+    <Sheet title={t("Before you upload")} onClose={onClose}>
+      <div style={{ padding: "0 8px 8px" }}>
+        <p className="t2" style={{ fontSize: 16, lineHeight: "24px" }}>{t("Upload only pictures you have the right to use. Don't upload a photo of another person without their permission.")}</p>
+        <button className="btn btn-p btn-wide" style={{ height: 52, marginTop: 16 }} onClick={go}>{t("Choose a picture")}</button>
+        <p className="agree" style={{ marginTop: 12 }}>{rich(t("See the <a>Acceptable Use Policy</a>."), { a: (c) => <a href="/content-policy" target="_blank" rel="noreferrer">{c}</a> })}</p>
+      </div>
+    </Sheet>
+  );
+}
+
 export function UsedSheet({ s, text, idea, onClose }) {
   return (
     <Sheet title={t("The prompt that was used")} sub={t("Your idea was filled in before it was made. This is what the model got.")} onClose={onClose}>
