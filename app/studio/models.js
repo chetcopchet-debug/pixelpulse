@@ -103,4 +103,13 @@ export const toItem = (r) => ({
   video: isVideoUrl(r.public_url),
   project: r.project_id || null,
   featured: Boolean(r.featured_at), // shown in the Explore gallery (only the site's owner can set it)
+  preview: Boolean(r.preview), // a gallery video with a light copy that can play inside its tile
 });
+
+// What a gallery tile says about how the item was made: the model's name and what one like it costs.
+export function madeFor(item) {
+  const id = String(item?.model || '');
+  if (id.startsWith('video:')) { const m = videoModels.find((x) => x.id === id.slice(6)); return m ? { name: m.name, cost: videoPlan(m.id)?.cost ?? m.cost } : null; }
+  const m = imageModels.find((x) => x.id === id);
+  return m ? { name: m.name, cost: m.cost } : null;
+}
