@@ -538,7 +538,7 @@ export default function Create({ s }) {
 
   // Phone: the result across the full width, the prompt box and the button fixed at the bottom, by the thumb.
   return (
-    <div className="create" style={keyboard ? { top: keyboard.top, height: keyboard.height, bottom: "auto" } : undefined}>
+    <div className={`create${dark ? " glass" : ""}${lion ? " lion-on" : ""}`} style={keyboard ? { top: keyboard.top, height: keyboard.height, bottom: "auto" } : undefined}>
       {lion ? <Lion /> : null}
       <header className="top">
         <Brand />
