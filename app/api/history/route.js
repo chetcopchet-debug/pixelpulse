@@ -33,6 +33,9 @@ export async function GET(request) {
     if (project) q = q.eq('project_id', project);
     if (filter === 'favorites') q = q.in('id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000']);
     if (withModel && filter === 'uploads') q = q.eq('model', 'upload').is('remix_of', null);
+    // A picture that was uploaded to work from is not something the person made: it is not in the Library's list.
+    // It is still theirs, under "Uploads" (filter=uploads), where it can be opened and edited.
+    if (withModel && filter === 'all') q = q.or('model.is.null,model.neq.upload');
     if (withModel && filter === 'edits') q = q.or('model.eq.guided,and(remix_of.not.is.null,storage_path.like.*.png)');
     if (withModel && filter === 'created') q = q.or('remix_of.is.null,storage_path.not.like.*.png').or('model.is.null,model.not.in.(upload,guided)');
     return q;

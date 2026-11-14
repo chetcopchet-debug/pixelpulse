@@ -613,4 +613,6 @@ export default {
   "Sign in first, then buy. Your credits are saved to your account.": "先にログインしてから購入してください。クレジットはアカウントに保存されます。",
   "Try it free with {name}": "{name}で無料で試す",
   "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "続行すると、<a>利用規約</a>と<b>プライバシーポリシー</b>に同意したことになります。",
+  "Uploads": "アップロード",
+  "No uploads yet. A picture you attach to work from is kept here.": "アップロードはまだありません。作業用に添付した画像はここに保存されます。",
 };

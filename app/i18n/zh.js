@@ -613,4 +613,6 @@ export default {
   "Sign in first, then buy. Your credits are saved to your account.": "请先登录，然后再购买。积分会保存到你的账号。",
   "Try it free with {name}": "用 {name} 免费试试",
   "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "继续即表示你同意<a>条款</a>和<b>隐私政策</b>。",
+  "Uploads": "上传",
+  "No uploads yet. A picture you attach to work from is kept here.": "还没有上传。你附加用来创作的图片会保存在这里。",
 };

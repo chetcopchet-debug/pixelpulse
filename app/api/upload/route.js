@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { refusalLog } from '../../../lib/refusals';
 import { accountGate } from '../../../lib/needAccount';
@@ -35,15 +36,6 @@ async function handlePost(request) {
   }
   if (!isAdmin(request) && await isBanned(creator.id)) return err(BANNED_MSG, 403);
 
-  // Idempotency: the client sends one upload id per picked photo; a retry/double-send returns the same row.
-  const uploadId = request.headers.get('x-upload-id');
-  const fixedName = !creator.isNew && isUuid(uploadId) ? `u${creatorTag(creator.id, uploadId.toLowerCase())}` : null;
-  if (fixedName) {
-    const { data: existing } = await supabase.from('images').select('id, public_url, aspect_ratio')
-      .eq('creator_id', creator.id).like('storage_path', `i/${fixedName}.%`).limit(1).maybeSingle();
-    if (existing) return NextResponse.json({ success: true, duplicate: true, item: { id: existing.id, public_url: existing.public_url,
-      prompt: 'Uploaded image', style: null, aspect_ratio: existing.aspect_ratio, model: 'upload', is_public: false, likes: 0, remix_of: null } });
-  }
   let buf = null;
   let tmpPath = null;
   const ct = (request.headers.get('content-type') || '').toLowerCase();
@@ -69,6 +61,15 @@ async function handlePost(request) {
 
     const out = await normalizeImage(buf);
     const ratio = ratioFor(out.width, out.height);
+    // The same picture is kept once. Its file is named after what is in it, so picking it again (or a retry, or a
+    // double send) finds the one already saved and answers with that, instead of saving a copy.
+    const fixedName = creator.isNew ? null : `u${creatorTag(creator.id, crypto.createHash('sha256').update(out.bytes).digest('hex'))}`;
+    if (fixedName) {
+      const { data: existing } = await supabase.from('images').select('id, public_url, aspect_ratio')
+        .eq('creator_id', creator.id).like('storage_path', `i/${fixedName}.%`).limit(1).maybeSingle();
+      if (existing) return NextResponse.json({ success: true, duplicate: true, item: { id: existing.id, public_url: existing.public_url,
+        prompt: 'Uploaded image', style: null, aspect_ratio: existing.aspect_ratio, model: 'upload', is_public: false, likes: 0, remix_of: null } });
+    }
     const stored = await persistBytes({ bytes: out.bytes, contentType: out.contentType, prompt: 'Uploaded image', style: null, ratio,
       creatorId: creator.id, remixOf: null, tier: 'upload', fixedName });
     if (!stored?.id) return err(`Could not save the upload (${stored?.error || 'unknown'}).`, 500);

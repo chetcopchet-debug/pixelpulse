@@ -613,4 +613,6 @@ export default {
   "Sign in first, then buy. Your credits are saved to your account.": "Melde dich zuerst an und kaufe dann. Deine Credits werden in deinem Konto gespeichert.",
   "Try it free with {name}": "Kostenlos ausprobieren mit {name}",
   "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "Wenn du fortfährst, stimmst du den <a>Nutzungsbedingungen</a> und der <b>Datenschutzerklärung</b> zu.",
+  "Uploads": "Uploads",
+  "No uploads yet. A picture you attach to work from is kept here.": "Noch keine Uploads. Ein Bild, das du als Vorlage anhängst, wird hier aufbewahrt.",
 };

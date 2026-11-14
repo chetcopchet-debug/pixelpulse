@@ -613,4 +613,6 @@ export default {
   "Sign in first, then buy. Your credits are saved to your account.": "Masuk dulu, lalu beli. Kredit Anda disimpan di akun Anda.",
   "Try it free with {name}": "Coba gratis dengan {name}",
   "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "Dengan melanjutkan, Anda menyetujui <a>Ketentuan</a> dan <b>Kebijakan Privasi</b>.",
+  "Uploads": "Unggahan",
+  "No uploads yet. A picture you attach to work from is kept here.": "Belum ada unggahan. Gambar yang Anda lampirkan untuk dikerjakan disimpan di sini.",
 };
