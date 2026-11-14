@@ -600,4 +600,7 @@ export default {
   "Couldn't save to favorites. Try again.": "Tidak bisa menyimpan ke favorit. Coba lagi.",
   "Couldn't remove from favorites. Try again.": "Tidak bisa menghapus dari favorit. Coba lagi.",
   "Couldn't add it to the project. It is in your Library.": "Tidak bisa menambahkannya ke proyek. Ada di Perpustakaan Anda.",
+  "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "Pembuatan video dijeda untuk akun Anda sampai tengah malam UTC, karena 3 video Anda hari ini diblokir oleh pemeriksaan keamanan.",
+  "This video looks explicit and is not allowed.": "Video ini tampak eksplisit dan tidak diizinkan.",
+  "The safety check is busy, so the video could not be kept.": "Pemeriksaan keamanan sedang sibuk, jadi video tidak bisa disimpan.",
 };

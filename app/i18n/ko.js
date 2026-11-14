@@ -600,4 +600,7 @@ export default {
   "Couldn't save to favorites. Try again.": "즐겨찾기에 저장하지 못했습니다. 다시 시도해 주세요.",
   "Couldn't remove from favorites. Try again.": "즐겨찾기에서 삭제하지 못했습니다. 다시 시도해 주세요.",
   "Couldn't add it to the project. It is in your Library.": "프로젝트에 추가하지 못했습니다. 라이브러리에 있습니다.",
+  "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "오늘 동영상 3개가 안전 검사에서 차단되어, 계정의 동영상 만들기가 UTC 자정까지 일시 중지되었습니다.",
+  "This video looks explicit and is not allowed.": "이 동영상은 노골적인 내용으로 보여 허용되지 않습니다.",
+  "The safety check is busy, so the video could not be kept.": "안전 검사가 혼잡하여 동영상을 보관할 수 없었습니다.",
 };

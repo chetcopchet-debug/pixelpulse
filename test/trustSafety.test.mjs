@@ -37,11 +37,13 @@ test('classifier, ban threshold, SLA, video detection', () => {
 // Minimal in-memory fake of the Supabase query builder used by applyTakedown/addStrike.
 function fakeDb(tables) {
   const from = (t) => {
-    const st = { t, filters: [], op: 'select', patch: null, head: false };
-    const rows = () => (tables[t] ||= []).filter((r) => st.filters.every(([k, v]) => r[k] === v));
+    const st = { t, filters: [], nots: [], op: 'select', patch: null, head: false };
+    const like = (v, pat) => String(v || '').startsWith(String(pat).replace(/%$/, '')); // only 'prefix%' is used
+    const rows = () => (tables[t] ||= []).filter((r) => st.filters.every(([k, v]) => r[k] === v) && st.nots.every(([k, pat]) => !like(r[k], pat)));
     const q = {
       select(_c, o) { if (o?.head) st.head = true; return q; },
       eq(k, v) { st.filters.push([k, v]); return q; },
+      not(k, _op, pat) { st.nots.push([k, pat]); return q; },
       update(p) { st.op = 'update'; st.patch = p; return q; },
       upsert(r, o) { const key = o.onConflict; if (!(tables[t] ||= []).some((x) => x[key] === r[key])) tables[t].push({ ...r }); return Promise.resolve({ error: null }); },
       maybeSingle() { return Promise.resolve({ data: rows()[0] || null, error: null }); },
@@ -72,4 +74,13 @@ test('applyTakedown: urgent report hides; nsfw removes; 3 strikes bans', async (
   let calls = 0; // classifier runs only once per item
   await applyTakedown(sb, { imageId: 'a', code: 'other', distinctReporters: 2, classify: async () => { calls++; return 'nsfw'; } });
   assert.equal(calls, 0);
+});
+
+test('a blocked video is a count of its own: it never adds to the strikes that ban', async () => {
+  const { addStrike, VIDEO_STRIKE } = await import('../lib/trustSafety.js');
+  const db = { moderation_strikes: [1, 2, 3, 4, 5].map((n) => ({ image_id: `v${n}`, creator_id: 'c9', source: `${VIDEO_STRIKE}pred${n}` })) };
+  const out = await addStrike(fakeDb(db), { imageId: 'img1', creatorId: 'c9', source: 'report' });
+  assert.equal(out.strikes, 1, 'five blocked videos and one removed image count as one strike');
+  assert.equal(out.banned, false);
+  assert.equal((db.banned_creators || []).length, 0);
 });

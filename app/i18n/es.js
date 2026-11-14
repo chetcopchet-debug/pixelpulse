@@ -600,4 +600,7 @@ export default {
   "Couldn't save to favorites. Try again.": "No se pudo guardar en favoritos. Inténtalo de nuevo.",
   "Couldn't remove from favorites. Try again.": "No se pudo quitar de favoritos. Inténtalo de nuevo.",
   "Couldn't add it to the project. It is in your Library.": "No se pudo añadir al proyecto. Está en tu Biblioteca.",
+  "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "La creación de videos está en pausa para tu cuenta hasta la medianoche UTC, porque 3 de tus videos de hoy fueron bloqueados por la revisión de seguridad.",
+  "This video looks explicit and is not allowed.": "Este video parece explícito y no está permitido.",
+  "The safety check is busy, so the video could not be kept.": "La revisión de seguridad está ocupada, así que el video no se pudo guardar.",
 };
