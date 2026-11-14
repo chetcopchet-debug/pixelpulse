@@ -7,7 +7,7 @@ import Icon from "./icons";
 // without scrolling (up to a part of the screen's height); another tap puts it back.
 export function GrowButton({ on, onClick }) {
   return (
-    <button type="button" className={`grow${on ? " on" : ""}`} aria-pressed={on} aria-label={on ? t("Make the box small again") : t("Show the whole prompt")} onClick={onClick}>
+    <button type="button" className={`growb${on ? " on" : ""}`} aria-pressed={on} aria-label={on ? t("Make the box small again") : t("Show the whole prompt")} onClick={onClick}>
       <Icon name={on ? "shrink" : "grow"} size={16} />
     </button>
   );

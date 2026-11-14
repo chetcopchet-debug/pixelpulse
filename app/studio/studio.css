@@ -567,11 +567,11 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .chip[role="tab"].on, .pp .chip2[role="tab"].on { background: var(--on-tab); color: var(--text); box-shadow: inset 0 0 0 1px var(--on-tab-line); }
 
 /* The corner button of a prompt box: shows the whole prompt, and puts the box back. Quiet, like the tabs. */
-.pp .grow { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 10px; color: var(--text-3); }
-.pp .grow.on { background: var(--on-tab); color: var(--text); box-shadow: inset 0 0 0 1px var(--on-tab-line); }
-.pp .mini2 .grow { margin: -3px 0 -3px 2px; }
+.pp .growb { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 10px; color: var(--text-3); }
+.pp .growb.on { background: var(--on-tab); color: var(--text); box-shadow: inset 0 0 0 1px var(--on-tab-line); }
+.pp .mini2 .growb { margin: -3px 0 -3px 2px; }
 .pp .growbox { position: relative; }
-.pp .growbox > .grow { position: absolute; top: 6px; right: 6px; }
+.pp .growbox > .growb { position: absolute; top: 6px; right: 6px; }
 .pp .growbox > textarea.field { display: block; width: 100%; padding-right: 42px; }
 .pp .field2.growbox > textarea.prompt { padding-right: 38px; }
 .pp textarea.prompt.big, .pp .mini2 textarea.prompt.big, .pp .field2 textarea.prompt.big { max-height: none; }
