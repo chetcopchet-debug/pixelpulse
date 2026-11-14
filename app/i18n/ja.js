@@ -564,6 +564,8 @@ export default {
   "Length and quality. Change": "長さと画質。変更",
   "Prices are for a video that starts from your image, at the standard setting.": "料金は、あなたの画像から始まる動画の標準設定のものです。",
   "The video keeps the shape of your image.": "動画は画像の縦横比を保ちます。",
+  "Show the whole prompt": "プロンプト全体を表示",
+  "Make the box small again": "ボックスを元の大きさに戻す",
   "Improve this prompt now": "このプロンプトを今すぐ改善",
   "Improved. You can edit it.": "改善しました。編集できます。",
   "Couldn't improve the prompt right now. Try again in a moment.": "今はプロンプトを改善できませんでした。少ししてからもう一度お試しください。",

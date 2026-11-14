@@ -564,6 +564,8 @@ export default {
   "Length and quality. Change": "Durasi dan kualitas. Ubah",
   "Prices are for a video that starts from your image, at the standard setting.": "Harga untuk video yang dimulai dari gambarmu, pada pengaturan standar.",
   "The video keeps the shape of your image.": "Video mengikuti bentuk gambarmu.",
+  "Show the whole prompt": "Tampilkan seluruh prompt",
+  "Make the box small again": "Kecilkan kotak lagi",
   "Improve this prompt now": "Sempurnakan prompt ini sekarang",
   "Improved. You can edit it.": "Sudah disempurnakan. Kamu bisa mengeditnya.",
   "Couldn't improve the prompt right now. Try again in a moment.": "Prompt belum bisa disempurnakan sekarang. Coba lagi sebentar lagi.",
