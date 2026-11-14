@@ -126,12 +126,12 @@ export default async function AdminLogin(props) {
           <h2 className="sec">What went wrong</h2>
           {errors.length === 0 ? <p className="t2">No errors were counted today or yesterday.</p> : (
             <>
-              <p className="t2" style={{ marginBottom: 10 }}>Every error the server reports and every error in a visitor's browser, grouped by message. Numbers, ids and addresses are removed. {errors.reduce((n, e) => n + e.today, 0)} today, {errors.reduce((n, e) => n + e.yesterday, 0)} yesterday.</p>
+              <p className="t2" style={{ marginBottom: 10 }}>Every error the server reports and every error in a visitor's browser, grouped by message. Safety, low balance and rate limit come first. Numbers, ids and addresses are removed. {errors.reduce((n, e) => n + e.today, 0)} today, {errors.reduce((n, e) => n + e.yesterday, 0)} yesterday.</p>
               <div className="ptable">
                 <div className="head"><span className="grow">Where and what</span><span>Today</span><span style={{ minWidth: 64, textAlign: 'right' }}>Yesterday</span></div>
                 {errors.slice(0, 25).map((e) => (
                   <div key={e.where + e.message}>
-                    <span className="grow"><span className="sm t2" style={{ display: 'block' }}>{e.where === 'browser' ? "In a visitor's browser" : e.where === 'crash' ? 'A request crashed' : 'On the server'}</span><span style={{ overflowWrap: 'anywhere' }}>{e.message}</span></span>
+                    <span className="grow"><span className="sm t2" style={{ display: 'block' }}>{e.kind ? <b style={{ display: 'inline-block', marginRight: 6, padding: '0 6px', borderRadius: 6, color: '#000', background: e.kind === 'safety' ? '#FF7A7A' : e.kind === 'balance' ? '#FFC24D' : '#7FC8FF' }}>{e.kind === 'safety' ? 'Safety' : e.kind === 'balance' ? 'Low balance' : 'Rate limit'}</b> : null}{e.where === 'browser' ? "In a visitor's browser" : e.where === 'crash' ? 'A request crashed' : 'On the server'}</span><span style={{ overflowWrap: 'anywhere' }}>{e.message}</span></span>
                     <span className={`b num ${e.today ? 'bad' : 't3'}`}>{e.today}</span><span className="t2 num" style={{ minWidth: 64, textAlign: 'right' }}>{e.yesterday}</span>
                   </div>
                 ))}

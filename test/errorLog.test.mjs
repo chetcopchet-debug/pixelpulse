@@ -24,3 +24,23 @@ test('the summary groups by place and message and puts today first', () => {
   const s = mod.summarize(rows, '2026-11-13', '2026-11-12');
   assert.deepEqual(s.map((e) => [e.where, e.today, e.yesterday]), [['server', 4, 1], ['browser', 0, 9]]);
 });
+
+test('what went wrong: noise is left out, and safety, balance and rate limit come first', () => {
+  const { summarize, kindOf, NOISE } = mod;
+  assert.ok(NOISE.test('video repair skipped <id> already in the web format'));
+  assert.ok(NOISE.test('(node:#) ExperimentalWarning: vm.USE_MAIN_CONTEXT_DEFAULT_LOADER is an experimental feature'));
+  assert.equal(kindOf('Safety check unavailable: no checker answered; the result is blocked'), 'safety');
+  assert.equal(kindOf('NSFW classifier unavailable: timeout'), 'safety');
+  assert.equal(kindOf('Replicate throttled, waiting # ms: Request was throttled. Your rate limit for creating predictions is reduced to # requests per minute until you have at least $# in credit'), 'balance');
+  assert.equal(kindOf('Translate: openai/gpt-#-nano #: Replicate asked to slow down'), 'rate');
+  assert.equal(kindOf('Prediction failed: User Input Error'), '');
+  const day = '2026-11-14';
+  const rows = [
+    { key: 'err:server:Prediction failed: User Input Error', day, amount: 50 },
+    { key: 'err:server:video repair skipped <id> already in the web format', day, amount: 99 },
+    { key: 'err:server:Translate: x #: Replicate asked to slow down', day, amount: 2 },
+    { key: 'err:server:NSFW classifier unavailable: timeout', day, amount: 1 },
+  ];
+  const out = summarize(rows, day, '2026-11-13');
+  assert.deepEqual(out.map((e) => e.kind), ['safety', 'rate', '']);
+});
