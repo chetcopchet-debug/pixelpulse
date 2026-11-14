@@ -42,7 +42,7 @@ async function prepare(body) {
 // Ideogram 4.5 does the repainting; if it fails and there is time left in the request, FLUX Fill Pro is tried.
 const COST = 13;   // Ideogram 4.5 at its list price of $0.06 plus the 15% margin for a price not read on Replicate
 const USD = 0.069;
-const TIME = 54_000; // a request has 60 seconds in all
+const TIME = 47_000; // a request has 60 seconds in all, and the safety check and the save come after this
 
 async function run({ row, extra }) {
   const [mask, prompt] = extra;
