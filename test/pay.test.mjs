@@ -89,6 +89,5 @@ test('only lib/pay (and the admin reader) knows the payment company', () => {
   const walk = (dir) => readdirSync(new URL(`../${dir}`, import.meta.url), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.js$/.test(e.name) ? [`${dir}/${e.name}`] : []));
   const allowed = (f) => f.startsWith('lib/pay/') || f === 'lib/payInfo.js' || f.startsWith('app/admin/') || f.startsWith('app/api/webhooks/lemonsqueezy/') || /^app\/i18n\/[a-z]{2}\.js$/.test(f) || f === 'lib/galleryPrompts.js';
   const leaks = [...walk('app'), ...walk('lib')].filter((f) => !allowed(f) && /lemon ?squeezy|LEMONSQUEEZY/i.test(readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')));
-  // The legal and price pages still name the company until their own PR is merged; they are text, not code paths.
-  assert.deepEqual(leaks.filter((f) => !/^app\/(terms|refund-policy|pricing)\/page\.js$/.test(f)), []);
+  assert.deepEqual(leaks, []);
 });
