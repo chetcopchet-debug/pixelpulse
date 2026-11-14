@@ -18,5 +18,7 @@ export async function GET(request) {
     .order('created_at', { ascending: false }).limit(100);
   if (error) { console.error('Purchases:', error.message); return NextResponse.json({ error: 'Could not load your purchases.' }, { status: 500 }); }
   const items = data.filter((r) => NAMES[r.kind]).map((r) => ({ id: r.event_id, name: NAMES[r.kind], credits: r.credits, at: r.created_at, price: PLANS[r.kind]?.price || null }));
-  return NextResponse.json({ items });
+  // A Pro payment in the last 35 days: the subscription is running, and the screen offers "Manage subscription".
+  const subscribed = data.some((r) => r.kind === 'pro' && Date.now() - Date.parse(r.created_at) < 35 * 86_400_000);
+  return NextResponse.json({ items, subscribed });
 }

@@ -5,7 +5,7 @@ import crypto from 'crypto';
 process.env.CREDITS_SECRET = 'test-secret';
 process.env.LEMONSQUEEZY_VARIANT_PACK = '111';
 process.env.LEMONSQUEEZY_VARIANT_PRO = '222';
-const { verifySignature, planEvent } = await import('../lib/lsWebhook.js');
+const { verifySignature, planEvent } = await import('../lib/pay/lemonsqueezy.js');
 const { signUidFor } = await import('../lib/paid.js');
 const uid = '11111111-2222-4333-8444-555555555555';
 const WH = 'whsec-test';

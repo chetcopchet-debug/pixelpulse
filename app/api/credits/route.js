@@ -3,7 +3,8 @@ import { setCreditsCookie, getClientIp, freeState, paidFor } from '../../../lib/
 import { isAdmin } from '../../../lib/admin';
 import { readAccount } from '../../../lib/account';
 import { getCreatorId } from '../../../lib/identity';
-import { paymentsEnabled, planEnabled, PLANS, hasPurchased } from '../../../lib/paid';
+import { PLANS, hasPurchased } from '../../../lib/paid';
+import { paymentsEnabled, planEnabled } from '../../../lib/pay';
 import { modelHealth } from '../../../lib/modelHealth';
 import { MODEL_TIERS, VIDEO_TIERS } from '../../../lib/models';
 

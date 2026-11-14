@@ -10,6 +10,7 @@ import { balanceEstimate, LOW_BALANCE_USD } from '../../lib/balance';
 import BalanceForm from './BalanceForm';
 import { liveCheck } from '../../lib/modelCheck';
 import { payInfo } from '../../lib/payInfo';
+import { provider as payProvider } from '../../lib/pay';
 import { VIDEO_FROM_IMAGE } from '../../lib/videoPricing';
 import { PLANS } from '../../lib/paid';
 import { modelHealth } from '../../lib/modelHealth';
@@ -71,7 +72,7 @@ export default async function AdminLogin(props) {
   const bal = admin ? await balanceEstimate().catch(() => null) : null; // what the owner typed in, less what the site counted since
   const account = admin ? await replicateAccount() : null;
   // Payments: what Lemon Squeezy says about the account, the store and the products. Reading only.
-  const pay = admin ? await payInfo(Object.values(PLANS).map((pl) => ({ name: pl.name, variantId: process.env[pl.env] }))).catch(() => ({ configured: true, error: 'could not read Lemon Squeezy' })) : null;
+  const pay = admin ? await payInfo(Object.values(PLANS).map((pl) => ({ name: pl.name, variantId: payProvider('lemonsqueezy').planRef(pl.id) }))).catch(() => ({ configured: true, error: 'could not read Lemon Squeezy' })) : null;
   const mode = (t) => (t === true ? 'test mode' : t === false ? 'live' : 'mode not reported');
   // Models: the price each one is charged at, whether that price was confirmed on Replicate, and whether Replicate
   // still has the model and accepts the inputs we send (asked live, cached for an hour).
