@@ -185,6 +185,8 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const input = { ...def.input(en, ratio, q.d, q.r), ...(frame ? { [def.imageInput]: frame } : {}), ...(endFrame ? { [loopEnd || LOOP_END_INPUT[body.model]]: endFrame } : {}) };
   // TEST ADDRESS ONLY: a caller with the test door's secret can ask for a video without sound ({ audio: false }).
   if (body?.audio === false && 'generate_audio' in input && doorOpens(process.env, request.headers.get('x-test-login'))) input.generate_audio = false;
+  // TEST ADDRESS ONLY: and can say what the video must not show ({ negative }), for the model that takes it (Veo).
+  if (typeof body?.negative === 'string' && body.model === 'veo' && doorOpens(process.env, request.headers.get('x-test-login'))) input.negative_prompt = body.negative.slice(0, 500);
   const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input, ...hookFor(request, fields) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {

@@ -27,7 +27,7 @@ export async function POST(request) {
   if (typeof body.url !== 'string' || !OURS.test(body.url)) return NextResponse.json({ error: 'Give the address of one of our saved videos.' }, { status: 400 });
   await reserveSpend(0.19, { admin: true });
   const r = await fetch('https://api.replicate.com/v1/models/topazlabs/video-upscale/predictions', { method: 'POST', headers,
-    body: JSON.stringify({ input: { video: body.url, target_resolution: '1080p', target_fps: Number(body.fps) || 24 } }) });
+    body: JSON.stringify({ input: { video: body.url, target_resolution: body.target === '4k' ? '4k' : '1080p', target_fps: Number(body.fps) || 24 } }) });
   const p = await r.json().catch(() => ({}));
   if (!r.ok || !p.id) return NextResponse.json({ error: String(p.detail || p.error || r.status).slice(0, 300) }, { status: 502 });
   return NextResponse.json({ p: p.id });
