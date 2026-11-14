@@ -600,4 +600,7 @@ export default {
   "Couldn't save to favorites. Try again.": "无法保存到收藏，请重试。",
   "Couldn't remove from favorites. Try again.": "无法从收藏中移除，请重试。",
   "Couldn't add it to the project. It is in your Library.": "无法添加到项目。它在你的素材库中。",
+  "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "由于你今天有 3 个视频被安全检查拦截，你的账号在 UTC 午夜前暂停创建视频。",
+  "This video looks explicit and is not allowed.": "这个视频看起来含有露骨内容，不被允许。",
+  "The safety check is busy, so the video could not be kept.": "安全检查繁忙，视频未能保留。",
 };

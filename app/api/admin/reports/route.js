@@ -21,7 +21,7 @@ export async function GET(request) {
   const { data: reps } = ids.length ? await sb.from('image_reports').select('image_id, reason, reason_code, details, created_at').in('image_id', ids).order('created_at') : { data: [] };
   const creators = [...new Set(items.map((i) => i.creator_id).filter(Boolean))];
   const { data: bans } = creators.length ? await sb.from('banned_creators').select('creator_id').in('creator_id', creators) : { data: [] };
-  const { data: strikes } = creators.length ? await sb.from('moderation_strikes').select('creator_id').in('creator_id', creators) : { data: [] };
+  const { data: strikes } = creators.length ? await sb.from('moderation_strikes').select('creator_id').in('creator_id', creators).not('source', 'like', 'video-output:%') : { data: [] };
   const banned = new Set((bans || []).map((b) => b.creator_id));
   const now = Date.now();
   return NextResponse.json({ items: items.map((i) => {
