@@ -22,16 +22,21 @@ const MODEL_OFF_MSG = 'This model is temporarily unavailable. Pick another model
 import { isBanned, BANNED_MSG, logGeneration, videoStrikesToday, VIDEO_STRIKES_A_DAY, VIDEO_PAUSED_MSG } from '../../../lib/trustSafety';
 import { replicateStart, THROTTLED_MSG } from '../../../lib/replicate';
 import sharp from 'sharp';
+import { doorOpens } from '../../../lib/testDoor';
 
 // Pulse Effects: center-crop the photo to 9:16 (720x1280) so wan outputs a vertical, share-ready clip.
 // A model's first frame, as a JPEG no larger than 1280 on its long side, inside the request itself. JPEG because
 // some models take only JPG or PNG and many of our pictures are WebP; inside the request so no extra file is
 // left in storage.
-async function firstFrame(url) {
+async function firstFrame(url, side = 1280) {
   const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(`first frame download ${r.status}`);
-  const buf = await sharp(Buffer.from(await r.arrayBuffer())).rotate().resize({ width: 1280, height: 1280, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 90 }).toBuffer();
+  const buf = await sharp(Buffer.from(await r.arrayBuffer())).rotate().resize({ width: side, height: side, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 90 }).toBuffer();
   return `data:image/jpeg;base64,${buf.toString('base64')}`;
 }
+// TEST ADDRESS ONLY. This is in the `preview` branch and is not part of the site (it is never merged to main).
+// A video that ends on the picture it starts from, so it can play as a loop: the same picture is given to the model
+// as its last frame too. Only for a caller who holds the test door's secret, and only on a preview build.
+const LOOP_END_INPUT = { 'kling-4': 'end_image', omni: 'last_frame' };
 async function toVertical(url) {
   try {
     const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) return url;
@@ -152,6 +157,7 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const bad = checkPromptText(en);
   if (bad) return NextResponse.json({ error: blockedMessage(bad) }, { status: 400 });
   if (!admin && !await rateLimit(`t2v:${creator.id}:${ip}`, 10, 60 * 60_000)) return NextResponse.json({ error: 'Video limit reached. Try again later.' }, { status: 429 });
+  const loopEnd = fromImage && body?.loop === true && doorOpens(process.env, request.headers.get('x-test-login')) ? LOOP_END_INPUT[body.model] || null : null;
   let frame = null;
   if (fromImage) {
     // A finished video cannot be checked here, so the picture it starts from is checked before anything is charged.
@@ -161,14 +167,14 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
       await logGeneration({ userId: creator.id, ip, mode: `i2v:${body.model}`, prompt: raw, inputRef: row.id, moderation: inGate.status === 422 ? 'blocked:input' : 'blocked:unavailable' });
       return NextResponse.json({ error: inGate.status === 503 ? inGate.error.replace(/ Your credits were refunded\.| הקרדיטים הוחזרו\./g, '') : inGate.error }, { status: inGate.status });
     }
-    try { frame = await firstFrame(row.public_url); } catch (e) { console.error('i2v first frame', e?.message || e); return NextResponse.json({ error: 'That image could not be read. Try another one.' }, { status: 400 }); }
+    try { frame = await firstFrame(row.public_url, loopEnd ? 1920 : 1280); } catch (e) { console.error('i2v first frame', e?.message || e); return NextResponse.json({ error: 'That image could not be read. Try another one.' }, { status: 400 }); }
   }
   const charge = await chargePaidCredits({ admin, creator, cost: tier.cost });
   if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost} credits).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
   const spend = await reserveSpend(tier.usd, { admin: true });
   const pj = await ownedProject(creator.id, body?.project); // the project being worked in, if it is really theirs
   const fields = { u: creator.id, s: row ? row.id : null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, ...(raw ? { pr: raw.slice(0, 600) } : {}), r: ratio, ...(pj ? { j: pj } : {}) };
-  const input = { ...def.input(en, ratio, q.d, q.r), ...(frame ? { [def.imageInput]: frame } : {}) };
+  const input = { ...def.input(en, ratio, q.d, q.r), ...(frame ? { [def.imageInput]: frame } : {}), ...(frame && loopEnd ? { [loopEnd]: frame } : {}) };
   const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input, ...hookFor(request, fields) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
