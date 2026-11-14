@@ -629,6 +629,5 @@ export default {
   "Acceptable use": "Utilisation acceptable",
   "By continuing you confirm you are 18 or older and agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "En continuant, vous confirmez avoir 18 ans ou plus et vous acceptez les <a>Conditions</a> et la <b>Politique de confidentialité</b>.",
   "Our payment provider, which is the Merchant of Record: it is named at checkout and on your receipt. It handles the payment, VAT or sales tax and your receipt. We never see your card details.": "Notre prestataire de paiement, qui est le Merchant of Record (revendeur officiel) : son nom figure au moment du paiement et sur votre reçu. Il gère le paiement, la TVA ou la taxe de vente et votre reçu. Nous ne voyons jamais les données de votre carte.",
-  "Renews automatically every month until you cancel.": "Renouvelé automatiquement chaque mois jusqu'à l'annulation.",
   "Use the \"Manage subscription\" link in your receipt email, or write to us. Yelvo Pro then stops renewing, and you keep the credits you already received.": "Utilisez le lien « Gérer l'abonnement » dans l'e-mail de reçu, ou écrivez-nous. Yelvo Pro cesse alors de se renouveler et vous conservez les crédits déjà reçus.",
 };

@@ -629,6 +629,5 @@ export default {
   "Acceptable use": "使用规范",
   "By continuing you confirm you are 18 or older and agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "继续即表示你确认已年满 18 岁，并同意<a>条款</a>和<b>隐私政策</b>。",
   "Our payment provider, which is the Merchant of Record: it is named at checkout and on your receipt. It handles the payment, VAT or sales tax and your receipt. We never see your card details.": "我们的支付服务商，即授权经销商（Merchant of Record）：其名称会显示在结账页面和你的收据上。由他们处理付款、增值税或销售税以及你的收据。我们不会看到你的银行卡信息。",
-  "Renews automatically every month until you cancel.": "每月自动续订，直到你取消。",
   "Use the \"Manage subscription\" link in your receipt email, or write to us. Yelvo Pro then stops renewing, and you keep the credits you already received.": "使用收据邮件中的“管理订阅”链接，或给我们发邮件。Yelvo Pro 将停止续订，你已获得的积分会保留。",
 };
