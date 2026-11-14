@@ -5,6 +5,7 @@ import "./studio.css";
 import Icon from "./icons";
 import { useStudio } from "./store";
 import Create from "./Create";
+import { warmLion } from "./Lion";
 import Explore from "./Explore";
 import Library from "./Library";
 import { Settings, Pricing, Help } from "./Pages";
@@ -33,6 +34,7 @@ export default function Studio({ signedHint = false }) {
   }, []);
   // Every screen opens at its top; Create scrolls itself to the newest result.
   useEffect(() => { if (s.tab !== "create") window.scrollTo(0, 0); }, [s.tab]);
+  useEffect(() => (s.ready ? warmLion(s.theme) : undefined), [s.ready, s.theme]);
   const sh = s.sheet;
   return (
     <div className="pp" data-theme={s.theme}>

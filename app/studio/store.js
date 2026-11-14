@@ -8,6 +8,7 @@ import { shortIdea } from "../../lib/promptLanguage.js";
 import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
 import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers, resLabel } from "./models";
+import { lionEnter } from "./Lion";
 import { setDownloadMark } from "./download";
 import { posterUrl as posterUrlOf } from "../../lib/thumbs";
 
@@ -45,7 +46,7 @@ export function useStudio() {
   // The Create screen opens clean every time: a result is on it only right after it was made, while the
   // person stays there. Whatever is still being made (or failed) stays.
   const setTab = useCallback((t) => {
-    if (t === "create" && tabRef.current !== "create") setRuns((rs) => rs.filter((r) => r.status !== "done"));
+    if (t === "create" && tabRef.current !== "create") { setRuns((rs) => rs.filter((r) => r.status !== "done")); lionEnter(); } // entering Create: the lion's story plays the first time in a visit to the site, the loop after that
     tabRef.current = t; setTabRaw(t);
   }, []);
   const [mode, setMode] = useState("image");
