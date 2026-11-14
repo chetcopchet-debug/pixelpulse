@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Icon from "./icons";
 import { Price } from "./bits";
 import Sheet from "./Sheet";
+import ImproveBar from "./ImproveBar";
 import { ideaCards } from "./ideas";
 import { recommend, VIDEO_AUTO_CAP } from "./auto";
 import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, videoTakesImage, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
@@ -170,6 +171,7 @@ export function AskSheet({ s, tool, item, onClose }) {
     <Sheet title={t(tl.ask)} sub={tool === "facelock" ? t("The face from this photo is kept; everything else follows your description.") : t("The rest of the image stays as it is. The original is kept in your Library.")} onClose={onClose}>
       <div className="c" style={{ gap: 12, padding: "4px 8px" }}>
         <textarea className="field" autoFocus maxLength={1500} value={text} placeholder={t(tl.hint)} aria-label={t(tl.ask)} onChange={(e) => setText(e.target.value)} />
+        {item.id ? <ImproveBar s={s} text={text} setText={setText} edit={tool === "facelock" ? "face" : "edit"} image={item.id} /> : null}
         <button className="btn btn-p btn-wide btn-split" disabled={!text.trim()} onClick={go}><span>{t(tl.label)}</span><Price n={tl.cost} /></button>
       </div>
     </Sheet>

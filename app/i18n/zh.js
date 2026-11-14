@@ -603,4 +603,7 @@ export default {
   "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "由于你今天有 3 个视频被安全检查拦截，你的账号在 UTC 午夜前暂停创建视频。",
   "This video looks explicit and is not allowed.": "这个视频看起来含有露骨内容，不被允许。",
   "The safety check is busy, so the video could not be kept.": "安全检查繁忙，视频未能保留。",
+  "Improve": "优化",
+  "It looks at your image and writes the prompt for you.": "它会查看你的图片并为你写好提示词。",
+  "Today's free improvements are used. Pro still works, for 1 credit.": "今天的免费优化已用完。Pro 仍可使用，需 1 积分。",
 };

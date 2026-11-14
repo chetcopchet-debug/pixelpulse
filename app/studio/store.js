@@ -523,29 +523,50 @@ export function useStudio() {
   // The improve button in the prompt box: the idea is filled in right there, so it can be read and changed before
   // anything is made. Undo puts the person's own words back.
   // level: undefined = the standard improvement (free, a number a day); "pro" = the strongest model, one credit.
-  const improveNow = useCallback(async (level) => {
-    if (needAccount({ tab: "create" })) return;
-    const text = prompt.trim();
-    if (!text || improving) return;
+  // One improvement, wherever the text is (the prompt box, or the window of an editing tool).
+  // `pol`: what that place remembers of earlier improvements ({ original, last, seen, pro }) or null.
+  // `extra`: what goes to the server besides the text: { kind, model } or, for something being edited,
+  // { edit, image, model } (then the model looks at the picture, and the text may be empty).
+  // `inSheet`: asked from inside a window, so a limit is said in a message instead of opening another window.
+  // Returns { prompt, polish } or null.
+  const improveText = useCallback(async ({ text, polish: pol, level, extra, allowEmpty, inSheet }) => {
+    if (needAccount({ tab: "create" })) return null;
+    const cur = String(text || "").trim();
+    if ((!cur && !allowEmpty) || improving) return null;
     const pro = level === "pro";
-    if (pro && !afford(1, { label: t("Improve Pro") })) return;
+    if (pro && !afford(1, { label: t("Improve Pro") })) return null;
     // Pressed again on a version it wrote: another take on the person's own idea, different from the ones before.
     // Pressed after they changed the text: what is in the box now is the idea.
-    const again = polish && text === (polish.last || "").trim();
-    const idea = again ? polish.original : prompt;
+    const again = pol && cur === (pol.last || "").trim();
+    const idea = again ? pol.original : text;
     setImproving(pro ? "pro" : "std");
     try {
-      const res = await post("/api/improve", { prompt: idea.trim(), kind: mode === "video" ? "video" : "image", ...(pro ? { level: "pro" } : {}), ...(mode === "video" ? { model: vAuto ? recommend(idea, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP)?.pick || vidModel : vidModel } : {}), ...(again ? { avoid: polish.seen } : {}) });
+      const res = await post("/api/improve", { prompt: String(idea || "").trim(), ...extra, ...(pro ? { level: "pro" } : {}), ...(again ? { avoid: pol.seen } : {}) });
       const d = await json(res); if (pro) sync(d);
       if (res.status === 402) refused(d, 1, t("Improve Pro"));
       else if (d.error) say(plain(d.error));
-      else if (d.improved && d.prompt) { setPolish({ original: polish ? polish.original : prompt, last: d.prompt, seen: [...(again ? polish.seen : []), d.prompt].slice(-3), pro }); setPrompt(d.prompt); }
+      else if (d.improved && d.prompt) return { prompt: d.prompt, polish: { original: pol ? pol.original : String(text || ""), last: d.prompt, seen: [...(again ? pol.seen : []), d.prompt].slice(-3), pro } };
+      else if (d.why === "limit" && inSheet) say(t("Today's free improvements are used. Pro still works, for 1 credit."));
       else if (d.why === "limit") setSheet({ type: "improvepro", limit: d.limit }); // today's free ones are used: offer Pro
       else if (d.why === "budget") say(t("Free improvements are paused for today. They come back tomorrow."));
       else say(pro ? t("Couldn't improve the prompt right now. Your credit was returned.") : t("Couldn't improve the prompt right now. Try again in a moment."));
     } catch { say(t("Couldn't improve the prompt right now. Try again in a moment.")); }
     finally { setImproving(false); }
-  }, [prompt, mode, vidModel, vAuto, vDur, vRes, ratio, improving, polish, needAccount, afford, refused, sync, say]);
+    return null;
+  }, [improving, needAccount, afford, refused, sync, say]);
+
+  // The improve button in the prompt box: the idea is filled in right there, so it can be read and changed before
+  // anything is made. Undo puts the person's own words back.
+  // level: undefined = the standard improvement (free, a number a day); "pro" = the strongest model, one credit.
+  // With a picture attached the model looks at it: for an image it writes the new picture that follows it, for a
+  // video the motion that starts from it. The box may then be empty.
+  const improveNow = useCallback(async (level) => {
+    const video = mode === "video";
+    const vmodel = video ? (ref ? (videoTakesImage(vidModel) ? vidModel : "wan") : vAuto ? recommend(prompt, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP)?.pick || vidModel : vidModel) : null;
+    const extra = ref ? { edit: video ? "motion" : "reference", image: ref.id, ...(video ? { model: vmodel } : {}) } : { kind: video ? "video" : "image", ...(video ? { model: vmodel } : {}) };
+    const out = await improveText({ text: prompt, polish, level, extra, allowEmpty: Boolean(ref) });
+    if (out) { setPolish(out.polish); setPrompt(out.prompt); }
+  }, [prompt, mode, ref, vidModel, vAuto, vDur, vRes, ratio, polish, improveText]);
   const undoImprove = useCallback(() => { if (polish) { setPrompt(polish.original); setPolish(null); } }, [polish]);
   useEffect(() => { if (!prompt.trim()) setPolish(null); }, [prompt]); // an empty box has nothing to take back
 
@@ -922,7 +943,7 @@ export function useStudio() {
   // result that finished while the person was away (it is in the Library).
   const shown = useMemo(() => runs.filter((r) => !r.checking && !(r.status === "done" && r.away)), [runs]);
   return {
-    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, vAuto, setVAuto, improve, setImprove, polish, improving, improveNow, undoImprove, compare, setCompare, ratio, setRatio,
+    ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, vAuto, setVAuto, improve, setImprove, polish, improving, improveNow, improveText, undoImprove, compare, setCompare, ratio, setRatio,
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs: shown, items, cursor, library, favs,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,
