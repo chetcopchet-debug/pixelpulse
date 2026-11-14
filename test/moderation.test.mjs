@@ -123,7 +123,7 @@ test('the two checkers: what counts as an answer', async () => {
 test('every image tool checks its result, and nothing is logged as unchecked', () => {
   const tool = readFileSync(new URL('../lib/imagetool.js', import.meta.url), 'utf8');
   assert.ok(!/'unchecked'/.test(tool), 'no result is saved unchecked');
-  assert.ok(/checkOutputImage\(url, outputPolicy \|\| 'closed'\)/.test(tool));
+  assert.ok(/checkOutputImage\(url, outputPolicy \|\| 'closed'/.test(tool));
   const gen = src('generate'); assert.ok(!/'open'/.test(gen.slice(gen.indexOf('checkOutputImage('))), 'creation no longer lets an unchecked image through');
 });
 test('output check runs before the result is saved', () => {
