@@ -13,7 +13,8 @@ import { sampleFrames } from '../../../../lib/transcode';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 const notFound = () => new NextResponse(null, { status: 404 });
-export { notFound as GET };
+// Asked any other way it is "not found" too, so the address never looks like one that exists.
+export { notFound as GET, notFound as HEAD, notFound as PUT, notFound as PATCH, notFound as DELETE, notFound as OPTIONS };
 
 export async function POST(request) {
   if (!doorExists(process.env) || !doorOpens(process.env, request.headers.get('x-test-login'))) return notFound();
