@@ -343,7 +343,17 @@ export default function Create({ s }) {
   // The corner button opens the box to show the whole prompt without scrolling, up to 70% of the screen
   // (the line of buttons above the text counts in that).
   const [big, setBig] = useState(false);
-  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, 110]; el.style.height = "auto"; el.style.height = `${Math.min(big ? Math.max(hi, growMax() - 40) : hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide, big]);
+  // On a phone the box closes to a short form the moment a creation starts: two lines of the prompt, and none of
+  // the notes under it (the "improved" line, the model suggestion). After an improvement the open box is so tall
+  // that no room was left above it, so the waiting screen, and then the result, could not be shown at all and it
+  // looked as if nothing had happened. Tapping the text, or changing it, opens the box again.
+  const [slim, setSlim] = useState(false);
+  const newest = s.runs.length ? s.runs[s.runs.length - 1] : null;
+  const startedKey = newest && newest.status === "running" ? newest.key : null;
+  useEffect(() => { setSlim(false); }, [s.prompt]);
+  useEffect(() => { if (startedKey) { setSlim(true); setBig(false); } }, [startedKey]);
+  const short2 = slim && !wide;
+  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, short2 ? 48 : 110]; el.style.height = "auto"; el.style.height = `${Math.min(big ? Math.max(hi, growMax() - 40) : hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide, big, short2]);
   const grow = <GrowButton on={big} onClick={() => setBig((b) => !b)} />;
 
   // The window shows the newest thing: an image or video being made right now, or else the latest result.
@@ -388,7 +398,7 @@ export default function Create({ s }) {
   );
   const text = (
     <textarea ref={textRef} className={big ? "prompt big" : "prompt"} rows={1} maxLength={1500} value={s.prompt} placeholder={placeholder} aria-label={placeholder}
-      onChange={(e) => s.setPrompt(e.target.value)}
+      onChange={(e) => s.setPrompt(e.target.value)} onFocus={() => setSlim(false)}
       onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); s.generate(); } }} />
   );
   const refcard = s.ref ? (
@@ -445,8 +455,8 @@ export default function Create({ s }) {
   const picked = auto ? { name: im.name, why: auto.why, fitted: auto.fitted } : vauto?.pick ? { name: vm.name, why: vauto.why, fitted: vauto.fitted } : null;
   const autoline = rec ? recline : picked && s.prompt.trim() ? <p className="sm t2 autoline" role="status"><span className="b" style={{ color: "var(--text)" }}>{picked.name}.</span> {t(picked.why)}.{picked.fitted ? t(" Fits your balance.") : ""}</p> : null;
   const go = (
-    <button className="btn btn-p btn-wide btn-split" onClick={s.generate} disabled={!canGo}>
-      <span>{action}</span>{cost ? <Price n={cost} /> : null}
+    <button className="btn btn-p btn-wide btn-split" onClick={s.generate} disabled={!canGo || s.generating} aria-busy={s.generating || undefined}>
+      <span>{action}</span>{s.generating ? <i className="spin" style={{ width: 16, height: 16 }} /> : cost ? <Price n={cost} /> : null}
     </button>
   );
   const file = <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) s.upload(f); }} />;
@@ -559,8 +569,8 @@ export default function Create({ s }) {
             <button className="plus" aria-label={s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
           </div>
           {text}
-          {polishLine}
-          {autoline}
+          {short2 ? null : polishLine}
+          {short2 ? null : autoline}
           <div className="gorow">
             <div className="chips">
               {s.ref && !video ? (
@@ -595,7 +605,7 @@ export default function Create({ s }) {
                 </>
               )}
             </div>
-            <button className="go2" onClick={s.generate} disabled={!canGo} aria-label={cost ? tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: action, n: cost }) : action}><span>{short}</span>{cost ? <Price n={cost} /> : null}</button>
+            <button className="go2" onClick={s.generate} disabled={!canGo || s.generating} aria-busy={s.generating || undefined} aria-label={cost ? tn(N("{name}, 1 credit"), N("{name}, {n} credits"), { name: action, n: cost }) : action}><span>{short}</span>{s.generating ? <i className="spin" style={{ width: 16, height: 16 }} /> : cost ? <Price n={cost} /> : null}</button>
           </div>
         </div>
       </div>

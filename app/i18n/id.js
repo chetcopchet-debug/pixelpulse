@@ -561,6 +561,7 @@ export default {
   "1 credit. Open the menu": "1 kredit. Buka menu",
   "Temporarily unavailable": "Sementara tidak tersedia",
   "This model is temporarily unavailable. Pick another model.": "Model ini sementara tidak tersedia. Pilih model lain.",
+  "This one is already being made.": "Ini sedang dibuat.",
   "Prompt improved. See what was used": "Prompt disempurnakan. Lihat yang dipakai",
   "Improve my prompt": "Sempurnakan prompt saya",
   "Short ideas are filled in before they are made. Text in quotes stays as you wrote it.": "Ide singkat dilengkapi sebelum dibuat. Teks dalam tanda kutip tetap seperti yang kamu tulis.",
