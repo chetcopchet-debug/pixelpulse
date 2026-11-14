@@ -176,6 +176,8 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const pj = await ownedProject(creator.id, body?.project); // the project being worked in, if it is really theirs
   const fields = { u: creator.id, s: row ? row.id : null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, ...(raw ? { pr: raw.slice(0, 600) } : {}), r: ratio, ...(pj ? { j: pj } : {}) };
   const input = { ...def.input(en, ratio, q.d, q.r), ...(frame ? { [def.imageInput]: frame } : {}), ...(frame && loopEnd ? { [loopEnd]: frame } : {}) };
+  // TEST ADDRESS ONLY: a caller with the test door's secret can ask for a video without sound ({ audio: false }).
+  if (body?.audio === false && 'generate_audio' in input && doorOpens(process.env, request.headers.get('x-test-login'))) input.generate_audio = false;
   const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input, ...hookFor(request, fields) }) }).catch(() => null);
   const p = r ? await r.json().catch(() => ({})) : {};
   if (!r || !r.ok || !p.id) {
