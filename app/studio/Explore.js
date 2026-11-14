@@ -21,7 +21,7 @@ function useColumns() {
 function Tile({ it, playing, onOpen }) {
   const [shown, setShown] = useState(false);
   useEffect(() => { if (!playing) setShown(false); }, [playing]);
-  const title = shortTitle(it.prompt);
+  const title = it.title || shortTitle(it.prompt);
   const made = madeFor(it);
   return (
     <button className="gt" data-vid={it.video && it.preview ? it.id : undefined} style={{ aspectRatio: `1 / ${tall(it.ratio)}` }} onClick={onOpen}
