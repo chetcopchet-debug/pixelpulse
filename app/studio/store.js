@@ -46,7 +46,7 @@ export function useStudio() {
   // The Create screen opens clean every time: a result is on it only right after it was made, while the
   // person stays there. Whatever is still being made (or failed) stays.
   const setTab = useCallback((t) => {
-    if (t === "create" && tabRef.current !== "create") { setRuns((rs) => rs.filter((r) => r.status !== "done")); lionEnter(); } // entering Create: the lion's story plays the first time in a visit to the site, the loop after that
+    if (t === "create" && tabRef.current !== "create") { setRuns((rs) => rs.filter((r) => r.status !== "done")); lionEnter(); } // entering Create: the lion's story, or the loop once the story was seen in this visit to the site
     tabRef.current = t; setTabRaw(t);
   }, []);
   const [mode, setMode] = useState("image");
