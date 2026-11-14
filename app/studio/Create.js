@@ -206,7 +206,7 @@ function Row2({ children }) {
 // Everything between the top bar and the prompt box. One thing at a time: what is being made right now, or else
 // the latest result, or, before anything was made, pictures to start from. While something is being made nothing
 // of an earlier result is on screen, not even its colors in the background.
-function Stage({ run, wait, s, now, video, wide, onIdea, lion }) {
+function Stage({ run, wait, s, now, video, wide, onIdea, lion, onDown }) {
   const ref = useRef(null);
   const size = useSize(ref);
   const [saving, setSaving] = useState(false);
@@ -327,7 +327,7 @@ function Stage({ run, wait, s, now, video, wide, onIdea, lion }) {
   return (
     <>
       <Glow src={glow} />
-      <section className={`stage2${show ? "" : " scroll"}`} aria-label={t("Latest result")} ref={ref}>{main}</section>
+      <section className={`stage2${show ? "" : " scroll"}`} aria-label={t("Latest result")} ref={ref} onPointerDown={onDown}>{main}</section>
     </>
   );
 }
@@ -353,6 +353,14 @@ export default function Create({ s }) {
   useEffect(() => { setSlim(false); }, [s.prompt]);
   useEffect(() => { if (startedKey) { setSlim(true); setBig(false); } }, [startedKey]);
   const short2 = slim && !wide;
+  // Leaving the box closes it again when there is something above it to see: a tap outside it, or the keyboard
+  // put away. A tap inside the box (the improve button, the model, Generate) never closes it, so nothing moves
+  // under a finger.
+  const dockTap = useRef(0);
+  const something = s.runs.some((r) => r.status === "running" || r.status === "done");
+  const closeBox = () => { if (something && Date.now() - dockTap.current > 600 && document.activeElement !== textRef.current) setSlim(true); };
+  // A moment later, not at once: the tap that took the focus away must land first, where the finger is.
+  const closeSoon = () => { window.setTimeout(closeBox, 300); };
   useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, short2 ? 48 : 110]; el.style.height = "auto"; el.style.height = `${Math.min(big ? Math.max(hi, growMax() - 40) : hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide, big, short2]);
   const grow = <GrowButton on={big} onClick={() => setBig((b) => !b)} />;
 
@@ -398,7 +406,7 @@ export default function Create({ s }) {
   );
   const text = (
     <textarea ref={textRef} className={big ? "prompt big" : "prompt"} rows={1} maxLength={1500} value={s.prompt} placeholder={placeholder} aria-label={placeholder}
-      onChange={(e) => s.setPrompt(e.target.value)} onFocus={() => setSlim(false)}
+      onChange={(e) => s.setPrompt(e.target.value)} onFocus={() => setSlim(false)} onBlur={closeSoon}
       onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); s.generate(); } }} />
   );
   const refcard = s.ref ? (
@@ -465,7 +473,7 @@ export default function Create({ s }) {
   const lion = !wide && dark && !stage && !wait;
   const more = Boolean(stage || wait || lion); // the start screen with the cards already shows the ideas; otherwise they are one tap away
   const short = s.ref ? (video ? t("Animate") : t("Generate")) : cmp ? t("Compare {n}", { n: cmp.models.length }) : t("Generate");
-  const stageEl = <Stage run={wait ? null : stage} wait={wait} s={s} now={now} video={video} wide={wide} lion={lion} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
+  const stageEl = <Stage run={wait ? null : stage} wait={wait} s={s} now={now} video={video} wide={wide} lion={lion} onDown={wide ? undefined : closeSoon} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
 
   // "Improve my prompt": a short idea is filled in before it is made. Not with a reference image or a start frame
   // (the words there describe a change), and not when comparing models (each model must get the same words).
@@ -556,7 +564,7 @@ export default function Create({ s }) {
         <Balance s={s} />
       </header>
       {stageEl}
-      <div className="dock2">
+      <div className="dock2" onPointerDown={() => { dockTap.current = Date.now(); }}>
         <Jobs runs={jobs} s={s} now={now} />
         <div className="composer mini2">
           {tags}

@@ -39,5 +39,6 @@ test('the screen: every request carries the press id, Generate is locked while t
 test('the phone prompt box closes when a creation starts, so the waiting screen has room', () => {
   const create = read('app/studio/Create.js');
   assert.match(create, /if \(startedKey\) \{ setSlim\(true\); setBig\(false\); \}/);
+  assert.match(create, /<div className="dock2" onPointerDown=\{\(\) => \{ dockTap\.current = Date\.now\(\); \}\}>/, 'a tap inside the box never closes it');
   assert.match(create, /\{short2 \? null : polishLine\}/); assert.match(create, /\{short2 \? null : autoline\}/);
 });
