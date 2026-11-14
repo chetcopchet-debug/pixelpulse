@@ -8,22 +8,29 @@ import { startSnow } from "./Snow";
 // walks out on the left (25 seconds). Then the quiet loop plays for as long as the screen is open: the landscape he
 // left, with his footprints, mist, and snow falling (the video's own fine snow, and flakes drawn by the page over it). The story's last frame stays where it is and the loop
 // fades in over it (the same landscape), so there is no cut.
-// The story starts again only when the Create screen is entered (from another tab, or when the app opens). It does
-// not start again for anything that happens inside Create: where it is in the story is remembered here, outside
-// the component, so even if the component were taken off the page and put back, it would go on from the same
-// moment (switching between Image and Video must never restart it).
+// The story plays once in a visit to the site (until the tab is closed); every other time Create is opened, the
+// loop is there at once. Nothing that happens inside Create starts the story again: where it is in the story is
+// remembered here, outside the component, so even if the component were taken off the page and put back, it would
+// go on from the same moment (switching between Image and Video must never restart it).
 // A sharp still picture of the landscape only, with no video: a slow or metered connection, "reduce motion".
 // The files are in public/create. Silent: the videos have no sound track.
 // A changed file gets a new name (the files are cached for 30 days).
 // The page's snow starts to fall this many seconds before the story ends, and the loop is set rolling (unseen) a
 // second before it ends, so when the story stops nothing on the screen stops with it.
 const SNOW_EARLY = 2.8, LOOP_EARLY = 1;
-const OPEN = "/create/lion-story-2.mp4", LOOP = "/create/lion-snow-5.mp4", STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-5.webp", CALM = "/create/lion-rest-3.webp";
+// The videos play at 60 frames a second: between Veo's 24 frames a second, frames were computed along the motion.
+const OPEN = "/create/lion-story-2-60.mp4", LOOP = "/create/lion-snow-5-60.mp4", STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-5.webp", CALM = "/create/lion-rest-3.webp";
 
-// Where the story is, for this visit to Create: "still" (not started), "open" (playing, at `t` seconds) or "loop".
-const visit = { stage: "still", t: 0 };
-// Called when the Create screen is entered: the story will play from its start.
-export function lionEnter() { visit.stage = "still"; visit.t = 0; }
+// The story plays once in a visit to the site: once it has started, it is not played again until the tab is closed
+// (also not after the page is loaded again in the same tab). After that, entering Create goes straight to the loop.
+const SEEN = "pp_lion_seen";
+const seen = () => { try { return typeof window !== "undefined" && window.sessionStorage.getItem(SEEN) === "1"; } catch { return false; } };
+const markSeen = () => { try { window.sessionStorage.setItem(SEEN, "1"); } catch {} };
+// Where the story is: "still" (not started), "open" (playing, at `t` seconds) or "loop".
+const visit = { stage: seen() ? "loop" : "still", t: 0 };
+// Called when the Create screen is entered from another screen. The first time, the story plays from its start.
+// If it has already started in this visit to the site (even if the person left in the middle), the loop is shown.
+export function lionEnter() { if (visit.stage !== "still" || seen()) { visit.stage = "loop"; visit.t = 0; } }
 
 export function calm() {
   if (typeof window === "undefined") return true;
@@ -36,7 +43,7 @@ export function calm() {
 export function warmLion(theme) {
   if (typeof window === "undefined" || theme === "light" || window.matchMedia("(min-width: 900px)").matches) return undefined;
   if (theme === "auto" && !window.matchMedia("(prefers-color-scheme: dark)").matches) return undefined;
-  const id = window.setTimeout(() => { const im = new Image(); im.decoding = "async"; im.src = calm() ? CALM : STILL; }, 1200);
+  const id = window.setTimeout(() => { const im = new Image(); im.decoding = "async"; im.src = calm() ? CALM : seen() ? SNOW : STILL; }, 1200);
   return () => window.clearTimeout(id);
 }
 
@@ -60,7 +67,7 @@ export default function Lion() {
       if (visit.stage === "loop") { toLoop(); return; }               // put back on the page during the loop
       a.src = OPEN; a.load();
       if (visit.t > 0.2) a.addEventListener("loadedmetadata", () => { try { a.currentTime = visit.t; } catch {} }, { once: true }); // or during the story
-      a.addEventListener("playing", () => { if (gone) return; visit.stage = "open"; setStage("open"); if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } }, { once: true });
+      a.addEventListener("playing", () => { if (gone) return; visit.stage = "open"; markSeen(); setStage("open"); if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } }, { once: true });
       if (!document.hidden) play(a);
     };
     const onTime = () => {
