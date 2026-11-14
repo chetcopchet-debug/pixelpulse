@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { startSnow } from "./Snow";
 
 // The empty Create screen on a phone: the lion in the snow, behind the title and the prompt box.
 // A still picture (the empty landscape) is there at once. After the page is ready the story is fetched and played
 // once: the lion walks in from the right, stops, shakes off the snow, roars, lies down, looks around, gets up and
 // walks out on the left (25 seconds). Then the quiet loop plays for as long as the screen is open: the landscape he
-// left, sharp, with his footprints, snow falling and mist. The story's last frame stays where it is and the loop
+// left, with his footprints, mist, and snow falling (the video's own fine snow, and flakes drawn by the page over it). The story's last frame stays where it is and the loop
 // fades in over it (the same landscape), so there is no cut.
 // The story starts again only when the Create screen is entered (from another tab, or when the app opens). It does
 // not start again for anything that happens inside Create: where it is in the story is remembered here, outside
@@ -14,7 +15,7 @@ import { useEffect, useRef, useState } from "react";
 // A sharp still picture of the landscape only, with no video: a slow or metered connection, "reduce motion".
 // The files are in public/create. Silent: the videos have no sound track.
 // A changed file gets a new name (the files are cached for 30 days).
-const OPEN = "/create/lion-story-2.mp4", LOOP = "/create/lion-snow-4.mp4", STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-4.webp", CALM = "/create/lion-rest-3.webp";
+const OPEN = "/create/lion-story-2.mp4", LOOP = "/create/lion-snow-5.mp4", STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-5.webp", CALM = "/create/lion-rest-3.webp";
 
 // Where the story is, for this visit to Create: "still" (not started), "open" (playing, at `t` seconds) or "loop".
 const visit = { stage: "still", t: 0 };
@@ -37,7 +38,7 @@ export function warmLion(theme) {
 }
 
 export default function Lion() {
-  const open = useRef(null), loop = useRef(null);
+  const open = useRef(null), loop = useRef(null), snow = useRef(null);
   const [stage, setStage] = useState(visit.stage); // what is on the screen: still -> open -> loop
   const [video, setVideo] = useState(null);         // null: not known yet; false: a still picture only
   useEffect(() => { setVideo(!calm()); }, []);
@@ -73,6 +74,8 @@ export default function Lion() {
       for (const v of [a, b]) { v.pause(); v.removeAttribute("src"); v.load(); }
     };
   }, [video]);
+  // Snow drawn by the page falls over the loop (Snow.js). It runs only while the loop is on the screen.
+  useEffect(() => (video && stage === "loop" && snow.current ? startSnow(snow.current) : undefined), [video, stage]);
   const common = { muted: true, playsInline: true, preload: "none", tabIndex: -1, disablePictureInPicture: true, disableRemotePlayback: true };
   return (
     <div className="lion" aria-hidden="true">
@@ -85,6 +88,7 @@ export default function Lion() {
           <>
             <video ref={open} className={stage === "open" || stage === "loop" ? "on" : ""} {...common} />
             <video ref={loop} className={stage === "loop" ? "loop on" : "loop"} loop {...common} />
+            <canvas ref={snow} className={stage === "loop" ? "snow on" : "snow"} />
           </>
         ) : null}
       </div>
