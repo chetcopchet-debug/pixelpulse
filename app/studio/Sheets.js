@@ -299,7 +299,7 @@ export function SignInSheet({ s, reason, onClose }) {
           <input className="field" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" aria-label={t("Email address")} value={email} onChange={(e) => setEmail(e.target.value)} />
           <button className="btn btn-p btn-wide" style={{ height: 52 }} disabled={busy || !email.includes("@")}>{busy ? <i className="spin" /> : t("Continue with email")}</button>
           {err ? <p className="sm bad" role="alert">{err}</p> : null}
-          <p className="agree">{rich(t("By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>."), { a: (c) => <a href="/terms" target="_blank" rel="noreferrer">{c}</a>, b: (c) => <a href="/privacy" target="_blank" rel="noreferrer">{c}</a> })}</p>
+          <p className="agree">{rich(t("By continuing you confirm you are 18 or older and agree to the <a>Terms</a> and the <b>Privacy Policy</b>."), { a: (c) => <a href="/terms" target="_blank" rel="noreferrer">{c}</a>, b: (c) => <a href="/privacy" target="_blank" rel="noreferrer">{c}</a> })}</p>
         </form>
       ) : (
         <form className="c" style={{ gap: 10, padding: "4px 8px" }} onSubmit={verify}>
