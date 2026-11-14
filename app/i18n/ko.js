@@ -603,4 +603,7 @@ export default {
   "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "오늘 동영상 3개가 안전 검사에서 차단되어, 계정의 동영상 만들기가 UTC 자정까지 일시 중지되었습니다.",
   "This video looks explicit and is not allowed.": "이 동영상은 노골적인 내용으로 보여 허용되지 않습니다.",
   "The safety check is busy, so the video could not be kept.": "안전 검사가 혼잡하여 동영상을 보관할 수 없었습니다.",
+  "Improve": "개선하기",
+  "It looks at your image and writes the prompt for you.": "이미지를 보고 프롬프트를 대신 작성합니다.",
+  "Today's free improvements are used. Pro still works, for 1 credit.": "오늘의 무료 개선을 모두 사용했습니다. Pro는 1크레딧으로 계속 사용할 수 있습니다.",
 };

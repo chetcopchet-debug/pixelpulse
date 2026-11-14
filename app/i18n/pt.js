@@ -603,4 +603,7 @@ export default {
   "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "A criação de vídeos está pausada para sua conta até a meia-noite UTC, porque 3 dos seus vídeos de hoje foram bloqueados pela verificação de segurança.",
   "This video looks explicit and is not allowed.": "Este vídeo parece explícito e não é permitido.",
   "The safety check is busy, so the video could not be kept.": "A verificação de segurança está ocupada, então o vídeo não pôde ser mantido.",
+  "Improve": "Melhorar",
+  "It looks at your image and writes the prompt for you.": "Ele olha sua imagem e escreve o prompt para você.",
+  "Today's free improvements are used. Pro still works, for 1 credit.": "As melhorias grátis de hoje acabaram. O Pro continua disponível por 1 crédito.",
 };

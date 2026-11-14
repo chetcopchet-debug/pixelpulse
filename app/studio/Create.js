@@ -423,7 +423,7 @@ export default function Create({ s }) {
 
   // "Improve my prompt": a short idea is filled in before it is made. Not with a reference image or a start frame
   // (the words there describe a change), and not when comparing models (each model must get the same words).
-  const canImprove = !s.ref && !cmp;
+  const canImprove = !cmp; // with a picture attached too: the model then looks at it
   const improveRow = canImprove ? (
     <button className="set set-row" style={{ padding: "10px 12px 10px 14px" }} role="switch" aria-checked={s.improve} onClick={() => s.setImprove(!s.improve)}>
       <span className="grow"><span className="b" style={{ display: "block" }}>{t("Improve my prompt")}</span><span className="sm t2" style={{ display: "block" }}>{t("Short ideas are filled in before they are made. Text in quotes stays as you wrote it.")}</span></span>
@@ -433,7 +433,7 @@ export default function Create({ s }) {
   // The improve button fills the idea in inside the box, before anything is made. After it, a line under the box
   // says so and offers Undo.
   const hasText = Boolean(s.prompt.trim());
-  const canPolish = canImprove && hasText; // also after an improvement: another press gives another version
+  const canPolish = canImprove && (hasText || Boolean(s.ref)); // also after an improvement: another press gives another version
   const proBtn = (
     <button className="propill" disabled={Boolean(s.improving)} onClick={() => s.improveNow("pro")} aria-label={t("Improve with Pro, 1 credit")}>
       {s.improving === "pro" ? <i className="spin" style={{ width: 14, height: 14 }} /> : <Icon name="wand" size={14} />}{t("Pro")}<Price n={1} />
