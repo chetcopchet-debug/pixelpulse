@@ -592,7 +592,7 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .lion-in > video { opacity: 0; }
 .pp .lion-in > video.on { opacity: 1; }
 /* The loop fades in over the story's last frame, which is the same landscape. */
-.pp .lion-in > video.loop { transition: opacity 1.3s ease; }
-.pp .lion-in > canvas.snow { opacity: 0; transition: opacity 1.6s ease; }
+.pp .lion-in > video.loop { transition: opacity 1s ease; }
+.pp .lion-in > canvas.snow { opacity: 0; transition: opacity 1.8s ease; }
 .pp .lion-in > canvas.snow.on { opacity: 1; }
 .pp .lion::after { content: ""; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0, 0, 0, .6) 0, rgba(0, 0, 0, 0) 24%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, .9) 84%); }
