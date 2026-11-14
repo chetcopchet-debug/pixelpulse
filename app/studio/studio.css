@@ -580,3 +580,14 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .growbox > textarea.field { display: block; width: 100%; padding: 2px 8px 12px; border-radius: 0; background: none; }
 .pp .growbox > textarea.field:focus-visible { outline: 0; }
 .pp textarea.prompt.big, .pp .mini2 textarea.prompt.big, .pp .field2 textarea.prompt.big { max-height: none; }
+
+/* The lion behind the phone's start screen (app/studio/Lion.js). It keeps to the screen, not to the part left above
+   the keyboard, so it does not jump when the keyboard opens. The picture is dimmed, its own edges melt away, and
+   the top and the bottom of the screen darken into the black of the site, so the title and the prompt box stand out. */
+.pp .lion { position: fixed; left: 0; right: 0; top: 0; bottom: calc(var(--nav-h) + var(--safe-b)); z-index: 0; overflow: hidden; background: #000; pointer-events: none; }
+.pp .lion > img, .pp .lion > video { position: absolute; left: 0; top: calc(50% - 101vw); width: 100%; aspect-ratio: 9 / 16; height: auto; object-fit: cover; opacity: .72;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 100%), radial-gradient(ellipse 72% 62% at 50% 42%, #000 52%, transparent 100%); -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 100%), radial-gradient(ellipse 72% 62% at 50% 42%, #000 52%, transparent 100%); mask-composite: intersect; }
+.pp .lion > video { opacity: 0; }
+.pp .lion > video.on { opacity: .72; }
+.pp .lion::after { content: ""; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0, 0, 0, .6) 0, rgba(0, 0, 0, 0) 24%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, .9) 84%); }

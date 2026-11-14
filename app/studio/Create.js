@@ -12,6 +12,7 @@ import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
 import { GrowButton, growMax } from "./GrowField";
+import Lion from "./Lion";
 
 // A real desktop layout from this width up; below it, the phone layout.
 function useWide() {
@@ -39,6 +40,18 @@ function useSize(ref) {
 }
 // On a phone the keyboard covers the bottom of the page. This gives the part that is still visible, so the
 // prompt box and the button sit right above the keyboard instead of behind it.
+// Is the screen dark right now? ("auto" follows the device.) The lion is made for the dark screen.
+function useDark(theme) {
+  const [dark, setDark] = useState(theme !== "light");
+  useEffect(() => {
+    if (theme !== "auto") { setDark(theme !== "light"); return undefined; }
+    const q = window.matchMedia("(prefers-color-scheme: dark)");
+    const on = () => setDark(q.matches);
+    on(); q.addEventListener("change", on);
+    return () => q.removeEventListener("change", on);
+  }, [theme]);
+  return dark;
+}
 function useKeyboard() {
   const [frame, setFrame] = useState(null);
   useEffect(() => {
@@ -188,7 +201,7 @@ function Row2({ children }) {
 // Everything between the top bar and the prompt box. One thing at a time: what is being made right now, or else
 // the latest result, or, before anything was made, pictures to start from. While something is being made nothing
 // of an earlier result is on screen, not even its colors in the background.
-function Stage({ run, wait, s, now, video, wide, onIdea }) {
+function Stage({ run, wait, s, now, video, wide, onIdea, lion }) {
   const ref = useRef(null);
   const size = useSize(ref);
   const [saving, setSaving] = useState(false);
@@ -214,7 +227,7 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
   const save = async () => { if (saving || !item) return; setSaving(true); await download(item); setSaving(false); };
   const glowOf = (r) => { const x = r?.kind === "compare" ? r.parts.find((p) => p.item)?.item : r?.item; return x ? (x.video ? posterUrl(x.url) : thumbUrl(x.url)) : null; };
   const cards = ideaCards(s.explore.items, video);
-  const glow = wait ? null : run ? glowOf(run) : cards[0].src;
+  const glow = wait ? null : run ? glowOf(run) : lion ? null : cards[0].src; // the lion screen has its own picture behind it
   const fav = item?.id && s.favs.has(item.id);
   const cap = (
     <>
@@ -284,6 +297,10 @@ function Stage({ run, wait, s, now, video, wide, onIdea }) {
         </Shot>
       </div>
     );
+  } else if (!show && lion) {
+    // The phone's start screen: the lion is behind (Create puts it there); here only the title. The ideas are one
+    // tap away, on the lamp in the prompt box.
+    main = size.h >= 150 ? <div className="start"><div className="start-h"><h1 className="d">{video ? t("What should the video show?") : t("What do you want to make?")}</h1></div></div> : null;
   } else if (!show && size.h >= 150) {
     main = (
       <div className="start">
@@ -422,9 +439,12 @@ export default function Create({ s }) {
     </button>
   );
   const file = <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) s.upload(f); }} />;
-  const more = Boolean(stage || wait); // the start screen already shows the ideas; later they are one tap away
+  // The phone's start screen on a dark screen: the lion, with only the title and the prompt box over it.
+  const dark = useDark(s.theme);
+  const lion = !wide && dark && !stage && !wait;
+  const more = Boolean(stage || wait || lion); // the start screen with the cards already shows the ideas; otherwise they are one tap away
   const short = s.ref ? (video ? t("Animate") : t("Generate")) : cmp ? t("Compare {n}", { n: cmp.models.length }) : t("Generate");
-  const stageEl = <Stage run={wait ? null : stage} wait={wait} s={s} now={now} video={video} wide={wide} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
+  const stageEl = <Stage run={wait ? null : stage} wait={wait} s={s} now={now} video={video} wide={wide} lion={lion} onIdea={(t) => { s.setPrompt(t); textRef.current?.focus(); }} />;
 
   // "Improve my prompt": a short idea is filled in before it is made. Not with a reference image or a start frame
   // (the words there describe a change), and not when comparing models (each model must get the same words).
@@ -508,6 +528,7 @@ export default function Create({ s }) {
   // Phone: the result across the full width, the prompt box and the button fixed at the bottom, by the thumb.
   return (
     <div className="create" style={keyboard ? { top: keyboard.top, height: keyboard.height, bottom: "auto" } : undefined}>
+      {lion ? <Lion /> : null}
       <header className="top">
         <Brand />
         {mode}

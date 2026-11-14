@@ -41,6 +41,10 @@ const nextConfig = {
   },
   async headers() {
     return [{
+      // The lion on the Create screen (public/create): the files are large and do not change; a new version gets a new name.
+      source: '/create/:file*',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=2592000, immutable' }],
+    }, {
       source: '/:path*',
       headers: [
         { key: 'Content-Security-Policy', value: csp },
