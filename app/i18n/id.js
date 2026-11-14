@@ -629,6 +629,5 @@ export default {
   "Acceptable use": "Penggunaan yang diizinkan",
   "By continuing you confirm you are 18 or older and agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "Dengan melanjutkan, Anda menyatakan berusia 18 tahun atau lebih dan menyetujui <a>Ketentuan</a> dan <b>Kebijakan Privasi</b>.",
   "Our payment provider, which is the Merchant of Record: it is named at checkout and on your receipt. It handles the payment, VAT or sales tax and your receipt. We never see your card details.": "Penyedia pembayaran kami, yang menjadi Merchant of Record (penjual resmi): namanya tertera saat checkout dan di tanda terimamu. Mereka menangani pembayaran, PPN atau pajak penjualan, dan tanda terimamu. Kami tidak pernah melihat detail kartumu.",
-  "Renews automatically every month until you cancel.": "Diperpanjang otomatis setiap bulan sampai kamu membatalkan.",
   "Use the \"Manage subscription\" link in your receipt email, or write to us. Yelvo Pro then stops renewing, and you keep the credits you already received.": "Gunakan tautan \"Kelola langganan\" di email tanda terima, atau hubungi kami. Yelvo Pro berhenti diperpanjang, dan kredit yang sudah kamu terima tetap milikmu.",
 };

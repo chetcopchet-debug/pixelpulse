@@ -629,6 +629,5 @@ export default {
   "Acceptable use": "이용 규칙",
   "By continuing you confirm you are 18 or older and agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "계속하면 만 18세 이상임을 확인하고 <a>이용약관</a> 및 <b>개인정보 처리방침</b>에 동의하게 됩니다.",
   "Our payment provider, which is the Merchant of Record: it is named at checkout and on your receipt. It handles the payment, VAT or sales tax and your receipt. We never see your card details.": "공식 판매 대행사(Merchant of Record)인 결제 대행사예요. 이름은 결제 화면과 영수증에 표시돼요. 결제, 부가세나 판매세, 영수증을 처리하며, 저희는 카드 정보를 볼 수 없어요.",
-  "Renews automatically every month until you cancel.": "해지할 때까지 매달 자동으로 갱신돼요.",
   "Use the \"Manage subscription\" link in your receipt email, or write to us. Yelvo Pro then stops renewing, and you keep the credits you already received.": "영수증 이메일의 \"구독 관리\" 링크를 이용하거나 저희에게 메일을 보내 주세요. Yelvo Pro 갱신이 멈추고, 이미 받은 크레딧은 그대로 유지돼요.",
 };
