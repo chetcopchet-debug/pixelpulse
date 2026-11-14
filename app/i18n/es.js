@@ -617,4 +617,7 @@ export default {
   "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "Al continuar aceptas los <a>Términos</a> y la <b>Política de privacidad</b>.",
   "Uploads": "Subidas",
   "No uploads yet. A picture you attach to work from is kept here.": "Aún no hay subidas. Una imagen que adjuntes para trabajar con ella se guarda aquí.",
+  "This model doesn't accept realistic faces, even AI-made ones.": "Este modelo no acepta rostros realistas, ni siquiera los creados con IA.",
+  "Try {name}": "Probar {name}",
+  "Doesn't accept images with realistic faces": "No acepta imágenes con rostros realistas",
 };

@@ -617,4 +617,7 @@ export default {
   "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "계속하면 <a>이용약관</a> 및 <b>개인정보 처리방침</b>에 동의하게 됩니다.",
   "Uploads": "업로드",
   "No uploads yet. A picture you attach to work from is kept here.": "아직 업로드가 없습니다. 작업용으로 첨부한 이미지는 여기에 보관됩니다.",
+  "This model doesn't accept realistic faces, even AI-made ones.": "이 모델은 사실적인 얼굴을 받지 않아요. AI로 만든 얼굴도 마찬가지예요.",
+  "Try {name}": "{name} 사용해 보기",
+  "Doesn't accept images with realistic faces": "사실적인 얼굴이 있는 이미지는 받지 않아요",
 };

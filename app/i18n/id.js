@@ -617,4 +617,7 @@ export default {
   "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "Dengan melanjutkan, Anda menyetujui <a>Ketentuan</a> dan <b>Kebijakan Privasi</b>.",
   "Uploads": "Unggahan",
   "No uploads yet. A picture you attach to work from is kept here.": "Belum ada unggahan. Gambar yang Anda lampirkan untuk dikerjakan disimpan di sini.",
+  "This model doesn't accept realistic faces, even AI-made ones.": "Model ini tidak menerima wajah realistis, termasuk yang dibuat AI.",
+  "Try {name}": "Coba {name}",
+  "Doesn't accept images with realistic faces": "Tidak menerima gambar dengan wajah realistis",
 };
