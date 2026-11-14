@@ -1,10 +1,12 @@
 "use client";
 import { t, N, lang } from "../i18n/index.js";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Icon from "./icons";
 import { Tile, Brand, Balance, Picture, useNow, dayLabel } from "./bits";
 
-const FILTERS = [["all", N("All")], ["images", N("Images")], ["videos", N("Videos")], ["favorites", N("Favorites")]];
+// "Uploads": the pictures the person uploaded to work from. They are theirs, but they are not something they made,
+// so they are kept out of the list and shown only here.
+const FILTERS = [["all", N("All")], ["images", N("Images")], ["videos", N("Videos")], ["favorites", N("Favorites")], ["uploads", N("Uploads")]];
 
 // Everything you made, newest first, grouped by day.
 export default function Library({ s }) {
@@ -15,7 +17,7 @@ export default function Library({ s }) {
 
   const language = lang(); // the day headings ("Today") are words, so they are made again when the language changes
   const groups = useMemo(() => {
-    const list = s.items.filter((x) => (filter === "images" ? !x.video : filter === "videos" ? x.video : filter === "favorites" ? s.favs.has(x.id) : true));
+    const list = filter === "uploads" ? s.uploads || [] : s.items.filter((x) => (filter === "images" ? !x.video : filter === "videos" ? x.video : filter === "favorites" ? s.favs.has(x.id) : true));
     const out = [];
     for (const item of list) {
       const label = dayLabel(item.at);
@@ -23,10 +25,11 @@ export default function Library({ s }) {
       out[out.length - 1].items.push(item);
     }
     return out;
-  }, [s.items, s.favs, filter, language]);
+  }, [s.items, s.uploads, s.favs, filter, language]);
+  useEffect(() => { if (filter === "uploads" && s.uploads === null) s.loadUploads(); }, [filter, s.uploads, s.loadUploads]);
   const more = async () => { setLoadingMore(true); await s.loadMore(); setLoadingMore(false); };
   const active = s.projectsOn ? s.projects.find((p) => p.id === s.project) : null;
-  const emptyText = { all: active ? t("This project is empty. What you make now is saved into it.") : t("Nothing here yet. What you make is saved here automatically."), images: t("No images yet."), videos: t("No videos yet."), favorites: t("No favorites yet. Tap the heart on a result to keep it here.") }[filter];
+  const emptyText = { all: active ? t("This project is empty. What you make now is saved into it.") : t("Nothing here yet. What you make is saved here automatically."), images: t("No images yet."), videos: t("No videos yet."), uploads: s.uploads === null ? "" : t("No uploads yet. A picture you attach to work from is kept here."), favorites: t("No favorites yet. Tap the heart on a result to keep it here.") }[filter];
 
   return (
     <div className="screen library">

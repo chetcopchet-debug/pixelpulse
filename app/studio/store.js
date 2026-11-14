@@ -213,6 +213,13 @@ export function useStudio() {
     return got;
   }, []);
   const loadMore = useCallback(() => (cursor ? loadLibrary(cursor) : null), [cursor, loadLibrary]);
+  // The pictures the person uploaded to work from. They are not in the Library's list; the "Uploads" filter shows
+  // them. null = not asked for yet.
+  const [uploads, setUploads] = useState(null);
+  const loadUploads = useCallback(async () => {
+    const d = await get("/api/history?limit=60&filter=uploads").then(json).catch(() => null);
+    setUploads(d && !d.error ? (d.items || []).map(toItem) : []);
+  }, []);
 
   // ---- projects ----
   const setProject = useCallback((id) => {
@@ -650,6 +657,7 @@ export function useStudio() {
     const res = await post("/api/delete", { ids: [item.id] }).catch(() => null);
     if (!res || !res.ok) { say(t("Couldn't delete. Try again.")); return; }
     setItems((prev) => prev.filter((h) => h.id !== item.id));
+    setUploads((u) => (u ? u.filter((h) => h.id !== item.id) : u));
     setRuns((rs) => rs.filter((r) => r.item?.id !== item.id));
     setViewer(null); say("Deleted");
   }, [say]);
@@ -723,10 +731,11 @@ export function useStudio() {
       if (res.status === 401 && d.needSignIn) { askSignIn(plain(d.error)); return; }
       if (!res.ok || !d.item) throw new Error(plain(d.error) || (res.status === 413 ? t("That photo is too large. Try a smaller one.") : t("The upload didn't work. Try again.")));
       const item = toItem(d.item);
-      addItem(item); setRef(item); setTab("create");
+      setRef(item); setTab("create"); // attached to work from; it is not added to the Library's list
+      setUploads((u) => (u ? [item, ...u.filter((x) => x.id !== item.id)] : u));
     } catch (e) { say(e.message || t("The upload didn't work. Try again.")); }
     finally { setUploading(false); uploadLock.current = false; }
-  }, [addItem, say, needAccount, askSignIn]);
+  }, [say, needAccount, askSignIn]);
 
   // ---- account ----
   const signedIn = useCallback(async () => {
@@ -949,7 +958,7 @@ export function useStudio() {
   const shown = useMemo(() => runs.filter((r) => !r.checking && !(r.status === "done" && r.away)), [runs]);
   return {
     ready, tab, setTab, mode, setMode, prompt, setPrompt, imgModel, setImgModel, vidModel, setVidModel, auto, setAuto, vAuto, setVAuto, improve, setImprove, polish, improving, improveNow, improveText, undoImprove, compare, setCompare, ratio, setRatio,
-    vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs: shown, items, cursor, library, favs,
+    vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs: shown, items, cursor, library, favs, uploads, loadUploads,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,
     generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
