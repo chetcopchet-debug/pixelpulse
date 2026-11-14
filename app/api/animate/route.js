@@ -36,7 +36,7 @@ async function firstFrame(url, side = 1280) {
 // TEST ADDRESS ONLY. This is in the `preview` branch and is not part of the site (it is never merged to main).
 // A video that ends on the picture it starts from, so it can play as a loop: the same picture is given to the model
 // as its last frame too. Only for a caller who holds the test door's secret, and only on a preview build.
-const LOOP_END_INPUT = { 'kling-4': 'end_image', omni: 'last_frame' };
+const LOOP_END_INPUT = { 'kling-4': 'end_image', omni: 'last_frame', veo: 'last_frame' };
 async function toVertical(url) {
   try {
     const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) return url;

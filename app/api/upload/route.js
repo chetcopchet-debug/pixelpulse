@@ -10,6 +10,7 @@ import { rateLimit } from '../../../lib/ratelimit';
 import { persistBytes } from '../../../lib/generation';
 import { isBanned, BANNED_MSG } from '../../../lib/trustSafety';
 import { normalizeImage, ImageProcError, ratioFor } from '../../../lib/imageproc';
+import { doorOpens } from '../../../lib/testDoor';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -59,7 +60,8 @@ async function handlePost(request) {
     if (!buf || buf.length < 100) return err('That file is empty. If it is in the cloud (e.g. Google Photos), download it to the phone first.', 400);
     if (buf.length > MAX_RAW) return err('Photo is too large (max 8MB). Try a smaller photo or a screenshot.', 413);
 
-    const out = await normalizeImage(buf);
+    // TEST ADDRESS ONLY: a caller with the test door's secret keeps a picture at up to 1920 px (a 1080p video frame).
+    const out = await normalizeImage(buf, doorOpens(process.env, request.headers.get('x-test-login')) ? 1920 : undefined);
     const ratio = ratioFor(out.width, out.height);
     // The same picture is kept once. Its file is named after what is in it, so picking it again (or a retry, or a
     // double send) finds the one already saved and answers with that, instead of saving a copy.
