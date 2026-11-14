@@ -18,7 +18,12 @@ import { startSnow } from "./Snow";
 // The page's snow starts to fall this many seconds before the story ends, and the loop is set rolling (unseen) a
 // second before it ends, so when the story stops nothing on the screen stops with it.
 const SNOW_EARLY = 2.8, LOOP_EARLY = 1;
-const OPEN = "/create/lion-story-2.mp4", LOOP = "/create/lion-snow-5.mp4", STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-5.webp", CALM = "/create/lion-rest-3.webp";
+// TEST ADDRESS ONLY (this is in the `preview` branch, not in the pull request): with ?fps=60 in the address, the
+// story and the loop are the 60-frames-a-second files (frames computed between the original 24), to compare the two
+// on a phone. A small label in the corner says which one is playing.
+const FPS60 = () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("fps") === "60";
+const OPEN24 = "/create/lion-story-2.mp4", LOOP24 = "/create/lion-snow-5.mp4", OPEN60 = "/create/lion-story-2-60.mp4", LOOP60 = "/create/lion-snow-5-60.mp4";
+const STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-5.webp", CALM = "/create/lion-rest-3.webp";
 
 // Where the story is, for this visit to Create: "still" (not started), "open" (playing, at `t` seconds) or "loop".
 const visit = { stage: "still", t: 0 };
@@ -52,15 +57,15 @@ export default function Lion() {
     if (!a || !b) return undefined;
     let gone = false, now = a, timer = 0;
     const play = (v) => v.play().catch(() => {}); // refused (low power mode): the still picture stays
-    const roll = () => { if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } if (b.paused && !document.hidden) play(b); };
+    const roll = () => { if (!b.getAttribute("src")) { b.preload = "auto"; b.src = FPS60() ? LOOP60 : LOOP24; b.load(); } if (b.paused && !document.hidden) play(b); };
     // The story has ended: the loop (already rolling) is shown at once, without waiting for anything.
     const toLoop = () => { if (gone) return; now = b; visit.stage = "loop"; roll(); setSnowing(true); setStage("loop"); };
     const begin = () => {
       if (gone) return;
       if (visit.stage === "loop") { toLoop(); return; }               // put back on the page during the loop
-      a.src = OPEN; a.load();
+      a.src = FPS60() ? OPEN60 : OPEN24; a.load();
       if (visit.t > 0.2) a.addEventListener("loadedmetadata", () => { try { a.currentTime = visit.t; } catch {} }, { once: true }); // or during the story
-      a.addEventListener("playing", () => { if (gone) return; visit.stage = "open"; setStage("open"); if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } }, { once: true });
+      a.addEventListener("playing", () => { if (gone) return; visit.stage = "open"; setStage("open"); if (!b.getAttribute("src")) { b.preload = "auto"; b.src = FPS60() ? LOOP60 : LOOP24; b.load(); } }, { once: true });
       if (!document.hidden) play(a);
     };
     const onTime = () => {
@@ -91,6 +96,7 @@ export default function Lion() {
     <div className="lion" aria-hidden="true">
       {/* One dimmed layer holds the picture and the two videos, each fully opaque inside it: whatever is on top
           covers what is under it completely. (Dimming each one by itself let the one underneath show through.) */}
+      {video ? <span className="lion-fps">{FPS60() ? "60 fps" : "24 fps"}</span> : null}
       <div className="lion-in">
         {video === null ? null : !video ? <img src={CALM} alt="" decoding="async" />
           : visit.stage === "still" ? <img src={STILL} alt="" decoding="async" /> : visit.stage === "loop" ? <img src={SNOW} alt="" decoding="async" /> : null}
