@@ -21,9 +21,9 @@ const TOOL_ROWS = [
 const FAQ = [
   [N('Which credits are used first?'), N('Free credits are always used first: 10 every day once you have an account. Bought credits are only used after the free ones run out.')],
   [N('Do bought credits expire?'), N('Yelvo Pack credits never expire. Yelvo Pro adds 1,200 credits each billing month; unused credits stay in your balance.')],
-  [N('How do I cancel Yelvo Pro?'), N('Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.')],
+  [N('How do I cancel Yelvo Pro?'), N('Use the "Manage subscription" link in your receipt email, or write to us. Yelvo Pro then stops renewing, and you keep the credits you already received.')],
   [N('Can I get a refund?'), N('Yes. Unused bought credits can be refunded within 14 days.'), ['/refund-policy', N('Refund Policy')]],
-  [N('Who processes payments?'), N('Lemon Squeezy, our Merchant of Record. They handle the payment, VAT or sales tax and your receipt. We never see your card details.')],
+  [N('Who processes payments?'), N('Our payment provider, which is the Merchant of Record: it is named at checkout and on your receipt. It handles the payment, VAT or sales tax and your receipt. We never see your card details.')],
   [N('I changed phone or cleared my browser. Where are my credits?'), N('Sign in with Google or email from the profile menu and your credits follow your account on any device. If you bought without signing in, contact us with your order email.'), ['/contact', N('Contact')]],
 ];
 
@@ -51,6 +51,7 @@ export default async function Pricing() {
           <p className="b">{PLANS.pro.name}</p>
           <p className="amount">{PLANS.pro.price} <span className="sm t3" style={{ fontFamily: 'var(--font-text)', letterSpacing: 0 }}>{t("a month")}</span></p>
           <p className="t2 r" style={{ gap: 6 }}><i className="coin" />{t("{n} credits every month. Cancel anytime.", { n: num(PLANS.pro.credits) })}</p>
+          <p className="sm t3">{t("Renews automatically every month until you cancel.")}</p>
           <BuyButton plan="pro" label={t("Get {name}", { name: PLANS.pro.name })} labels={buyLabels} open={planEnabled('pro')} />
         </div>
       </div>

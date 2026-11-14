@@ -9,7 +9,7 @@ import { FREE_DAILY, BUILD } from "./store";
 import { KEEP_FACE_ON } from "../../lib/features.js";
 
 const THEMES = [["dark", N("Dark")], ["light", N("Light")], ["auto", N("Match device")]];
-const ABOUT = [[N("Terms"), "/terms"], [N("Privacy"), "/privacy"], [N("Refunds"), "/refund-policy"], [N("Content policy"), "/content-policy"], [N("Contact us"), "/contact"]];
+const ABOUT = [[N("Terms"), "/terms"], [N("Privacy"), "/privacy"], [N("Refunds"), "/refund-policy"], [N("Acceptable use"), "/content-policy"], [N("Contact us"), "/contact"]];
 
 // A full page that lies over the tabs, with a way back. Used for Settings, Models & pricing and Help.
 function Page({ title, s, children }) {
