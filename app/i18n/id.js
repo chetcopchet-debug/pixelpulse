@@ -215,6 +215,7 @@ export default {
   "Looks like a realistic photo": "Tampak seperti foto realistis",
   "Lowest price": "Harga terendah",
   "Made with": "Dibuat dengan",
+  "AI-generated": "Dibuat dengan AI",
   "Main": "Utama",
   "Make it night, add snow, change the jacket to red": "Jadikan malam hari, tambahkan salju, ubah jaketnya jadi merah",
   "Make something": "Buat sesuatu",

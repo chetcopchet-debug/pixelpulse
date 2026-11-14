@@ -131,6 +131,7 @@ html:has(.pp) body { background: transparent !important; }
 .pp .agree a { text-decoration: underline; text-underline-offset: 3px; }
 .pp .strip h1 { font-size: 28px; line-height: 32px; max-width: 560px; }
 .pp .fl { display: flex; gap: 6px; padding-top: 2px; padding-bottom: 10px; }
+.pp .ainote { margin-left: auto; align-self: center; padding-right: 4px; font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap; }
 .pp .chip2 { display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 14px; background: var(--fill); font-size: 14px; line-height: 20px; font-weight: 600; }
 .pp .chip2.on { background: var(--primary); color: var(--on-primary); }
 .pp .gal { display: flex; align-items: flex-start; gap: 6px; padding-left: 12px; padding-right: 12px; }

@@ -148,7 +148,7 @@ export default function Viewer({ s }) {
 
           {explore ? (
             <>
-              {item.model ? <p className="sm" style={{ marginBottom: 6 }}><span className="t2">{t("Made with")}</span> <span className="b">{madeWith(item.model)}</span><span className="t3 num">, {item.ratio}</span></p> : null}
+              {item.model ? <p className="sm" style={{ marginBottom: 6 }}><span className="t2">{t("AI-generated")} · {t("Made with")}</span> <span className="b">{madeWith(item.model)}</span><span className="t3 num">, {item.ratio}</span></p> : null}
               {promptText({ margin: long ? "0" : "0 0 14px" })}
               {exploreActions.length ? (
                 <div className="ex2">
