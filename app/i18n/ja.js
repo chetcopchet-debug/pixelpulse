@@ -561,6 +561,7 @@ export default {
   "1 credit. Open the menu": "1クレジット。メニューを開く",
   "Temporarily unavailable": "一時的に利用できません",
   "This model is temporarily unavailable. Pick another model.": "このモデルは一時的に利用できません。別のモデルを選んでください。",
+  "This one is already being made.": "これはすでに作成中です。",
   "Prompt improved. See what was used": "プロンプトを改善しました。使われた内容を見る",
   "Improve my prompt": "プロンプトを改善",
   "Short ideas are filled in before they are made. Text in quotes stays as you wrote it.": "短いアイデアは作成前に補われます。引用符で囲んだ文字は書いたとおりに残ります。",

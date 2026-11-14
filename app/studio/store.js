@@ -349,7 +349,7 @@ export function useStudio() {
     const label = o.ref ? TOOLS.reference.label : o.auto ? `${m.name}, picked by Auto` : m.name;
     if (!afford(cost, { label: o.ref ? TOOLS.reference.label : m.name })) return false;
     const key = uid();
-    setRuns((rs) => [...trim(rs), { key, kind: "image", model: o.ref ? "guided" : m.id, prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url,
+    setRuns((rs) => [...trim(rs), { key, sig: o.sig, kind: "image", model: o.ref ? "guided" : m.id, prompt: o.prompt, label, ratio: o.ratio, cost, status: "running", t0: Date.now(), eta: m.id === "fast" && !o.ref ? 6 : 20, poster: o.ref?.url,
       skip: itemsRef.current.slice(0, 12).map((x) => x.id), again: { ...o, kind: "image" } }]);
     markSeen();
     (async () => {
@@ -357,10 +357,12 @@ export function useStudio() {
       let res;
       // No answer at all (the phone put the browser to sleep, the network dropped, the page was closed): the
       // server usually finished anyway, so look for the result in the Library instead of calling it a failure.
-      try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...(better ? { improved: better } : {}), ...inProject() }); }
+      try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.ref ? { guideId: o.ref.id, guideFollow: 0.55 } : {}), ...(better ? { improved: better } : {}), ...inProject(), rid: key }); }
       catch { patchRun(key, { lost: true }); watchRef.current(); return; }
       try {
         const d = await json(res); sync(d);
+        // The server already has this very press (the request went out twice): it is making it, so look for the result.
+        if (res.status === 409 && d.duplicate) { patchRun(key, { lost: true }); watchRef.current(); return; }
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label); return; }
         if (!res.ok || d.error || !d.imageUrl) throw new Error(plain(d.error) || t("The image didn't finish. Any credits were returned."));
         const item = toItem({ id: d.id, public_url: d.imageUrl, prompt: o.prompt, aspect_ratio: o.ratio, model: o.ref ? "guided" : d.tier || m.id, project_id: d.project });
@@ -385,7 +387,7 @@ export function useStudio() {
       if (delay) await sleep(delay);
       for (let attempt = 1; ; attempt++) {
         let res;
-        try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.project ? { project: o.project } : {}) }); }
+        try { res = await post("/api/generate", { prompt: o.prompt, style: "None", aspectRatio: o.ratio, tier: m.id, format: o.format || "free", ...(o.project ? { project: o.project } : {}), rid: `${key}.${m.id}.${attempt}` }); }
         catch { patchPart(key, m.id, { lost: true }); watchRef.current(); return; } // no answer: look for it in the Library (see startImage)
         const d = await json(res); sync(d);
         // The provider limits how many generations can start at once. Wait and try again instead of failing.
@@ -409,7 +411,7 @@ export function useStudio() {
       return false;
     }
     const key = uid(); const t0 = Date.now();
-    setRuns((rs) => [...trim(rs), { key, kind: "compare", prompt: o.prompt, label: t("Comparing {n} models", { n: plan.models.length }), ratio: o.ratio, cost: plan.cost, status: "running", t0, skip: itemsRef.current.slice(0, 12).map((x) => x.id), again: { prompt: o.prompt, ratio: o.ratio, format: o.format, project: projectRef.current },
+    setRuns((rs) => [...trim(rs), { key, sig: o.sig, kind: "compare", prompt: o.prompt, label: t("Comparing {n} models", { n: plan.models.length }), ratio: o.ratio, cost: plan.cost, status: "running", t0, skip: itemsRef.current.slice(0, 12).map((x) => x.id), again: { prompt: o.prompt, ratio: o.ratio, format: o.format, project: projectRef.current },
       parts: plan.models.map((m) => ({ id: m.id, name: m.name, cost: m.cost, status: "running", t0, eta: m.id === "fast" ? 6 : 25 })) }]);
     markSeen();
     plan.models.forEach((m, i) => runPart(key, m, { ...o, project: projectRef.current }, i * 700)); // a small gap between starts is kinder to the provider's limits
@@ -455,14 +457,16 @@ export function useStudio() {
     const label = fixed ? `${TOOLS.animate.label}, ${TOOLS.animate.detail}` : `${m.name}, ${plan.d} s, ${resLabel(plan.r)}`;
     if (!afford(cost, { paidOnly: true, label: fixed ? TOOLS.animate.label : m.name })) return false;
     const key = uid();
-    setRuns((rs) => [...trim(rs), { key, kind: "video", prompt: o.prompt, label, ratio: o.source ? o.source.ratio || "1:1" : plan.ratio, cost, status: "running", t0: Date.now(), eta: fixed ? 75 : Math.round(m.eta * (plan.d > 6 ? 1.6 : 1)), poster: o.source?.url, again: { ...o, kind: "video" } }]);
+    setRuns((rs) => [...trim(rs), { key, sig: o.sig, kind: "video", prompt: o.prompt, label, ratio: o.source ? o.source.ratio || "1:1" : plan.ratio, cost, status: "running", t0: Date.now(), eta: fixed ? 75 : Math.round(m.eta * (plan.d > 6 ? 1.6 : 1)), poster: o.source?.url, again: { ...o, kind: "video" } }]);
     markSeen();
     (async () => {
       try {
         const pid = projectRef.current; // the video is filed in the project that is open when it starts
         const better = o.source ? "" : await improveFirst(key, o, "video");
-        const res = await post("/api/animate", { ...(fixed ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : picked ? { model: m.id, id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}), duration: plan.d, resolution: plan.r } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(better ? { improved: better } : {}) }), ...(pid ? { project: pid } : {}) });
+        const res = await post("/api/animate", { ...(fixed ? { id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}) } : picked ? { model: m.id, id: o.source.id, ...(o.prompt ? { prompt: o.prompt } : {}), duration: plan.d, resolution: plan.r } : { model: m.id, prompt: o.prompt, aspectRatio: plan.ratio, duration: plan.d, resolution: plan.r, ...(better ? { improved: better } : {}) }), ...(pid ? { project: pid } : {}), rid: key });
         const d = await json(res); sync(d);
+        // The server already has this very press (the request went out twice): the video is being made.
+        if (res.status === 409 && d.duplicate) { patchRun(key, { status: "late" }); return; }
         if (res.status === 402 || res.status === 401) { dropRun(key); refused(d, cost, label, true); return; }
         if (d.notice === "untranslated") say(t("We couldn't translate your prompt right now, so it was used as written."));
         if (typeof d.usedPrompt === "string") patchRun(key, { used: d.usedPrompt }); // shown beside the caption when the video is ready
@@ -586,6 +590,19 @@ export function useStudio() {
   const undoImprove = useCallback(() => { if (polish) { setPrompt(polish.original); setPolish(null); } }, [polish]);
   useEffect(() => { if (!prompt.trim()) setPolish(null); }, [prompt]); // an empty box has nothing to take back
 
+  // One press, one creation. `pressSig` says what a press of Generate would make right now (the words, the model,
+  // the settings). While exactly that is being made the button is locked (`generating`), and generate() refuses a
+  // second press too, so a double tap can never start, or charge for, the same thing twice. Changing a word or the
+  // model is a different request and can be started beside it. (The server has its own guard: lib/once.js.)
+  const pressSig = useMemo(() => {
+    const text = prompt.trim();
+    if (mode === "video") return JSON.stringify(["video", text, ref?.id || null, ref ? vidModel : vAuto ? "auto" : vidModel, vDur, vRes, ref ? null : ratio]);
+    const cmp = !ref && comparePlan(compare) ? [...compare].sort() : null;
+    return JSON.stringify(["image", text, ref?.id || null, cmp || (auto && !ref ? "auto" : imgModel), ratio, format]);
+  }, [mode, prompt, ref, vidModel, vAuto, vDur, vRes, ratio, compare, auto, imgModel, format]);
+  const generating = runs.some((r) => r.status === "running" && r.sig && r.sig === pressSig);
+  const lastPress = useRef({ sig: "", at: 0 });
+
   // The Generate button.
   const askedWallet = useRef(false);
   const generateRef = useRef(null);
@@ -596,20 +613,26 @@ export function useStudio() {
     if (!walletRef.current.loaded && !askedWallet.current) { askedWallet.current = true; refreshWallet().finally(() => setTimeout(() => generateRef.current?.(), 60)); return; }
     if (needAccount({ tab: "create" })) return;
     const text = prompt.trim();
+    // The same thing is already being made, or the button was pressed twice in a row: nothing more is started.
+    const sig = pressSig;
+    if (runsRef.current.some((r) => r.status === "running" && r.sig === sig) || (lastPress.current.sig === sig && Date.now() - lastPress.current.at < 1200)) return;
+    const pressed = () => { lastPress.current = { sig, at: Date.now() }; };
     if (mode === "video") {
       // What was written stays in the box after a creation starts, so the next try is one small change away.
-      if (ref) { startVideo({ source: ref, prompt: text, model: vidModel, d: vDur, r: vRes }); return; }
+      if (ref) { pressed(); startVideo({ source: ref, prompt: text, model: vidModel, d: vDur, r: vRes, sig }); return; }
       if (!text) { say(t("Describe the video first.")); return; }
+      pressed();
       // Auto: the model the screen showed for this prompt, at the chosen length and quality.
       const vp = vAuto ? recommend(text, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP) : null;
-      startVideo({ model: vp?.pick || vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish });
+      startVideo({ model: vp?.pick || vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish, sig });
       return;
     }
     if (!text) { say(t("Describe the image first.")); return; }
-    if (!ref && comparePlan(compare)) { startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format }); return; }
+    pressed();
+    if (!ref && comparePlan(compare)) { startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format, sig }); return; }
     const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
-    startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve: improve && !polish });
-  }, [prompt, mode, ref, vidModel, vAuto, ratio, vDur, vRes, imgModel, auto, compare, format, improve, polish, startVideo, startImage, startCompare, say, needAccount, refreshWallet]);
+    startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve: improve && !polish, sig });
+  }, [pressSig, prompt, mode, ref, vidModel, vAuto, ratio, vDur, vRes, imgModel, auto, compare, format, improve, polish, startVideo, startImage, startCompare, say, needAccount, refreshWallet]);
   generateRef.current = generate;
 
   // ---- tools on an existing image ----
@@ -968,7 +991,7 @@ export function useStudio() {
     vDur, setVDur, vRes, setVRes, ref, setRef, format, setFormat, wallet, runs: shown, items, cursor, library, favs, uploads, loadUploads,
     off, projects, projectsOn, project, setProject, createProject, renameProject, deleteProject, moveItem,
     viewer, setViewer, sheet, setSheet, area, setArea, newer, toast, say, theme, setTheme, busyTool, uploading,
-    generate, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
+    generate, generating, retry, retryPart, dropRun, runTool, animate, variations, useAgain, remove, upload, toggleFav, loadMore, reportVideo, savePoster, posters,
     askSignIn, needAccount, askCredits, signedIn, signOut, buy, refreshWallet,
     page, setPage, lang, setLang, explore, feature, deleteAccount,
   };

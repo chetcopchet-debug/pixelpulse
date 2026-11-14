@@ -22,6 +22,7 @@ export const SERVER_MESSAGES = [
   N("The subscription page could not be opened. Try again, or contact us."),
   N("Amplify limit reached (20/hour). Try again later."),
   N("This model is temporarily unavailable. Pick another model."),
+  N("This one is already being made."),
   N("Improve Pro costs 1 credit."),
   N("Could not start the video, your credits were refunded."),
   N("Image not found."),

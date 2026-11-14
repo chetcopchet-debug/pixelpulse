@@ -561,6 +561,7 @@ export default {
   "1 credit. Open the menu": "1 crédit. Ouvrir le menu",
   "Temporarily unavailable": "Temporairement indisponible",
   "This model is temporarily unavailable. Pick another model.": "Ce modèle est temporairement indisponible. Choisissez-en un autre.",
+  "This one is already being made.": "Cette création est déjà en cours.",
   "Prompt improved. See what was used": "Prompt amélioré. Voir ce qui a été utilisé",
   "Improve my prompt": "Améliorer mon prompt",
   "Short ideas are filled in before they are made. Text in quotes stays as you wrote it.": "Les idées courtes sont complétées avant d'être créées. Le texte entre guillemets reste tel que vous l'avez écrit.",
