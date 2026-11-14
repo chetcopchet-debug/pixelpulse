@@ -318,9 +318,10 @@ export default function Create({ s }) {
   const now = useNow(s.runs.some(busyRun));
 
   // The prompt box grows with the text: up to six lines on a phone, more room on a wide screen.
-  // The corner button opens the box to show the whole prompt without scrolling, up to 70% of the screen.
+  // The corner button opens the box to show the whole prompt without scrolling, up to 70% of the screen
+  // (the line of buttons above the text counts in that).
   const [big, setBig] = useState(false);
-  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, 110]; el.style.height = "auto"; el.style.height = `${Math.min(big ? Math.max(hi, growMax()) : hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide, big]);
+  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, 110]; el.style.height = "auto"; el.style.height = `${Math.min(big ? Math.max(hi, growMax() - 40) : hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide, big]);
   const grow = <GrowButton on={big} onClick={() => setBig((b) => !b)} />;
 
   // The window shows the newest thing: an image or video being made right now, or else the latest result.
@@ -461,7 +462,7 @@ export default function Create({ s }) {
           <div className="panel-top"><Brand wordmark /><Balance s={s} /></div>
           <div className="panel-body">
             {mode}
-            <div className="field2 growbox">{text}{grow}</div>
+            <div className="field2"><div className="pbar">{grow}</div>{text}</div>
             {polishLine}
             {canPolish ? (
               <div className="r" style={{ gap: 8 }}>
@@ -518,13 +519,14 @@ export default function Create({ s }) {
         <div className="composer mini2">
           {tags}
           {refcard}
-          <div className="r" style={{ gap: 4, alignItems: "flex-start" }}>
-            {text}
-            {s.prompt.trim() || big ? grow : null}
+          {/* the buttons keep to a line of their own at the top of the box, always in view; the text has the whole width under them */}
+          <div className="pbar">
+            {grow}
             {more && !s.prompt.trim() ? <button className="plus" aria-label={t("Ideas to start from")} onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={22} /></button> : null}
             {canPolish ? <button className="plus wandb on" aria-label={t("Improve this prompt now")} disabled={Boolean(s.improving)} onClick={() => s.improveNow()}>{s.improving === "std" ? <i className="spin" /> : <Icon name="wand" size={22} />}</button> : null}
             <button className="plus" aria-label={s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>
           </div>
+          {text}
           {polishLine}
           {autoline}
           <div className="gorow">
