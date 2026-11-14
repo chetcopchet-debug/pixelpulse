@@ -16,6 +16,15 @@ export function calm() {
   return Boolean((c && (c.saveData || /(^|-)2g|3g/.test(c.effectiveType || ""))) || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
+// Fetches the still picture ahead of time (a phone on a dark screen, a moment after the app has opened), so it is
+// already there when Create is opened.
+export function warmLion(theme) {
+  if (typeof window === "undefined" || theme === "light" || window.matchMedia("(min-width: 900px)").matches) return undefined;
+  if (theme === "auto" && !window.matchMedia("(prefers-color-scheme: dark)").matches) return undefined;
+  const id = window.setTimeout(() => { const im = new Image(); im.decoding = "async"; im.src = STILL; }, 1200);
+  return () => window.clearTimeout(id);
+}
+
 export default function Lion() {
   const open = useRef(null), loop = useRef(null);
   const [stage, setStage] = useState("still"); // still -> open -> loop
