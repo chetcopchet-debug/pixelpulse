@@ -18,11 +18,13 @@ const tall = (ratio) => { const [a, b] = String(ratio || "1:1").split(":").map(N
 // The gallery: pictures and videos made on this site, chosen by its owner. Nothing is created here and nothing
 // is sold here. A tap opens a picture with its prompt and model, and "Use this prompt" takes them to Create.
 // A visitor without an account also gets one line saying what the site is and one way in.
-export default function Explore({ s }) {
+// `signedHint`: the server saw an account cookie. Until the wallet answers, that decides whether the headline is
+// shown, so a new visitor sees it at once and nothing jumps when the wallet arrives.
+export default function Explore({ s, signedHint = false }) {
   const [kind, setKind] = useState("all");
   const cols = useColumns();
   const w = s.wallet;
-  const guest = w.loaded && !w.account && !w.admin;
+  const guest = w.loaded ? !w.account && !w.admin : !signedHint;
   // Until pictures have been chosen, the gallery shows the six starting ideas, so it is never an empty page.
   const chosen = s.explore.items;
   const all = useMemo(() => (chosen.length ? chosen : IDEAS.image.map((x) => ({ id: null, url: `/ideas/${x.img}.webp`, prompt: x.prompt, ratio: "1:1", model: null, video: false, idea: x.img }))), [chosen]);
@@ -79,11 +81,12 @@ export default function Explore({ s }) {
         </div>
       )}
 
-      {guest ? (
-        <div className="pad" style={{ marginTop: 28, display: "flex", justifyContent: "center" }}>
-          <button className="chip2" onClick={() => s.setSheet({ type: "lang" })} aria-label={t("Language")}><Icon name="globe" size={18} style={{ marginRight: 8 }} />{(LANGS.find((l) => l.id === s.lang) || LANGS[0]).name}</button>
-        </div>
-      ) : null}
+      <footer className="pad exfoot">
+        <button className="chip2" onClick={() => s.setSheet({ type: "lang" })} aria-label={t("Language")}><Icon name="globe" size={18} style={{ marginRight: 8 }} />{(LANGS.find((l) => l.id === s.lang) || LANGS[0]).name}</button>
+        <nav aria-label={t("About")}>
+          <a href="/terms">{t("Terms")}</a><a href="/privacy">{t("Privacy")}</a><a href="/refund-policy">{t("Refunds")}</a><a href="/content-policy">{t("Content policy")}</a><a href="/contact">{t("Contact us")}</a>
+        </nav>
+      </footer>
     </div>
   );
 }

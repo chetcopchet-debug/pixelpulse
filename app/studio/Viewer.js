@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Icon from "./icons";
 import { Price, Full, lockScroll } from "./bits";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
-import { madeWith } from "./models";
+import { madeWith, imageModel } from "./models";
 import { nextActions } from "./next";
 import { download } from "./download";
 
@@ -104,7 +104,7 @@ export default function Viewer({ s }) {
           </div>
         </header>
 
-        <div className={`stage${fit ? " fit" : ""}`} style={fit || undefined}>
+        <div className={`stage${fit ? " fit" : ""}${explore ? " ex" : ""}`} style={fit || undefined}>
           {/* The space around the picture or the video is the same picture, blurred: never plain black. */}
           <div className="vback" style={{ backgroundImage: `url("${shown.video ? posterUrl(shown.url) : thumbUrl(shown.url)}")` }} aria-hidden="true" />
           {shown.video
@@ -123,8 +123,8 @@ export default function Viewer({ s }) {
             <div className="failed" style={{ marginBottom: 16 }}>
               <p>{item.video ? t("Delete this video from your Library? This can't be undone.") : t("Delete this image from your Library? This can't be undone.")}</p>
               <div className="r" style={{ gap: 8 }}>
-                <button className="btn btn-p" onClick={() => s.remove(item)}>{t("Delete")}</button>
-                <button className="btn btn-s" onClick={() => setConfirm(false)}>{t("Keep it")}</button>
+                <button className="btn btn-danger" onClick={() => s.remove(item)}>{t("Delete")}</button>
+                <button className="btn btn-p" onClick={() => setConfirm(false)}>{t("Keep it")}</button>
               </div>
             </div>
           ) : null}
@@ -167,6 +167,10 @@ export default function Viewer({ s }) {
                 <button className="btn btn-p grow" onClick={() => s.useAgain(item)}>{t("Use this prompt")}</button>
                 <button className="btn btn-s" style={{ width: 48, padding: 0 }} aria-label={t("Copy prompt")} onClick={copy}><Icon name="copy" size={20} /></button>
               </div>
+              {/* The same prompt on the one-credit model: a first try that the free credits always cover. */}
+              {!item.video && item.model !== "fast" ? (
+                <button className="btn btn-s btn-wide btn-split" style={{ marginTop: 8 }} onClick={() => s.useAgain(item, { model: "fast" })}><span>{t("Try it free with {name}", { name: imageModel("fast").name })}</span><Price n={imageModel("fast").cost} /></button>
+              ) : null}
             </>
           ) : item.prompt ? (
             <>

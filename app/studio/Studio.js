@@ -15,7 +15,8 @@ import { ModelSheet, RatioSheet, VideoSheet, PricingSheet, SignInSheet, AskSheet
 // Three tabs. Create is the one in the middle and stands out. Everything about the account is in the profile menu.
 const TABS = [["explore", "compass", N("Explore")], ["create", "plus", N("Create")], ["library", "library", N("Library")]];
 
-export default function Studio() {
+// `signedHint`: the server saw an account cookie on this request (app/page.js).
+export default function Studio({ signedHint = false }) {
   const s = useStudio();
   const close = () => s.setSheet(null);
   // Errors that happen in the browser are reported to the server, a few per visit at most (see /admin).
@@ -35,7 +36,7 @@ export default function Studio() {
   const sh = s.sheet;
   return (
     <div className="pp" data-theme={s.theme}>
-      {!s.ready ? null : s.tab === "create" ? <Create s={s} /> : s.tab === "library" ? <Library s={s} /> : <Explore s={s} />}
+      {!s.ready ? null : s.tab === "create" ? <Create s={s} /> : s.tab === "library" ? <Library s={s} /> : <Explore s={s} signedHint={signedHint} />}
 
       <nav className="nav" aria-label={t("Main")}>
         {TABS.map(([id, icon, label]) => (

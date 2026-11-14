@@ -608,4 +608,9 @@ export default {
   "Today's free improvements are used. Pro still works, for 1 credit.": "오늘의 무료 개선을 모두 사용했습니다. Pro는 1크레딧으로 계속 사용할 수 있습니다.",
   "Draft": "초안",
   "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "초안은 저화질(360p)의 빠른 시험용입니다. 전체 화질에 비용을 쓰기 전에 아이디어를 시험해 보세요.",
+  "Coming soon": "곧 제공 예정",
+  "Sign in first, in the studio, and then buy. Your credits are saved to your account.": "먼저 스튜디오에서 로그인한 다음 구매하세요. 크레딧은 계정에 저장됩니다.",
+  "Sign in first, then buy. Your credits are saved to your account.": "먼저 로그인한 다음 구매하세요. 크레딧은 계정에 저장됩니다.",
+  "Try it free with {name}": "{name}(으)로 무료로 사용해 보기",
+  "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "계속하면 <a>이용약관</a> 및 <b>개인정보 처리방침</b>에 동의하게 됩니다.",
 };

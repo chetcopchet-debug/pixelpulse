@@ -608,4 +608,9 @@ export default {
   "Today's free improvements are used. Pro still works, for 1 credit.": "Die kostenlosen Verbesserungen für heute sind aufgebraucht. Pro geht weiterhin, für 1 Credit.",
   "Draft": "Entwurf",
   "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "Entwurf ist ein schneller Versuch in niedriger Qualität (360p). Teste damit eine Idee, bevor du für volle Qualität zahlst.",
+  "Coming soon": "Demnächst",
+  "Sign in first, in the studio, and then buy. Your credits are saved to your account.": "Melde dich zuerst im Studio an und kaufe dann. Deine Credits werden in deinem Konto gespeichert.",
+  "Sign in first, then buy. Your credits are saved to your account.": "Melde dich zuerst an und kaufe dann. Deine Credits werden in deinem Konto gespeichert.",
+  "Try it free with {name}": "Kostenlos ausprobieren mit {name}",
+  "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "Wenn du fortfährst, stimmst du den <a>Nutzungsbedingungen</a> und der <b>Datenschutzerklärung</b> zu.",
 };
