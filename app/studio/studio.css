@@ -131,6 +131,7 @@ html:has(.pp) body { background: transparent !important; }
 .pp .agree a { text-decoration: underline; text-underline-offset: 3px; }
 .pp .strip h1 { font-size: 28px; line-height: 32px; max-width: 560px; }
 .pp .fl { display: flex; gap: 6px; padding-top: 2px; padding-bottom: 10px; }
+.pp .ainote { margin-left: auto; align-self: center; padding-right: 4px; font-size: 12px; line-height: 16px; color: var(--text-3); white-space: nowrap; }
 .pp .chip2 { display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 14px; background: var(--fill); font-size: 14px; line-height: 20px; font-weight: 600; }
 .pp .chip2.on { background: var(--primary); color: var(--on-primary); }
 .pp .gal { display: flex; align-items: flex-start; gap: 6px; padding-left: 12px; padding-right: 12px; }
@@ -297,6 +298,10 @@ html:has(.pp) body { background: transparent !important; }
 .pp .job.err { align-items: flex-start; padding: 10px 4px 10px 12px; }
 .pp .job.err > .ic { margin-top: 1px; color: var(--neg); }
 .pp .job.err .job-t { display: -webkit-box; flex-direction: row; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* A failed line that offers another model: the button gets a row of its own under the message. */
+.pp .job.alt { flex-wrap: wrap; padding: 8px 12px; row-gap: 8px; }
+.pp .job.alt .job-t { flex-basis: calc(100% - 100px); -webkit-line-clamp: 4; }
+.pp .job-alt { order: 9; display: inline-flex; align-items: center; gap: 8px; height: 40px; margin-left: 28px; padding: 0 14px; border-radius: 12px; background: var(--text); color: var(--bg); font-weight: 600; }
 .pp .job-b { flex: none; height: 44px; margin: -10px 0; padding: 0 10px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .pp .job-x { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -10px 0; color: var(--text-2); }
 .pp .job:not(.err) .job-x { margin: -5px -12px -5px 0; }

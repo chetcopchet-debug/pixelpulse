@@ -114,13 +114,17 @@ export default function Explore({ s, signedHint = false }) {
         </section>
       ) : null}
 
-      {hasVideo ? (
-        <div className="fl pad" role="tablist" aria-label={t("Show")}>
-          {[["all", t("All")], ["image", t("Images")], ["video", t("Video")]].map(([id, label]) => (
-            <button key={id} role="tab" aria-selected={kind === id} className={`chip2${kind === id ? " on" : ""}`} onClick={() => setKind(id)}>{label}</button>
-          ))}
-        </div>
-      ) : null}
+      {/* Everything in the gallery was made by AI, and the page says so: a quiet note at the end of the filter row. */}
+      <div className="fl pad">
+        {hasVideo ? (
+          <div className="r" style={{ gap: 6 }} role="tablist" aria-label={t("Show")}>
+            {[["all", t("All")], ["image", t("Images")], ["video", t("Video")]].map(([id, label]) => (
+              <button key={id} role="tab" aria-selected={kind === id} className={`chip2${kind === id ? " on" : ""}`} onClick={() => setKind(id)}>{label}</button>
+            ))}
+          </div>
+        ) : null}
+        <span className="ainote">{t("AI-generated")}</span>
+      </div>
 
       {w.admin && !chosen.length && s.explore.status === "ready" ? <p className="sm t2 pad" style={{ marginBottom: 12 }}>{t("Nothing is chosen for the gallery yet, so the starting ideas are shown. Open one of your creations in the Library and tap \"Show in Explore\".")}</p> : null}
 
@@ -139,7 +143,7 @@ export default function Explore({ s, signedHint = false }) {
       <footer className="pad exfoot">
         <button className="chip2" onClick={() => s.setSheet({ type: "lang" })} aria-label={t("Language")}><Icon name="globe" size={18} style={{ marginRight: 8 }} />{(LANGS.find((l) => l.id === s.lang) || LANGS[0]).name}</button>
         <nav aria-label={t("About")}>
-          <a href="/terms">{t("Terms")}</a><a href="/privacy">{t("Privacy")}</a><a href="/refund-policy">{t("Refunds")}</a><a href="/content-policy">{t("Content policy")}</a><a href="/contact">{t("Contact us")}</a>
+          <a href="/terms">{t("Terms")}</a><a href="/privacy">{t("Privacy")}</a><a href="/refund-policy">{t("Refunds")}</a><a href="/content-policy">{t("Acceptable use")}</a><a href="/contact">{t("Contact us")}</a>
         </nav>
       </footer>
     </div>

@@ -13,6 +13,7 @@ import { fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
 import { GrowButton, growMax } from "./GrowField";
 import Lion from "./Lion";
+import { uploadAgreed } from "./Sheets";
 
 // A real desktop layout from this width up; below it, the phone layout.
 function useWide() {
@@ -85,11 +86,15 @@ function Jobs({ runs, s, now }) {
       {more > 0 ? <p className="sm t3" style={{ padding: "0 4px" }}>{t("And {n} more in progress", { n: more })}</p> : null}
       {shown.map((run) => {
         if (run.status === "failed") {
+          // `alt`: the model refused the picture (a realistic face), so the same video is offered on one that takes it.
+          const alt = run.alt ? videoModel(run.alt.model) : null;
+          const altCost = alt ? videoPlan(alt.id, undefined, undefined, run.alt.source?.ratio, true)?.cost : null;
           return (
-            <div key={run.key} className="job err" role="alert">
+            <div key={run.key} className={`job err${alt ? " alt" : ""}`} role="alert">
               <Icon name="alert" size={18} />
               <p className="job-t">{run.error}</p>
-              {run.again ? <button className="job-b" onClick={() => s.retry(run)}>{t("Try again")}</button> : null}
+              {alt ? <button className="job-alt" onClick={() => s.retry({ ...run, again: run.alt })}><span>{t("Try {name}", { name: alt.name })}</span>{altCost ? <Price n={altCost} /> : null}</button>
+                : run.again ? <button className="job-b" onClick={() => s.retry(run)}>{t("Try again")}</button> : null}
               <button className="job-x" aria-label={t("Dismiss")} onClick={() => s.dropRun(run.key)}><Icon name="x" size={18} /></button>
             </div>
           );
@@ -367,7 +372,13 @@ export default function Create({ s }) {
   const project = s.projectsOn ? s.projects.find((p) => p.id === s.project) : null; // new creations are saved into it
   const modelName = cmp ? t("{n} models", { n: cmp.models.length }) : auto || vauto ? t("Auto") : video ? vm.name : im.name;
   const modelLabel = cmp ? t("Comparing {n} models. Change", { n: cmp.models.length }) : t("Model: {name}. Change", { name: auto || vauto ? t("Auto") : video ? vm.name : im.name });
-  const pickFile = () => { if (!s.needAccount({ tab: "create" })) fileRef.current?.click(); };
+  // Adding a picture. The first time on this device a short sheet says what may be uploaded; its button opens the
+  // file picker. After that the picker opens at once.
+  const pickFile = () => {
+    if (s.needAccount({ tab: "create" })) return;
+    const open = () => fileRef.current?.click();
+    if (uploadAgreed()) open(); else s.setSheet({ type: "upload", pick: open });
+  };
 
   const mode = (
     <div className="seg" role="tablist" aria-label={t("What to make")}>
