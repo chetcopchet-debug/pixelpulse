@@ -12,13 +12,13 @@ export default function Refunds() {
       </ul>
       <h2>Yelvo Pro (monthly)</h2>
       <ul>
-        <li>You can cancel anytime; the subscription stops at the end of the current billing month.</li>
+        <li>Yelvo Pro renews automatically every month until you cancel. You can cancel anytime, from the link in your receipt email or by writing to us; the subscription then stops at the end of the current billing month.</li>
         <li>Within 14 days of a monthly charge, we refund that month if its credits weren't used, or the unused part proportionally.</li>
       </ul>
       <h2>Problems with a result</h2>
       <p>If a generation or tool fails, its credits are returned to your balance automatically. If something went wrong anyway (a charge without credits, a broken result, a double charge), contact us and we'll fix it or refund you.</p>
       <h2>How to request a refund</h2>
-      <p>Email <a href={`mailto:${CONTACT_EMAIL}?subject=Refund%20request`}>{CONTACT_EMAIL}</a> with your order number or the email used at checkout. Refunds are processed by Lemon Squeezy, our Merchant of Record, to your original payment method, usually within 5–10 business days. Refunded credits are removed from your balance.</p>
+      <p>Email <a href={`mailto:${CONTACT_EMAIL}?subject=Refund%20request`}>{CONTACT_EMAIL}</a> with your order number or the email used at checkout. Refunds are processed by our payment provider (the Merchant of Record named on your receipt) to your original payment method, usually within 5–10 business days. Refunded credits are removed from your balance.</p>
       <p>This policy doesn't affect your statutory rights as a consumer.</p>
     </LegalPage>
   );
