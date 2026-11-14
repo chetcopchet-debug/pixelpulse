@@ -5,7 +5,7 @@ const display = Sora({ subsets: ['latin'], weight: ['600', '700'], variable: '--
 const text = Instrument_Sans({ subsets: ['latin'], weight: ['400', '600'], variable: '--font-text', display: 'swap' });
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL || 'https://yelvoai.com';
-const DESC = 'The best AI image and video models in one place, with one credit wallet. Veo, Kling, FLUX, Imagen, Ideogram and more. See the price before every generation.';
+const DESC = 'The best AI image and video models in one place, with one credit wallet. Veo, Kling, FLUX, Seedance, Ideogram and more. See the price before every generation.';
 
 export const metadata = {
   metadataBase: new URL(BASE),
