@@ -2,6 +2,7 @@
 // it answers "not found". It only reads: nothing is saved, hidden or changed.
 //   POST { images: [url, ...] }             -> what each of the two safety checkers says about each image
 //   POST { videos: [url, ...], frames?: 5 } -> the frames of each video, each checked by the main checker
+//   POST { runs: <version id> }             -> how long the latest runs of one model version took (read-only)
 //   POST { list: 'tools' | 'videos', from?: 0, limit?: 50 } -> saved results to look back at: the results of
 //        Upscale and Cut out (they were not checked before), or the saved videos
 import { NextResponse } from 'next/server';
@@ -33,6 +34,27 @@ export async function POST(request) {
     const ids = (logged || []).map((l) => l.output_ref).filter((x) => /^[0-9a-f-]{36}$/.test(x || ''));
     const { data: byLog } = ids.length ? await sb.from('images').select('id, public_url, model, created_at, removed_at').in('id', ids) : { data: [] };
     return NextResponse.json({ total: count, items: data || [], logged: (logged || []).length, byLog: byLog || [], error: error?.message });
+  }
+  // POST { runs: <version id>, max?: 20 } -> the latest runs of one model version on the Replicate account: how long
+  // each ran. For working out what a model that is billed by run time really costs.
+  if (typeof body.runs === 'string' && /^[0-9a-f]{64}$/.test(body.runs)) {
+    const headers = { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}` };
+    const found = []; let url = 'https://api.replicate.com/v1/predictions', pages = 0;
+    const max = Math.min(30, Number(body.max) || 20);
+    while (url && pages < 8 && found.length < max) {
+      const r = await fetch(url, { headers, cache: 'no-store' }).catch(() => null);
+      if (!r || !r.ok) break;
+      const d = await r.json(); pages++;
+      for (const p of d.results || []) if (p.version === body.runs && p.status === 'succeeded' && found.length < max) found.push(p);
+      url = d.next || null;
+    }
+    const out = [];
+    for (const p of found) {
+      let t = p.metrics?.predict_time, model = p.model;
+      if (typeof t !== 'number') { const r = await fetch(`https://api.replicate.com/v1/predictions/${p.id}`, { headers, cache: 'no-store' }).catch(() => null); const d = r && r.ok ? await r.json() : null; t = d?.metrics?.predict_time; model = d?.model || model; }
+      out.push({ at: p.created_at, model, seconds: typeof t === 'number' ? Math.round(t * 1000) / 1000 : null });
+    }
+    return NextResponse.json({ pages, runs: out });
   }
   if (Array.isArray(body.images)) {
     const out = [];
