@@ -2,17 +2,18 @@
 import { useEffect, useRef, useState } from "react";
 
 // The empty Create screen on a phone: the lion in the snow, behind the title and the prompt box.
-// A still picture is there at once. After the page is ready the story is fetched and played once (the lion walks
-// in, roars, lies down for a moment, gets up and walks out of the frame), and then the quiet loop (the empty
-// landscape with his footprints, snow falling) plays for as long as the screen is open. The story ends on the
-// frame the loop starts from, so nothing jumps.
+// A still picture (the empty landscape) is there at once. After the page is ready the story is fetched and played
+// once: the lion walks in from the right, stops, shakes off the snow, roars, lies down, looks around, gets up and
+// walks out on the left (25 seconds). Then the quiet loop (the empty landscape with his footprints, snow falling)
+// plays for as long as the screen is open. The story ends on the frame the loop starts from, so nothing jumps.
 // The story starts again only when the Create screen is entered (from another tab, or when the app opens). It does
 // not start again for anything that happens inside Create: where it is in the story is remembered here, outside
 // the component, so even if the component were taken off the page and put back, it would go on from the same
 // moment (switching between Image and Video must never restart it).
 // A still picture only: a slow or metered connection, "reduce motion", or a browser that will not autoplay.
 // The files are in public/create. Silent: the videos have no sound track.
-const OPEN = "/create/lion-story.mp4", LOOP = "/create/lion-snow.mp4", STILL = "/create/lion-first.webp", SNOW = "/create/lion-snow.webp", CALM = "/create/lion-still.webp";
+// A changed file gets a new name (the files are cached for 30 days).
+const OPEN = "/create/lion-story-2.mp4", LOOP = "/create/lion-snow-2.mp4", STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-2.webp", CALM = "/create/lion-still-2.webp";
 
 // Where the story is, for this visit to Create: "still" (not started), "open" (playing, at `t` seconds) or "loop".
 const visit = { stage: "still", t: 0 };
