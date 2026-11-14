@@ -175,7 +175,14 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
   const spend = await reserveSpend(tier.usd, { admin: true });
   const pj = await ownedProject(creator.id, body?.project); // the project being worked in, if it is really theirs
   const fields = { u: creator.id, s: row ? row.id : null, c: charge.source === 'paid' ? tier.cost : 0, x: Date.now() + JOB_TTL, t: body.model, ...(raw ? { pr: raw.slice(0, 600) } : {}), r: ratio, ...(pj ? { j: pj } : {}) };
-  const input = { ...def.input(en, ratio, q.d, q.r), ...(frame ? { [def.imageInput]: frame } : {}), ...(frame && loopEnd ? { [loopEnd]: frame } : {}) };
+  // TEST ADDRESS ONLY: the last frame can also be another picture of the caller's own ({ endId }), for a video that
+  // has to end exactly where another one begins.
+  let endFrame = frame && loopEnd ? frame : null;
+  if (fromImage && isUuid(body?.endId) && LOOP_END_INPUT[body.model] && doorOpens(process.env, request.headers.get('x-test-login'))) {
+    const { data: er } = await sb.from('images').select('public_url, creator_id').eq('id', body.endId).maybeSingle();
+    if (er && er.creator_id === creator.id) endFrame = await firstFrame(er.public_url, 1920).catch(() => null);
+  }
+  const input = { ...def.input(en, ratio, q.d, q.r), ...(frame ? { [def.imageInput]: frame } : {}), ...(endFrame ? { [loopEnd || LOOP_END_INPUT[body.model]]: endFrame } : {}) };
   // TEST ADDRESS ONLY: a caller with the test door's secret can ask for a video without sound ({ audio: false }).
   if (body?.audio === false && 'generate_audio' in input && doorOpens(process.env, request.headers.get('x-test-login'))) input.generate_audio = false;
   const r = await api(`models/${def.model}/predictions`, { method: 'POST', body: JSON.stringify({ input, ...hookFor(request, fields) }) }).catch(() => null);
