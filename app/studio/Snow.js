@@ -8,9 +8,9 @@
 const LAYERS = [
   // per: flakes per 100,000 px² of the canvas (in CSS pixels); r: radius; a: opacity; v: fall speed (px/s);
   // soft: how far the edge fades (0 = hard, 1 = all fade); wind: how much of the wind it takes; sway: px
-  { per: 26, r: [0.55, 1.15], a: [0.5, 0.95], v: [14, 26], soft: 0.45, wind: 0.5, sway: [1, 4] },
-  { per: 10, r: [1.3, 2.4], a: [0.4, 0.8], v: [28, 46], soft: 0.7, wind: 0.8, sway: [3, 8] },
-  { per: 2.2, r: [4, 9], a: [0.1, 0.22], v: [58, 90], soft: 1, wind: 1.2, sway: [6, 14] },
+  { per: 30, r: [0.8, 1.5], a: [0.65, 1], v: [14, 26], soft: 0.4, wind: 0.5, sway: [1, 4] },
+  { per: 13, r: [1.7, 3], a: [0.55, 0.95], v: [28, 46], soft: 0.65, wind: 0.8, sway: [3, 8] },
+  { per: 2.6, r: [4.5, 9], a: [0.16, 0.32], v: [58, 90], soft: 1, wind: 1.2, sway: [6, 14] },
 ];
 const rnd = (a, b) => a + Math.random() * (b - a);
 
