@@ -21,7 +21,17 @@ const SNOW_EARLY = 2.8, LOOP_EARLY = 1;
 // TEST ADDRESS ONLY (this is in the `preview` branch, not in the pull request): with ?fps=60 in the address, the
 // story and the loop are the 60-frames-a-second files (frames computed between the original 24), to compare the two
 // on a phone. A small label in the corner says which one is playing.
-const FPS60 = () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("fps") === "60";
+// Read once, when the page's code loads (the app tidies the address afterwards), and kept for the tab: ?fps=60
+// turns it on, ?fps=24 turns it off.
+const WANT60 = (() => {
+  if (typeof window === "undefined") return false;
+  try {
+    const q = new URLSearchParams(window.location.search).get("fps");
+    if (q === "60" || q === "24") window.sessionStorage.setItem("lionfps", q);
+    return window.sessionStorage.getItem("lionfps") === "60";
+  } catch { return false; }
+})();
+const FPS60 = () => WANT60;
 const OPEN24 = "/create/lion-story-2.mp4", LOOP24 = "/create/lion-snow-5.mp4", OPEN60 = "/create/lion-story-2-60.mp4", LOOP60 = "/create/lion-snow-5-60.mp4";
 const STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-5.webp", CALM = "/create/lion-rest-3.webp";
 
