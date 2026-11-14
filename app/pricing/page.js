@@ -1,5 +1,6 @@
 import Page from '../studio/Page';
-import { PLANS, planEnabled } from '../../lib/paid';
+import { PLANS } from '../../lib/paid';
+import { planEnabled } from '../../lib/pay';
 import BuyButton from './BuyButton';
 import { N } from '../i18n/index.js';
 import { rich } from '../i18n/rich.js';
