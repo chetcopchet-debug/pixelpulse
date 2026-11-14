@@ -596,6 +596,3 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .lion-in > canvas.snow { opacity: 0; transition: opacity 1.8s ease; }
 .pp .lion-in > canvas.snow.on { opacity: 1; }
 .pp .lion::after { content: ""; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: linear-gradient(to bottom, rgba(0, 0, 0, .6) 0, rgba(0, 0, 0, 0) 24%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, .9) 84%); }
-
-/* TEST ADDRESS ONLY: which of the two versions of the lion is playing. */
-.pp .lion-fps { position: absolute; z-index: 2; right: 10px; bottom: 6px; padding: 1px 7px; border-radius: 8px; background: rgba(0, 0, 0, .55); color: #fff; font-size: 11px; line-height: 16px; }
