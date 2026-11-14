@@ -20,7 +20,7 @@ test('prices agreed with the owner (5 s unless noted)', () => {
   assert.equal(c('kling-4-flash', 5, '720p'), 85);
   assert.equal(c('grok-video', 5, '720p'), 65); // $0.07 a second at 720p
   assert.equal(c('grok-video', 5, '480p'), 45); // $0.05 a second at 480p, as before
-  assert.equal(c('h3-lite', 5, '768p'), 36);
+  assert.equal(videoQuote('h3-lite', 5, '768p', '16:9', false, Date.UTC(2027, 0, 1)).cost, 36); // the list price
   assert.equal(c('wan', 5, '480p'), 10);
 });
 test('Omni is charged at the prices on its Replicate page, with a 360p draft', () => {
@@ -33,8 +33,8 @@ test('Omni is charged at the prices on its Replicate page, with a 360p draft', (
   assert.equal(videoQuote('omni', 5, '360p').cost, 31); // the draft: $0.035 a second
   assert.equal(videoQuote('omni', 10, '360p').cost, 65);
   assert.equal(Object.values(VIDEO_PRICING).filter((p) => p.approx).length, 0);
-  // A price that is not verified still carries 15%: a video from a picture is one (see videoQuote).
-  assert.equal(videoQuote('omni', 5, '720p', '16:9', true).usd, 0.604);
+  // A video that starts from a picture costs what a text one does (no separate price on the model pages).
+  assert.equal(videoQuote('omni', 5, '720p', '16:9', true).usd, 0.525);
 });
 test('every price keeps at least half of what the cheapest credit is sold for', () => {
   const SOLD = 14.9 / 1200; // the lowest price a credit is sold at (Yelvo Pro)
@@ -52,14 +52,31 @@ test('server rejects combos the model does not support', () => {
   assert.equal(videoQuote('constructor', 5, '720p'), null);
 });
 
-test('a video that starts from an image: only on models that can, and with the unverified-price buffer', async () => {
-  const { videoQuote, videoTakesImage, VIDEO_PRICING, APPROX_BUFFER, creditsForUsd } = await import('../lib/videoPricing.js');
+test('a video that starts from an image: only on models that can, at the text-to-video price', async () => {
+  const { videoQuote, videoTakesImage, VIDEO_PRICING } = await import('../lib/videoPricing.js');
   assert.equal(videoTakesImage('wan'), false);
   assert.equal(videoQuote('wan', 5, '480p', '16:9', true), null); // Wan's picker model is text only
   for (const id of ['seedance-25', 'kling-4', 'veo', 'kling-4-flash', 'omni', 'grok-video', 'h3-lite']) {
     const p = VIDEO_PRICING[id], text = videoQuote(id, p.def.d, p.def.r, '16:9'), img = videoQuote(id, p.def.d, p.def.r, '16:9', true);
-    assert.ok(img && img.cost >= text.cost, `${id}: never cheaper than text-to-video`);
-    const list = p.usd(p.def.d, p.def.r);
-    assert.equal(img.cost, creditsForUsd(Math.round(list * APPROX_BUFFER * 1000) / 1000), `${id}: list price plus the buffer`);
+    assert.ok(img && img.cost === text.cost && img.usd === text.usd, `${id}: the same price as text-to-video`);
   }
 });
+
+test('MiniMax H3 Lite: half price through 31 Dec 2026, the list price again from 1 Jan 2027, by the date alone', async () => {
+  const { videoQuote, h3Promo, H3_PROMO_END, setServerNow } = await import('../lib/videoPricing.js');
+  const during = Date.UTC(2026, 11, 31, 23, 59, 59), after = Date.UTC(2027, 0, 1, 0, 0, 0);
+  assert.equal(H3_PROMO_END, after);
+  assert.equal(h3Promo(during), true); assert.equal(h3Promo(after), false);
+  const q = (d, r, at) => videoQuote('h3-lite', d, r, '16:9', false, at);
+  assert.deepEqual([q(5, '768p', during).usd, q(5, '768p', during).cost], [0.1, 20]);
+  assert.deepEqual([q(10, '768p', during).cost, q(5, '480p', during).cost, q(10, '480p', during).cost], [36, 15, 22]);
+  assert.deepEqual([q(5, '768p', after).usd, q(5, '768p', after).cost], [0.2, 36]);
+  assert.deepEqual([q(10, '768p', after).cost, q(5, '480p', after).cost, q(10, '480p', after).cost], [75, 22, 45]);
+  // The page follows the server's clock: a server already in 2027 shows the list price whatever the phone says.
+  setServerNow(after + 1000); assert.equal(videoQuote('h3-lite', 5, '768p').cost, 36);
+  setServerNow(during); assert.equal(videoQuote('h3-lite', 5, '768p').cost, 20);
+  setServerNow(Date.now());
+  // Half price still keeps half of what a credit is sold for.
+  for (const [d, r] of [[5, '480p'], [10, '480p'], [5, '768p'], [10, '768p']]) { const x = q(d, r, during); assert.ok(x.usd <= x.cost * (14.9 / 1200) * 0.5 + 1e-9, `${d}s ${r}`); }
+});
+

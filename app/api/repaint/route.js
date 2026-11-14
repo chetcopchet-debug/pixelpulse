@@ -40,8 +40,10 @@ async function prepare(body) {
 // The marked part is cut out with room around it, enlarged so the model works on it at full detail, repainted,
 // shrunk back and laid over the original. Everything outside the marking stays exactly as it was.
 // Ideogram 4.5 does the repainting; if it fails and there is time left in the request, FLUX Fill Pro is tried.
-const COST = 13;   // Ideogram 4.5 at its list price of $0.06 plus the 15% margin for a price not read on Replicate
-const USD = 0.069;
+// Ideogram 4.5 with a source image, medium quality: $0.06 (Replicate model page, 14 Nov 2026). The backup,
+// FLUX Fill Pro, is $0.05. Eleven credits cover either.
+const COST = 11;
+const USD = 0.06;
 const TIME = 47_000; // a request has 60 seconds in all, and the safety check and the save come after this
 
 async function run({ row, extra }) {

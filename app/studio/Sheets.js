@@ -71,7 +71,7 @@ export function ModelSheet({ s, onClose }) {
               <span className="sm t2" style={{ display: "block" }}>{t(m.desc)}</span>
             </span>
             {!multi && on ? <span className="tick"><Icon name="check" size={14} /></span> : null}
-            <Price n={fromImage ? (videoTakesImage(m.id) ? videoPlan(m.id, undefined, undefined, s.ref.ratio, true)?.cost ?? m.cost : TOOLS.animate.cost) : m.cost} />
+            <Price n={fromImage ? (videoTakesImage(m.id) ? videoPlan(m.id, undefined, undefined, s.ref.ratio, true)?.cost ?? m.cost : TOOLS.animate.cost) : video ? videoPlan(m.id)?.cost ?? m.cost : m.cost} />
           </button>
         );
       })}
