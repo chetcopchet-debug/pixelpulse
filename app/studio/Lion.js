@@ -15,6 +15,9 @@ import { startSnow } from "./Snow";
 // A sharp still picture of the landscape only, with no video: a slow or metered connection, "reduce motion".
 // The files are in public/create. Silent: the videos have no sound track.
 // A changed file gets a new name (the files are cached for 30 days).
+// The page's snow starts to fall this many seconds before the story ends, and the loop is set rolling (unseen) a
+// second before it ends, so when the story stops nothing on the screen stops with it.
+const SNOW_EARLY = 2.8, LOOP_EARLY = 1;
 const OPEN = "/create/lion-story-2.mp4", LOOP = "/create/lion-snow-5.mp4", STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-5.webp", CALM = "/create/lion-rest-3.webp";
 
 // Where the story is, for this visit to Create: "still" (not started), "open" (playing, at `t` seconds) or "loop".
@@ -41,6 +44,7 @@ export default function Lion() {
   const open = useRef(null), loop = useRef(null), snow = useRef(null);
   const [stage, setStage] = useState(visit.stage); // what is on the screen: still -> open -> loop
   const [video, setVideo] = useState(null);         // null: not known yet; false: a still picture only
+  const [snowing, setSnowing] = useState(visit.stage === "loop");
   useEffect(() => { setVideo(!calm()); }, []);
   useEffect(() => {
     if (!video) return undefined;
@@ -48,7 +52,9 @@ export default function Lion() {
     if (!a || !b) return undefined;
     let gone = false, now = a, timer = 0;
     const play = (v) => v.play().catch(() => {}); // refused (low power mode): the still picture stays
-    const toLoop = () => { if (gone) return; now = b; visit.stage = "loop"; if (!b.getAttribute("src")) { b.src = LOOP; b.load(); } if (!document.hidden) play(b); };
+    const roll = () => { if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } if (b.paused && !document.hidden) play(b); };
+    // The story has ended: the loop (already rolling) is shown at once, without waiting for anything.
+    const toLoop = () => { if (gone) return; now = b; visit.stage = "loop"; roll(); setSnowing(true); setStage("loop"); };
     const begin = () => {
       if (gone) return;
       if (visit.stage === "loop") { toLoop(); return; }               // put back on the page during the loop
@@ -57,25 +63,29 @@ export default function Lion() {
       a.addEventListener("playing", () => { if (gone) return; visit.stage = "open"; setStage("open"); if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } }, { once: true });
       if (!document.hidden) play(a);
     };
-    const onTime = () => { if (!gone && !a.ended && a.currentTime > 0) visit.t = a.currentTime; };
-    const onLoop = () => { if (!gone) setStage("loop"); };
-    const onHide = () => { if (document.hidden) now.pause(); else play(now); };
+    const onTime = () => {
+      if (gone || a.ended || !(a.currentTime > 0)) return;
+      visit.t = a.currentTime;
+      const left = a.duration ? a.duration - a.currentTime : Infinity;
+      if (left <= SNOW_EARLY) setSnowing(true);
+      if (left <= LOOP_EARLY) roll();
+    };
+    const onHide = () => { if (document.hidden) { a.pause(); b.pause(); } else play(now); };
     a.addEventListener("ended", toLoop);
     a.addEventListener("timeupdate", onTime);
-    b.addEventListener("playing", onLoop, { once: true });
     document.addEventListener("visibilitychange", onHide);
     // Not before the page itself is ready: the videos are an extra, the screen works without them.
     const start = () => { timer = window.setTimeout(begin, visit.stage === "still" ? 250 : 0); };
     if (document.readyState === "complete") start(); else window.addEventListener("load", start, { once: true });
     return () => {
       gone = true; window.clearTimeout(timer); window.removeEventListener("load", start);
-      a.removeEventListener("ended", toLoop); a.removeEventListener("timeupdate", onTime); b.removeEventListener("playing", onLoop);
+      a.removeEventListener("ended", toLoop); a.removeEventListener("timeupdate", onTime);
       document.removeEventListener("visibilitychange", onHide);
       for (const v of [a, b]) { v.pause(); v.removeAttribute("src"); v.load(); }
     };
   }, [video]);
   // Snow drawn by the page falls over the loop (Snow.js). It runs only while the loop is on the screen.
-  useEffect(() => (video && stage === "loop" && snow.current ? startSnow(snow.current) : undefined), [video, stage]);
+  useEffect(() => (video && snowing && snow.current ? startSnow(snow.current) : undefined), [video, snowing]);
   const common = { muted: true, playsInline: true, preload: "none", tabIndex: -1, disablePictureInPicture: true, disableRemotePlayback: true };
   return (
     <div className="lion" aria-hidden="true">
@@ -88,7 +98,7 @@ export default function Lion() {
           <>
             <video ref={open} className={stage === "open" || stage === "loop" ? "on" : ""} {...common} />
             <video ref={loop} className={stage === "loop" ? "loop on" : "loop"} loop {...common} />
-            <canvas ref={snow} className={stage === "loop" ? "snow on" : "snow"} />
+            <canvas ref={snow} className={snowing ? "snow on" : "snow"} />
           </>
         ) : null}
       </div>
