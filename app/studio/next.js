@@ -3,6 +3,7 @@
 // tiles on a phone.
 import { t } from "../i18n/index.js";
 import { imageModel, imageModels, TOOLS } from "./models";
+import { KEEP_FACE_ON } from "../../lib/features.js";
 
 export function nextActions(s, item) {
   const again = imageModel(imageModels.some((m) => m.id === item.model) ? item.model : "fast").cost;
@@ -13,6 +14,6 @@ export function nextActions(s, item) {
     { key: "edit", short: t("Edit"), icon: "edit", label: TOOLS.edit.label, cost: TOOLS.edit.cost, hint: t("Say what should change"), run: () => s.setSheet({ type: "ask", tool: "edit", item }) },
     { key: "variations", short: t("Variation"), icon: "variations", label: t("Another version"), cost: again, hint: t("Same prompt, new result"), run: () => s.variations(item) },
     { key: "cutout", short: t("Cut out"), icon: "eraser", label: TOOLS.cutout.label, cost: TOOLS.cutout.cost, hint: t("Keep only the subject"), run: () => s.runTool("cutout", item) },
-    { key: "facelock", short: t("Keep face"), icon: "face", label: TOOLS.facelock.label, cost: TOOLS.facelock.cost, hint: t("Same face, new scene"), run: () => s.setSheet({ type: "ask", tool: "facelock", item }) },
+    ...(KEEP_FACE_ON ? [{ key: "facelock", short: t("Keep face"), icon: "face", label: TOOLS.facelock.label, cost: TOOLS.facelock.cost, hint: t("Same face, new scene"), run: () => s.setSheet({ type: "ask", tool: "facelock", item }) }] : []),
   ];
 }
