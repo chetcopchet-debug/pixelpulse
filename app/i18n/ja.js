@@ -213,6 +213,7 @@ export default {
   "Looks like a realistic photo": "リアルな写真向きの内容",
   "Lowest price": "最安",
   "Made with": "使用モデル",
+  "AI-generated": "AI生成",
   "Main": "メイン",
   "Make it night, add snow, change the jacket to red": "夜にする、雪を加える、ジャケットを赤にする",
   "Make something": "作ってみる",

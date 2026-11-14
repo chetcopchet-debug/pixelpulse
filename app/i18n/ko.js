@@ -213,6 +213,7 @@ export default {
   "Looks like a realistic photo": "사실적인 사진으로 보여요",
   "Lowest price": "최저가",
   "Made with": "사용 모델",
+  "AI-generated": "AI 생성",
   "Main": "주요",
   "Make it night, add snow, change the jacket to red": "밤으로 바꿔 줘, 눈을 추가해 줘, 재킷을 빨간색으로 바꿔 줘",
   "Make something": "무언가 만들어 보세요",

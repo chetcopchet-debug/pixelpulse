@@ -213,6 +213,7 @@ export default {
   "Looks like a realistic photo": "Parece uma foto realista",
   "Lowest price": "Menor preço",
   "Made with": "Feito com",
+  "AI-generated": "Gerado por IA",
   "Main": "Principal",
   "Make it night, add snow, change the jacket to red": "Deixe de noite, adicione neve, mude a jaqueta para vermelho",
   "Make something": "Crie algo",
