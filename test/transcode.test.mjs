@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { toWebVideo, ffmpegBinary, converterVersion } from '../lib/transcode.js';
+import { toWebVideo, ffmpegBinary, converterVersion, sampleFrames, frameTimes } from '../lib/transcode.js';
 import { probeMp4 } from '../lib/videoJobCore.js';
 
 const bin = await ffmpegBinary();
@@ -52,4 +52,26 @@ t('something that is not a video is handed back untouched and not called unplaya
   const junk = Buffer.from('<html>not a video</html>'.padEnd(9000, ' '));
   const r = await toWebVideo(junk);
   assert.equal(r.how, 'kept'); assert.equal(r.bytes, junk);
+});
+
+// The frames for the safety check of a finished video.
+test('the five frames are spread from just after the start to just before the end', () => {
+  const at = frameTimes(8, 5);
+  assert.equal(at.length, 5);
+  assert.ok(Math.abs(at[0] - 0.24) < 1e-9 && Math.abs(at[4] - 7.76) < 1e-9);
+  const short = frameTimes(2, 5);
+  assert.ok(short[4] <= 1.85 + 1e-9, 'a short video is not asked for a moment past its last frame');
+  assert.ok(at.every((x, i) => i === 0 || x > at[i - 1]));
+});
+t('five frames come out of a video that has a single key frame (what Veo writes at 1080p)', async () => {
+  const src = clip('onekey', ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-g', '9999', '-keyint_min', '9999', '-sc_threshold', '0', '-c:a', 'aac']);
+  const frames = await sampleFrames(src, 5, { budgetMs: 20_000 });
+  assert.equal(frames.length, 5);
+  for (const f of frames) assert.ok(f[0] === 0xff && f[1] === 0xd8, 'each frame is a JPEG');
+  assert.equal(new Set(frames.map((f) => f.toString('base64'))).size, 5, 'five different moments');
+});
+t('five frames come out of an ordinary video too, and a broken file gives none', async () => {
+  const src = clip('plain', ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-g', '8', '-c:a', 'aac']);
+  assert.equal((await sampleFrames(src, 5)).length, 5);
+  assert.equal((await sampleFrames(Buffer.from('not a video at all'), 5)).length, 0);
 });
