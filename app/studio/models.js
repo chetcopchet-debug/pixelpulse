@@ -53,6 +53,8 @@ export const TOOLS = {
 
 // Options and price for one video run. The ratio falls back to one the model supports.
 // `image`: the video starts from a picture (only models that can; see videoTakesImage).
+// How a video quality is named on the screen. 360p is the draft: quick and low quality, for trying an idea.
+export const resLabel = (r) => (r === "360p" ? t("Draft") : r);
 export function videoPlan(modelId, d, r, ratio, image = false) {
   const p = VIDEO_PRICING[modelId];
   if (!p) return null;

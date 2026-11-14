@@ -23,12 +23,25 @@ test('prices agreed with the owner (5 s unless noted)', () => {
   assert.equal(c('h3-lite', 5, '768p'), 36);
   assert.equal(c('wan', 5, '480p'), 10);
 });
-test('a price that was not verified on Replicate carries 15% on top', () => {
+test('Omni is charged at the prices on its Replicate page, with a 360p draft', () => {
   const q = videoQuote('omni', 5, '720p');
-  assert.equal(q.usd, 0.403); // 0.07 * 5 * 1.15, to a tenth of a cent
-  assert.equal(q.cost, 75);
-  assert.equal(VIDEO_PRICING.omni.approx, true);
-  assert.equal(Object.values(VIDEO_PRICING).filter((p) => p.approx).length, 1);
+  assert.equal(q.usd, 0.525); // $0.105 a second
+  assert.equal(q.cost, 95);
+  assert.equal(videoQuote('omni', 10, '720p').cost, 185);
+  assert.equal(videoQuote('omni', 15, '720p').cost, 280);
+  assert.equal(videoQuote('omni', 5, '1080p').cost, 140); // $0.155 a second
+  assert.equal(videoQuote('omni', 5, '360p').cost, 31); // the draft: $0.035 a second
+  assert.equal(videoQuote('omni', 10, '360p').cost, 65);
+  assert.equal(Object.values(VIDEO_PRICING).filter((p) => p.approx).length, 0);
+  // A price that is not verified still carries 15%: a video from a picture is one (see videoQuote).
+  assert.equal(videoQuote('omni', 5, '720p', '16:9', true).usd, 0.604);
+});
+test('every price keeps at least half of what the cheapest credit is sold for', () => {
+  const SOLD = 14.9 / 1200; // the lowest price a credit is sold at (Yelvo Pro)
+  for (const [id, p] of Object.entries(VIDEO_PRICING)) for (const d of p.durations) for (const r of p.resolutions) {
+    const q = videoQuote(id, d, r); if (!q) continue;
+    assert.ok(q.usd <= q.cost * SOLD * 0.5 + 1e-9, `${id} ${d}s ${r}: costs $${q.usd}, sold for ${q.cost} credits`);
+  }
 });
 test('server rejects combos the model does not support', () => {
   assert.equal(videoQuote('veo-lite', 4, '720p'), null); // switched off by Google, no longer offered

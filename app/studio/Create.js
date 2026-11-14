@@ -5,7 +5,7 @@ import { FORMATS } from "../../lib/formats";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
 import Icon from "./icons";
 import { Price, Picture, Full, Poster, Brand, Balance, useNow } from "./bits";
-import { imageModel, videoModel, videoPlan, videoTakesImage, TOOLS, comparePlan, stageOf, stageTime } from "./models";
+import { imageModel, videoModel, videoPlan, videoTakesImage, TOOLS, comparePlan, stageOf, stageTime, resLabel } from "./models";
 import { nextActions } from "./next";
 import { ideaCards } from "./ideas";
 import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
@@ -329,7 +329,7 @@ export default function Create({ s }) {
 
   // Auto for video: the model follows the prompt, at the chosen length and quality.
   const vauto = video && !s.ref && s.vAuto ? recommend(s.prompt, "video", s.wallet, s.off, (id) => videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost, VIDEO_AUTO_CAP) : null;
-  const vm = videoModel(vauto ? vauto.pick : s.vidModel);
+  const vm = videoModel(vauto?.pick || s.vidModel);
   // A video that starts from a picture: on the chosen model when it can do that, otherwise Wan's fixed "Animate".
   const fromImg = Boolean(video && s.ref && videoTakesImage(vm.id));
   const plan = video ? videoPlan(vm.id, s.vDur, s.vRes, fromImg ? s.ref.ratio : s.ratio, fromImg) : null;
@@ -409,7 +409,7 @@ export default function Create({ s }) {
       {rec.saver !== rec.pick ? recRow(t("Economical"), rec.saver) : null}
     </div>
   ) : null;
-  const picked = auto ? { name: im.name, why: auto.why, fitted: auto.fitted } : vauto ? { name: vm.name, why: vauto.why, fitted: vauto.fitted } : null;
+  const picked = auto ? { name: im.name, why: auto.why, fitted: auto.fitted } : vauto?.pick ? { name: vm.name, why: vauto.why, fitted: vauto.fitted } : null;
   const autoline = rec ? recline : picked && s.prompt.trim() ? <p className="sm t2 autoline" role="status"><span className="b" style={{ color: "var(--text)" }}>{picked.name}.</span> {t(picked.why)}.{picked.fitted ? t(" Fits your balance.") : ""}</p> : null;
   const go = (
     <button className="btn btn-p btn-wide btn-split" onClick={s.generate} disabled={!canGo}>
@@ -473,12 +473,12 @@ export default function Create({ s }) {
               {s.ref && !video ? <div className="set-row"><span className="t2">{t("Model")}</span><span className="b clamp1">{TOOLS.reference.detail}</span></div> : s.ref ? (
                 <>
                   <Row name={t("Model")} value={fromImg ? modelName : TOOLS.animate.detail} label={modelLabel} onClick={() => s.setSheet({ type: "models" })} />
-                  {fromImg ? <Row name={t("Length and quality")} value={`${plan?.d} s, ${plan?.r}`} label={t("Length and quality. Change")} onClick={() => s.setSheet({ type: "video" })} /> : null}
+                  {fromImg ? <Row name={t("Length and quality")} value={`${plan?.d} s, ${resLabel(plan?.r)}`} label={t("Length and quality. Change")} onClick={() => s.setSheet({ type: "video" })} /> : null}
                 </>
               ) : (
                 <>
                   <Row name={t("Model")} value={modelName} label={modelLabel} onClick={() => s.setSheet({ type: "models" })} />
-                  {video ? <Row name={t("Length, quality, shape")} value={`${plan?.d} s, ${plan?.r}, ${plan?.ratio}`} label={t("Length, quality and shape. Change")} onClick={() => s.setSheet({ type: "video" })} />
+                  {video ? <Row name={t("Length, quality, shape")} value={`${plan?.d} s, ${resLabel(plan?.r)}, ${plan?.ratio}`} label={t("Length, quality and shape. Change")} onClick={() => s.setSheet({ type: "video" })} />
                     : lockedRatio ? <div className="set-row"><span className="t2">{t("Shape")}</span><span className="b">{lockedRatio}</span></div>
                     : <Row name={t("Shape")} value={s.ratio} label={t("Shape: {ratio}. Change", { ratio: s.ratio })} onClick={() => s.setSheet({ type: "ratio" })} />}
                 </>
@@ -533,7 +533,7 @@ export default function Create({ s }) {
                   </button>
                   {fromImg ? (
                     <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label={t("Length and quality. Change")}>
-                      <span className="chip">{plan?.d} s, {plan?.r}</span>
+                      <span className="chip">{plan?.d} s, {resLabel(plan?.r)}</span>
                     </button>
                   ) : null}
                 </>
@@ -544,7 +544,7 @@ export default function Create({ s }) {
                   </button>
                   {video ? (
                     <button className="chip-tap" onClick={() => s.setSheet({ type: "video" })} aria-label={t("Length, quality and shape. Change")}>
-                      <span className="chip">{plan?.d} s, {plan?.r}, {plan?.ratio}</span>
+                      <span className="chip">{plan?.d} s, {resLabel(plan?.r)}, {plan?.ratio}</span>
                     </button>
                   ) : (
                     lockedRatio ? <span className="chip" style={{ background: "none", padding: "0 4px" }}><Icon name="ratio" size={16} />{lockedRatio}</span> : (

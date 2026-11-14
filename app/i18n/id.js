@@ -606,4 +606,6 @@ export default {
   "Improve": "Sempurnakan",
   "It looks at your image and writes the prompt for you.": "Ia melihat gambar Anda dan menuliskan prompt untuk Anda.",
   "Today's free improvements are used. Pro still works, for 1 credit.": "Penyempurnaan gratis hari ini sudah habis. Pro tetap bisa dipakai, dengan 1 kredit.",
+  "Draft": "Draf",
+  "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "Draf adalah percobaan cepat berkualitas rendah (360p). Pakai untuk menguji ide sebelum membayar kualitas penuh.",
 };
