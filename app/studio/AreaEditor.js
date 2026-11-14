@@ -5,6 +5,7 @@ import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
 import { TOOLS } from "./models";
 import ImproveBar from "./ImproveBar";
+import GrowField from "./GrowField";
 
 // Brush width as a share of the image's shorter side.
 const BRUSHES = [[N("Small brush"), 0.04, 8], [N("Medium brush"), 0.09, 14], [N("Large brush"), 0.18, 22]];
@@ -194,7 +195,7 @@ export default function AreaEditor({ s, item, onClose }) {
             <button className="btn btn-s area-sm" disabled={!count || busy} onClick={undo}><Icon name="undo" size={18} />{t("Undo")}</button>
             <button className="btn btn-s area-sm" disabled={!count || busy} onClick={clear}>{t("Clear")}</button>
           </div>
-          <textarea className="field" maxLength={1500} value={text} disabled={busy || Boolean(problem)} placeholder={t("A red scarf, a cup of coffee, clear blue sky")} aria-label={t("What should be in the marked part")} onChange={(e) => setText(e.target.value)} />
+          <GrowField part={0.45} maxLength={1500} value={text} disabled={busy || Boolean(problem)} placeholder={t("A red scarf, a cup of coffee, clear blue sky")} aria-label={t("What should be in the marked part")} onChange={(e) => setText(e.target.value)} />
           {item.id && !problem ? <ImproveBar s={s} text={text} setText={setText} edit="area" image={item.id} more={markedBox} disabled={busy || !count} /> : null}
           <button className="btn btn-p btn-wide btn-split" disabled={busy || !count || !text.trim() || !dims} onClick={go}><span>{busy ? t("Working") : t(tool.label)}</span><Price n={tool.cost} /></button>
         </div>

@@ -11,6 +11,7 @@ import { ideaCards } from "./ideas";
 import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
+import { GrowButton, growMax } from "./GrowField";
 
 // A real desktop layout from this width up; below it, the phone layout.
 function useWide() {
@@ -317,7 +318,10 @@ export default function Create({ s }) {
   const now = useNow(s.runs.some(busyRun));
 
   // The prompt box grows with the text: up to six lines on a phone, more room on a wide screen.
-  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, 110]; el.style.height = "auto"; el.style.height = `${Math.min(hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide]);
+  // The corner button opens the box to show the whole prompt without scrolling, up to 70% of the screen.
+  const [big, setBig] = useState(false);
+  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, 110]; el.style.height = "auto"; el.style.height = `${Math.min(big ? Math.max(hi, growMax()) : hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide, big]);
+  const grow = <GrowButton on={big} onClick={() => setBig((b) => !b)} />;
 
   // The window shows the newest thing: an image or video being made right now, or else the latest result.
   // (A comparison is its own result from the moment it starts.) Everything else in progress, and anything that
@@ -354,7 +358,7 @@ export default function Create({ s }) {
     </div>
   );
   const text = (
-    <textarea ref={textRef} className="prompt" rows={1} maxLength={1500} value={s.prompt} placeholder={placeholder} aria-label={placeholder}
+    <textarea ref={textRef} className={big ? "prompt big" : "prompt"} rows={1} maxLength={1500} value={s.prompt} placeholder={placeholder} aria-label={placeholder}
       onChange={(e) => s.setPrompt(e.target.value)}
       onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); s.generate(); } }} />
   );
@@ -457,7 +461,7 @@ export default function Create({ s }) {
           <div className="panel-top"><Brand wordmark /><Balance s={s} /></div>
           <div className="panel-body">
             {mode}
-            <div className="field2">{text}</div>
+            <div className="field2 growbox">{text}{grow}</div>
             {polishLine}
             {canPolish ? (
               <div className="r" style={{ gap: 8 }}>
@@ -516,6 +520,7 @@ export default function Create({ s }) {
           {refcard}
           <div className="r" style={{ gap: 4, alignItems: "flex-start" }}>
             {text}
+            {s.prompt.trim() || big ? grow : null}
             {more && !s.prompt.trim() ? <button className="plus" aria-label={t("Ideas to start from")} onClick={() => s.setSheet({ type: "ideas" })}><Icon name="bulb" size={22} /></button> : null}
             {canPolish ? <button className="plus wandb on" aria-label={t("Improve this prompt now")} disabled={Boolean(s.improving)} onClick={() => s.improveNow()}>{s.improving === "std" ? <i className="spin" /> : <Icon name="wand" size={22} />}</button> : null}
             <button className="plus" aria-label={s.uploading ? t("Uploading") : video ? t("Add a start frame") : t("Add a reference image")} disabled={s.uploading} onClick={pickFile}>{s.uploading ? <i className="spin" /> : <Icon name="plus" size={22} />}</button>

@@ -564,6 +564,8 @@ export default {
   "Length and quality. Change": "Länge und Qualität. Ändern",
   "Prices are for a video that starts from your image, at the standard setting.": "Die Preise gelten für ein Video, das mit deinem Bild beginnt, in der Standardeinstellung.",
   "The video keeps the shape of your image.": "Das Video behält das Format deines Bildes.",
+  "Show the whole prompt": "Den ganzen Prompt zeigen",
+  "Make the box small again": "Feld wieder verkleinern",
   "Improve this prompt now": "Diesen Prompt jetzt verbessern",
   "Improved. You can edit it.": "Verbessert. Du kannst ihn bearbeiten.",
   "Couldn't improve the prompt right now. Try again in a moment.": "Der Prompt konnte gerade nicht verbessert werden. Versuch es gleich noch einmal.",

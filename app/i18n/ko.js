@@ -564,6 +564,8 @@ export default {
   "Length and quality. Change": "길이와 화질. 변경",
   "Prices are for a video that starts from your image, at the standard setting.": "가격은 내 이미지에서 시작하는 동영상의 기본 설정 기준이에요.",
   "The video keeps the shape of your image.": "동영상은 이미지의 비율을 그대로 유지해요.",
+  "Show the whole prompt": "프롬프트 전체 보기",
+  "Make the box small again": "상자를 다시 작게",
   "Improve this prompt now": "지금 이 프롬프트 다듬기",
   "Improved. You can edit it.": "다듬었어요. 수정할 수 있어요.",
   "Couldn't improve the prompt right now. Try again in a moment.": "지금은 프롬프트를 다듬지 못했어요. 잠시 후 다시 시도해 주세요.",
