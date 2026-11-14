@@ -560,7 +560,7 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .nav > button { position: relative; isolation: isolate; color: var(--text-3); }
 .pp .nav > button.mid { color: var(--text-3); }
 .pp .nav > button.on { color: var(--text); }
-.pp .nav > button.on::before { content: ""; position: absolute; z-index: -1; top: 5px; bottom: calc(var(--safe-b) + 5px); left: 50%; width: 84px; margin-left: -42px; border-radius: 16px; background: var(--on-nav); }
+.pp .nav > button.on::before { content: ""; position: absolute; z-index: -1; top: 5px; bottom: 5px; left: 50%; width: 84px; margin-left: -42px; border-radius: 16px; background: var(--on-nav); }
 .pp .seg > button { color: var(--text-3); }
 .pp .seg > button.on { background: var(--on-seg); color: var(--text); box-shadow: none; }
 .pp .chip[role="tab"], .pp .chip2[role="tab"] { background: none; color: var(--text-3); }
