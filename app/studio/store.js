@@ -583,17 +583,18 @@ export function useStudio() {
     if (needAccount({ tab: "create" })) return;
     const text = prompt.trim();
     if (mode === "video") {
-      if (ref) { if (startVideo({ source: ref, prompt: text, model: vidModel, d: vDur, r: vRes })) { setPrompt(""); setRef(null); } return; }
+      // What was written stays in the box after a creation starts, so the next try is one small change away.
+      if (ref) { startVideo({ source: ref, prompt: text, model: vidModel, d: vDur, r: vRes }); return; }
       if (!text) { say(t("Describe the video first.")); return; }
       // Auto: the model the screen showed for this prompt, at the chosen length and quality.
       const vp = vAuto ? recommend(text, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP) : null;
-      if (startVideo({ model: vp?.pick || vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish })) setPrompt("");
+      startVideo({ model: vp?.pick || vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish });
       return;
     }
     if (!text) { say(t("Describe the image first.")); return; }
-    if (!ref && comparePlan(compare)) { if (startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format })) setPrompt(""); return; }
+    if (!ref && comparePlan(compare)) { startCompare({ models: compare, prompt: text, ratio: FORMATS[format]?.ratio || ratio, format }); return; }
     const pick = auto && !ref ? autoPick(`${text} ${format !== "free" ? FORMATS[format]?.label || "" : ""}`, walletRef.current, walletRef.current.off) : null;
-    if (startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve: improve && !polish })) setPrompt("");
+    startImage({ model: pick ? pick.id : imgModel, prompt: text, ratio, ref, format, auto: Boolean(pick), improve: improve && !polish });
   }, [prompt, mode, ref, vidModel, vAuto, ratio, vDur, vRes, imgModel, auto, compare, format, improve, polish, startVideo, startImage, startCompare, say, needAccount, refreshWallet]);
   generateRef.current = generate;
 
@@ -635,10 +636,11 @@ export function useStudio() {
     startImage({ model: m, prompt: item.prompt, ratio: IMAGE_RATIOS.some((r) => r.id === item.ratio) ? item.ratio : "1:1" });
   }, [startImage, needAccount]);
 
-  const useAgain = useCallback((item) => {
+  // `model`: use this image model instead of the one the item was made with ("Try it free" on a gallery item).
+  const useAgain = useCallback((item, { model } = {}) => {
     setPrompt(item.prompt || "");
     if (item.video) { setMode("video"); const v = String(item.model || "").startsWith("video:") ? item.model.slice(6) : null; if (v && videoModels.some((x) => x.id === v)) setVidModelRaw(v); }
-    else { setMode("image"); if (imageModels.some((x) => x.id === item.model)) setImgModel(item.model); }
+    else { setMode("image"); const m = model || item.model; if (imageModels.some((x) => x.id === m)) setImgModel(m); }
     if (IMAGE_RATIOS.some((r) => r.id === item.ratio)) setRatio(item.ratio);
     setViewer(null); setTab("create");
   }, []);
@@ -759,8 +761,9 @@ export function useStudio() {
     const res = await post("/api/checkout", { plan: planId }).catch(() => null);
     const d = res ? await json(res) : {};
     if (res?.ok && d.url) { window.location.href = d.url; return; }
+    if (res?.status === 401) { askSignIn(t("Sign in first, then buy. Your credits are saved to your account.")); return; }
     say(plain(d.error) || t("Checkout isn't available right now."));
-  }, [say]);
+  }, [say, askSignIn]);
 
   const setVidModel = useCallback((id) => { setVAuto(false); setVidModelRaw(id); setVDur(null); setVRes(null); }, []);
   const setTheme = useCallback((t) => { setThemeRaw(t); }, []);
