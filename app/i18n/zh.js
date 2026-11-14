@@ -617,4 +617,7 @@ export default {
   "By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>.": "继续即表示你同意<a>条款</a>和<b>隐私政策</b>。",
   "Uploads": "上传",
   "No uploads yet. A picture you attach to work from is kept here.": "还没有上传。你附加用来创作的图片会保存在这里。",
+  "This model doesn't accept realistic faces, even AI-made ones.": "这个模型不接受写实的人脸，即使是 AI 生成的也不行。",
+  "Try {name}": "试试 {name}",
+  "Doesn't accept images with realistic faces": "不接受含有写实人脸的图片",
 };

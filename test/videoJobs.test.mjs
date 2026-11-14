@@ -97,3 +97,32 @@ test('a video poster lives where an image thumbnail would', () => {
   assert.equal(thumbPath('i/abc123.png'), 't/abc123.webp');
   assert.equal(thumbPath('elsewhere/abc.mp4'), null);
 });
+
+// ---- a model that turns down realistic faces ----
+test('a refusal of a realistic face is recognised, from the model\'s answer and from the stored reason', async () => {
+  const { refusedFaces, FACES_REFUSED } = await import('../lib/videoJobCore.js');
+  const seedance = 'Prediction failed: Async prediction failed: ModelError: The input or output was flagged as sensitive. Please try again with different inputs. (E005) (uIJ6l3ruRD): Failed to generate video: {"error":{"code":"InputImageSensitiveContentDetected.PrivacyInformation","message":"…"}}';
+  assert.equal(refusedFaces(seedance), true);
+  assert.equal(refusedFaces(`${FACES_REFUSED}: ${seedance}`.slice(0, 300)), true, 'the reason as it is stored (cut at 300 letters)');
+  // Other refusals are not about faces.
+  for (const why of ['The request failed because the output audio may be related to copyright restrictions.', 'The input or output was flagged as sensitive. (E005)', 'CUDA out of memory', 'Blocked by the safety check: the video looks explicit.', '', null]) assert.equal(refusedFaces(why), false, String(why));
+});
+
+test('the model offered after a face refusal: takes a picture, takes faces, is not the same one and is not switched off', async () => {
+  const { faceAlternative, VIDEO_NO_FACES, VIDEO_FOR_FACES, videoTakesImage, VIDEO_PRICING } = await import('../lib/videoPricing.js');
+  assert.equal(faceAlternative('seedance-25'), 'kling-4-flash');
+  assert.equal(faceAlternative('seedance-25', new Set(['kling-4-flash'])), 'veo');
+  assert.equal(faceAlternative('seedance-25', ['kling-4-flash', 'veo']), 'h3-lite');
+  assert.equal(faceAlternative('seedance-25', VIDEO_FOR_FACES), null, 'nothing to offer when all of them are off');
+  assert.equal(faceAlternative('kling-4-flash'), 'veo', 'never the model that just refused');
+  for (const id of VIDEO_FOR_FACES) { assert.ok(VIDEO_PRICING[id], id); assert.ok(videoTakesImage(id), id); assert.ok(!VIDEO_NO_FACES.includes(id), id); }
+});
+
+test('the screen is told about a face refusal, in words every language has', async () => {
+  const { readFileSync } = await import('node:fs');
+  const route = readFileSync(new URL('../app/api/animate/route.js', import.meta.url), 'utf8');
+  const { SERVER_MESSAGES } = await import('../app/i18n/serverMessages.js');
+  const said = "This model doesn't accept realistic faces, even AI-made ones.";
+  assert.ok(route.includes(said) && SERVER_MESSAGES.includes(said));
+  assert.match(route, /out\.faces \? \{ faces: true \}/);
+});

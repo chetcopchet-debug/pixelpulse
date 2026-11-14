@@ -85,11 +85,15 @@ function Jobs({ runs, s, now }) {
       {more > 0 ? <p className="sm t3" style={{ padding: "0 4px" }}>{t("And {n} more in progress", { n: more })}</p> : null}
       {shown.map((run) => {
         if (run.status === "failed") {
+          // `alt`: the model refused the picture (a realistic face), so the same video is offered on one that takes it.
+          const alt = run.alt ? videoModel(run.alt.model) : null;
+          const altCost = alt ? videoPlan(alt.id, undefined, undefined, run.alt.source?.ratio, true)?.cost : null;
           return (
-            <div key={run.key} className="job err" role="alert">
+            <div key={run.key} className={`job err${alt ? " alt" : ""}`} role="alert">
               <Icon name="alert" size={18} />
               <p className="job-t">{run.error}</p>
-              {run.again ? <button className="job-b" onClick={() => s.retry(run)}>{t("Try again")}</button> : null}
+              {alt ? <button className="job-alt" onClick={() => s.retry({ ...run, again: run.alt })}><span>{t("Try {name}", { name: alt.name })}</span>{altCost ? <Price n={altCost} /> : null}</button>
+                : run.again ? <button className="job-b" onClick={() => s.retry(run)}>{t("Try again")}</button> : null}
               <button className="job-x" aria-label={t("Dismiss")} onClick={() => s.dropRun(run.key)}><Icon name="x" size={18} /></button>
             </div>
           );
