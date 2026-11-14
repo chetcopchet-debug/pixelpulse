@@ -318,9 +318,10 @@ export default function Create({ s }) {
   const now = useNow(s.runs.some(busyRun));
 
   // The prompt box grows with the text: up to six lines on a phone, more room on a wide screen.
-  // The corner button opens the box to show the whole prompt without scrolling, up to 70% of the screen.
+  // The corner button opens the box to show the whole prompt without scrolling, up to 70% of the screen
+  // (the line of buttons above the text counts in that).
   const [big, setBig] = useState(false);
-  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, 110]; el.style.height = "auto"; el.style.height = `${Math.min(big ? Math.max(hi, growMax()) : hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide, big]);
+  useLayoutEffect(() => { const el = textRef.current; if (!el) return; const [lo, hi] = wide ? [132, 280] : [24, 110]; el.style.height = "auto"; el.style.height = `${Math.min(big ? Math.max(hi, growMax() - 40) : hi, Math.max(lo, el.scrollHeight))}px`; }, [s.prompt, wide, big]);
   const grow = <GrowButton on={big} onClick={() => setBig((b) => !b)} />;
 
   // The window shows the newest thing: an image or video being made right now, or else the latest result.
