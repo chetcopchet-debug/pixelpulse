@@ -8,7 +8,7 @@ import Sheet from "./Sheet";
 import ImproveBar from "./ImproveBar";
 import { ideaCards } from "./ideas";
 import { recommend, VIDEO_AUTO_CAP } from "./auto";
-import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, videoTakesImage, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS } from "./models";
+import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, videoTakesImage, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS, resLabel } from "./models";
 import { FREE_DAILY } from "./store";
 
 export function ModelSheet({ s, onClose }) {
@@ -104,7 +104,7 @@ export function RatioSheet({ s, onClose }) {
 
 export function VideoSheet({ s, onClose }) {
   const va = s.vAuto && !s.ref ? recommend(s.prompt, "video", s.wallet, s.off, (id) => videoPlan(id, s.vDur, s.vRes, s.ratio)?.cost, VIDEO_AUTO_CAP) : null; // Auto: the model it would run
-  const m = videoModel(va ? va.pick : s.vidModel);
+  const m = videoModel(va?.pick || s.vidModel);
   const img = Boolean(s.ref && videoTakesImage(m.id)); // the video starts from a picture: its own price, and the picture's shape
   const plan = videoPlan(m.id, s.vDur, s.vRes, img ? s.ref.ratio : s.ratio, img);
   const Group = ({ label, children }) => <div style={{ padding: "8px 8px 12px" }}><p className="sm b t2" style={{ marginBottom: 8 }}>{label}</p><div className="opt">{children}</div></div>;
@@ -119,9 +119,10 @@ export function VideoSheet({ s, onClose }) {
       <Group label={t("Quality")}>
         {plan.resolutions.map((r) => {
           const c = videoOptionCost(m.id, plan.d, r, img);
-          return <button key={r} className={r === plan.r ? "on" : ""} aria-pressed={r === plan.r} disabled={c === null} onClick={() => s.setVRes(r)}><span>{r}</span>{c !== null ? <Price n={c} /> : <span className="sm">{t("Not at {what}", { what: `${plan.d} s` })}</span>}</button>;
+          return <button key={r} className={r === plan.r ? "on" : ""} aria-pressed={r === plan.r} disabled={c === null} onClick={() => s.setVRes(r)}><span>{resLabel(r)}</span>{c !== null ? <Price n={c} /> : <span className="sm">{t("Not at {what}", { what: `${plan.d} s` })}</span>}</button>;
         })}
       </Group>
+      {plan.resolutions.includes("360p") ? <p className="sm t2" style={{ padding: "0 8px 12px", marginTop: -4 }}>{t("Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.")}</p> : null}
       {img ? <p className="sm t2" style={{ padding: "0 8px 12px" }}>{t("The video keeps the shape of your image.")}</p> : (
         <Group label={t("Shape")}>
           {plan.ratios.map((r) => <button key={r} className={r === plan.ratio ? "on" : ""} aria-pressed={r === plan.ratio} onClick={() => s.setRatio(r)}><span>{r}</span></button>)}

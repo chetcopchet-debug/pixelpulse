@@ -606,4 +606,6 @@ export default {
   "Improve": "改善する",
   "It looks at your image and writes the prompt for you.": "画像を見て、プロンプトを代わりに書きます。",
   "Today's free improvements are used. Pro still works, for 1 credit.": "今日の無料改善は使い切りました。Proは1クレジットで引き続き使えます。",
+  "Draft": "下書き",
+  "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "下書きは低画質（360p）のすばやいお試しです。フル画質にお金を使う前に、アイデアを試すのに使えます。",
 };

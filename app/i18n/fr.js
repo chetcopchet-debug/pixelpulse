@@ -606,4 +606,6 @@ export default {
   "Improve": "Améliorer",
   "It looks at your image and writes the prompt for you.": "Il regarde votre image et écrit le prompt pour vous.",
   "Today's free improvements are used. Pro still works, for 1 credit.": "Les améliorations gratuites du jour sont épuisées. Pro reste disponible pour 1 crédit.",
+  "Draft": "Brouillon",
+  "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "Le brouillon est un essai rapide en basse qualité (360p). Utilisez-le pour tester une idée avant de payer la pleine qualité.",
 };

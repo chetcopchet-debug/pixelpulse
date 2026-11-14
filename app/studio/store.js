@@ -6,7 +6,7 @@ import { FORMATS } from "../../lib/formats";
 import { shortIdea } from "../../lib/promptLanguage.js";
 import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
-import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers } from "./models";
+import { imageModel, imageModels, videoModel, videoModels, videoPlan, videoTakesImage, comparePlan, covers, TOOLS, IMAGE_RATIOS, toItem, madeWith, answers, resLabel } from "./models";
 import { setDownloadMark } from "./download";
 import { posterUrl as posterUrlOf } from "../../lib/thumbs";
 
@@ -441,7 +441,7 @@ export function useStudio() {
     const plan = fixed ? null : videoPlan(m.id, o.d, o.r, o.source ? o.source.ratio : o.ratio, picked);
     if (!fixed && !plan) { say(t("That length and quality aren't available on this model.")); return false; }
     const cost = fixed ? TOOLS.animate.cost : plan.cost;
-    const label = fixed ? `${TOOLS.animate.label}, ${TOOLS.animate.detail}` : `${m.name}, ${plan.d} s, ${plan.r}`;
+    const label = fixed ? `${TOOLS.animate.label}, ${TOOLS.animate.detail}` : `${m.name}, ${plan.d} s, ${resLabel(plan.r)}`;
     if (!afford(cost, { paidOnly: true, label: fixed ? TOOLS.animate.label : m.name })) return false;
     const key = uid();
     setRuns((rs) => [...trim(rs), { key, kind: "video", prompt: o.prompt, label, ratio: o.source ? o.source.ratio || "1:1" : plan.ratio, cost, status: "running", t0: Date.now(), eta: fixed ? 75 : Math.round(m.eta * (plan.d > 6 ? 1.6 : 1)), poster: o.source?.url, again: { ...o, kind: "video" } }]);
@@ -585,7 +585,7 @@ export function useStudio() {
       if (!text) { say(t("Describe the video first.")); return; }
       // Auto: the model the screen showed for this prompt, at the chosen length and quality.
       const vp = vAuto ? recommend(text, "video", walletRef.current, walletRef.current.off, (id) => videoPlan(id, vDur, vRes, ratio)?.cost, VIDEO_AUTO_CAP) : null;
-      if (startVideo({ model: vp ? vp.pick : vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish })) setPrompt("");
+      if (startVideo({ model: vp?.pick || vidModel, prompt: text, ratio, d: vDur, r: vRes, improve: improve && !polish })) setPrompt("");
       return;
     }
     if (!text) { say(t("Describe the image first.")); return; }
