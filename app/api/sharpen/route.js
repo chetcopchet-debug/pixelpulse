@@ -10,7 +10,7 @@ export const fetchCache = 'force-no-store';
 const TOPAZ = { model: 'topazlabs/image-upscale', input: (image) => ({ image, enhance_model: 'High Fidelity V2', upscale_factor: '2x', output_format: 'png', face_enhancement: false, subject_detection: 'None' }) };
 async function handlePost(request) {
   const topaz = request.headers.get('x-test-upscaler') === 'topaz' && doorOpens(process.env, request.headers.get('x-test-login'));
-  return runImageTool(request, { tool: 'sharpen', cost: 1, usd: topaz ? 0.08 : 0.002, label: 'Sharpen', limit: { n: 20, ms: 60 * 60_000 }, ...(topaz ? { toolDef: TOPAZ } : {}) });
+  return runImageTool(request, { tool: 'sharpen', cost: 1, usd: topaz ? 0.08 : 0.002, label: 'Sharpen', limit: { n: 20, ms: 60 * 60_000 }, ...(topaz ? { def: TOPAZ } : {}) });
 }
 
 // Every refusal is written to the log with its reason (lib/refusals.js).
