@@ -137,6 +137,12 @@ html:has(.pp) body { background: transparent !important; }
 .pp .gal > div { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .pp .gt { position: relative; display: block; width: 100%; overflow: hidden; border-radius: 14px; background: var(--fill); }
 .pp .gt > img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.pp .gt > video { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .3s ease; pointer-events: none; }
+.pp .gt > video.on { opacity: 1; }
+.pp .gt > .badge.top { right: auto; bottom: auto; left: 6px; top: 6px; }
+.pp .gcap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 1px; padding: 22px 9px 8px; text-align: left; color: #FFFFFF; font-size: 13px; line-height: 17px; background: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, .78)); pointer-events: none; }
+.pp .gcap .gmade { display: block; font-size: 11px; line-height: 15px; color: rgba(255, 255, 255, .82); }
+.pp .gcap .coin { display: inline-block; width: 7px; height: 7px; margin: 0 4px 0 7px; vertical-align: 1px; }
 .pp .gt > .vph { position: absolute; left: 0; top: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; color: var(--text-3); }
 .pp .gt.ghost { animation: pp-pulse 1.6s ease-in-out infinite; }
 @keyframes pp-pulse { 50% { opacity: .5; } }

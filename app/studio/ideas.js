@@ -1,4 +1,5 @@
 import { t, N } from "../i18n/index.js";
+import { shortTitle } from "../../lib/title.js";
 import { thumbUrl, posterUrl } from "../../lib/thumbs";
 
 // Starting points for someone who has not made anything yet. The card shows a short title; a tap fills the
@@ -26,7 +27,7 @@ export const IDEAS = {
 // more than an illustration); the drawn starting ideas fill whatever is missing.
 export function ideaCards(chosen, video) {
   const real = (chosen || []).filter((x) => Boolean(x.video) === Boolean(video) && x.prompt && (video ? posterUrl(x.url) : x.url)).slice(0, 6)
-    .map((x) => ({ key: x.id, src: video ? posterUrl(x.url) : thumbUrl(x.url), title: x.prompt, prompt: x.prompt }));
+    .map((x) => ({ key: x.id, src: video ? posterUrl(x.url) : thumbUrl(x.url), title: x.title || shortTitle(x.prompt) || x.prompt, prompt: x.prompt }));
   const drawn = IDEAS[video ? "video" : "image"].map((x) => ({ key: x.img, src: `/ideas/${x.img}.webp`, title: t(x.title), prompt: x.prompt }));
   return [...real, ...drawn].slice(0, 6);
 }
