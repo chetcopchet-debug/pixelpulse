@@ -606,4 +606,6 @@ export default {
   "Improve": "Melhorar",
   "It looks at your image and writes the prompt for you.": "Ele olha sua imagem e escreve o prompt para você.",
   "Today's free improvements are used. Pro still works, for 1 credit.": "As melhorias grátis de hoje acabaram. O Pro continua disponível por 1 crédito.",
+  "Draft": "Rascunho",
+  "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "Rascunho é um teste rápido de baixa qualidade (360p). Use para testar uma ideia antes de pagar pela qualidade completa.",
 };

@@ -101,7 +101,9 @@ export function recommend(prompt, kind, wallet, off, priceOf, cap = Infinity) {
   const best = picks[0];
   const saver = picks.reduce((a, b) => (cost(b) < cost(a) ? b : a), best);
   const within = picks.filter((id) => cost(id) <= cap);
-  const top = within[0] || saver; // the first choice under the cap
+  // The first choice under the cap. With a cap and nothing under it, there is no pick at all (pick: null): Auto
+  // never runs a model above its cap, and the caller falls back to the model the person chose.
+  const top = within[0] || (Number.isFinite(cap) ? null : saver);
   const pick = within.find((id) => cost(id) <= have) || top;
   return { kind: k.id, why: k.why, best, pick, saver, fitted: pick !== top, short: known ? Math.max(0, cost(best) - have) : 0, cost };
 }

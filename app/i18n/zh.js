@@ -606,4 +606,6 @@ export default {
   "Improve": "优化",
   "It looks at your image and writes the prompt for you.": "它会查看你的图片并为你写好提示词。",
   "Today's free improvements are used. Pro still works, for 1 credit.": "今天的免费优化已用完。Pro 仍可使用，需 1 积分。",
+  "Draft": "草稿",
+  "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "草稿是快速、低画质（360p）的尝试。在为完整画质付费之前，先用它测试想法。",
 };

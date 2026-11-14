@@ -54,3 +54,20 @@ test('every model Auto can pick exists in the list', () => {
   const ids = new Set(imageModels.map((m) => m.id));
   for (const p of ['"x y"', 'diagram', 'vector icon', 'photo', 'anime', 'apple']) for (const w of [rich, { loaded: true, free: 0, paid: 0 }, { loaded: true, free: 5, paid: 0 }]) assert.ok(ids.has(autoPick(p, w).id), p);
 });
+
+test('Auto for video never picks a model above 100 credits, at any length or quality', async () => {
+  const { recommend, VIDEO_AUTO_CAP } = await import('../app/studio/auto.js');
+  const { videoPlan } = await import('../app/studio/models.js');
+  assert.equal(VIDEO_AUTO_CAP, 100);
+  const prompts = ['a woman says hello to the camera', 'a man running through a city', 'a funny cat meme loop', 'waves on a beach at sunset', ''];
+  for (const text of prompts) for (const d of [null, 4, 5, 6, 8, 10, 15]) for (const r of [null, '360p', '480p', '720p', '768p', '1080p']) for (const w of [{ loaded: true, paid: 5000, free: 0 }, { loaded: true, paid: 40, free: 0 }, { loaded: false }]) {
+    const price = (id) => videoPlan(id, d, r, '16:9')?.cost;
+    const out = recommend(text, 'video', w, [], price, VIDEO_AUTO_CAP);
+    assert.ok(out.pick === null || price(out.pick) <= 100, `"${text}" ${d}s ${r}: ${out.pick} costs ${price(out.pick)}`);
+    assert.ok(out.pick, `"${text}" ${d}s ${r}: something under the cap is always found while the cheapest model runs`);
+  }
+  // With every affordable model switched off there is no pick, rather than one above the cap.
+  const none = recommend('waves', 'video', { loaded: true, paid: 5000 }, ['wan', 'h3-lite', 'omni', 'grok-video', 'kling-4-flash'], (id) => videoPlan(id, 10, '720p', '16:9')?.cost, VIDEO_AUTO_CAP);
+  assert.equal(none.pick, null);
+});
+

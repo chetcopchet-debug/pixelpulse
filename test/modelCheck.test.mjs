@@ -16,18 +16,18 @@ test('every model in the list can be run, and nothing else can', () => {
 
 test('image credits are the ones agreed with the owner, and never below cost', () => {
   const cost = Object.fromEntries(IMAGE_MODELS.map((m) => [m.id, m.cost]));
-  assert.deepEqual(cost, { 'gpt-image': 16, ideogram: 11, 'flux-3': 5, 'nano-banana': 6, 'seedream-5': 7, 'recraft-41': 8, 'flux-2-pro': 6, grok: 4, fast: 1 });
+  assert.deepEqual(cost, { 'gpt-image': 16, ideogram: 11, 'flux-3': 9, 'nano-banana': 6, 'seedream-5': 7, 'recraft-41': 8, 'flux-2-pro': 6, grok: 4, fast: 1 });
   for (const m of IMAGE_MODELS) assert.ok(m.cost * CREDIT_USD >= m.usd - 1e-9, m.id);
 });
 
-test('the two prices that were not verified are marked, and charged 15% above the list price', () => {
+test('no price is unverified today; one that is would be marked and charged 15% above the list price', () => {
   const approx = [...IMAGE_MODELS, ...VIDEO_MODELS].filter((m) => m.approx).map((m) => m.id);
-  assert.deepEqual(approx, ['flux-3', 'omni']);
+  assert.deepEqual(approx, []); // FLUX 3 and Omni were read on their Replicate pages on 14 Nov 2026
   for (const m of IMAGE_MODELS) assert.equal(m.usd, Math.round(m.listUsd * (m.approx ? 1.15 : 1) * 10000) / 10000, m.id);
   const rows = modelRows();
   assert.equal(rows.filter((r) => !r.tool).length, 17);
   assert.equal(rows.filter((r) => r.tool).length, 10); // the models behind the tools are watched too
-  assert.equal(rows.filter((r) => r.approx).length, 2);
+  assert.equal(rows.filter((r) => r.approx).length, 0);
   for (const r of rows.filter((x) => !x.tool)) assert.ok(r.src && r.slug && r.inputs.length >= 1, r.id);
   assert.equal(new Set(rows.map((r) => r.slug)).size, 26);
 });

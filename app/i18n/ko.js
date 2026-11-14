@@ -606,4 +606,6 @@ export default {
   "Improve": "개선하기",
   "It looks at your image and writes the prompt for you.": "이미지를 보고 프롬프트를 대신 작성합니다.",
   "Today's free improvements are used. Pro still works, for 1 credit.": "오늘의 무료 개선을 모두 사용했습니다. Pro는 1크레딧으로 계속 사용할 수 있습니다.",
+  "Draft": "초안",
+  "Draft is a quick, low-quality try (360p). Use it to test an idea before you pay for full quality.": "초안은 저화질(360p)의 빠른 시험용입니다. 전체 화질에 비용을 쓰기 전에 아이디어를 시험해 보세요.",
 };
