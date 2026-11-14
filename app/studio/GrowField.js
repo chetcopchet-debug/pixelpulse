@@ -3,7 +3,7 @@ import { t } from "../i18n/index.js";
 import { useLayoutEffect, useRef, useState } from "react";
 import Icon from "./icons";
 
-// The small button in the corner of a prompt box. One tap makes the box tall enough to show the whole prompt
+// The small button in the line at the top of a prompt box. One tap makes the box tall enough to show the whole prompt
 // without scrolling (up to a part of the screen's height); another tap puts it back.
 export function GrowButton({ on, onClick }) {
   return (
@@ -30,8 +30,8 @@ export default function GrowField({ value, part = 0.7, ...props }) {
   }, [big, value, part]);
   return (
     <div className="growbox">
+      <div className="pbar"><GrowButton on={big} onClick={() => setBig((b) => !b)} /></div>
       <textarea ref={ref} className="field" value={value} {...props} />
-      <GrowButton on={big} onClick={() => setBig((b) => !b)} />
     </div>
   );
 }
