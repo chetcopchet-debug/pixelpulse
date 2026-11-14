@@ -42,11 +42,11 @@ export const ratioLabel = (id) => (IMAGE_RATIOS.find((r) => r.id === id) || { la
 
 // Tools that work on an existing image. `paidOnly` tools can't be paid for with free credits.
 export const TOOLS = {
-  animate: live({ label: N("Animate"), cost: 15, paidOnly: true, detail: "Wan 2.2, 5 s, 480p" }, ["detail"]),
+  animate: live({ label: N("Animate"), cost: 10, paidOnly: true, detail: "Wan 2.2, 5 s, 480p" }, ["detail"]),
   sharpen: live({ label: N("Upscale"), cost: 1, done: N("Upscaled to twice the size") }),
   cutout: live({ label: N("Remove background"), cost: 1, done: N("Background removed") }),
   edit: live({ label: N("Edit with words"), cost: 8, done: N("Edit applied"), ask: N("What should change?"), hint: N("Make it night, add snow, change the jacket to red") }),
-  repaint: live({ label: N("Edit an area"), cost: 13, done: N("The marked part was changed") }),
+  repaint: live({ label: N("Edit an area"), cost: 11, done: N("The marked part was changed") }),
   facelock: live({ label: N("Keep the face"), cost: 7, paidOnly: true, done: N("Same face, new scene"), ask: N("Describe the new scene"), hint: N("As an astronaut on Mars") }),
   reference: live({ label: N("From a reference image"), cost: 5, detail: "FLUX Dev" }, ["detail"]),
 };

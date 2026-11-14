@@ -3,6 +3,7 @@ import { t, N, sm, isLang, pickLang, loadDict, applyDict, langTag, LANG_COOKIE }
 // All state and server calls for the studio. The screens only read from here and call these actions.
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { FORMATS } from "../../lib/formats";
+import { setServerNow } from "../../lib/videoPricing.js";
 import { shortIdea } from "../../lib/promptLanguage.js";
 import { autoPick, recommend, VIDEO_AUTO_CAP } from "./auto";
 import { prepareUpload, uploadRaw } from "../clientImage";
@@ -131,6 +132,7 @@ export function useStudio() {
   const refreshWallet = useCallback(async () => {
     const d = await get("/api/credits").then(json).catch(() => null);
     if (!d) return null;
+    setServerNow(d.now); // prices that change on a date follow the server's clock, not the phone's
     setWallet((w) => ({
       ...w, loaded: true, admin: Boolean(d.admin), account: d.account || null,
       free: typeof d.credits === "number" ? d.credits : w.free,
