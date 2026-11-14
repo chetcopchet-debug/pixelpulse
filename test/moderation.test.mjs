@@ -104,12 +104,27 @@ test('checkPersonEditText blocks undressing requests, allows normal edits', asyn
   assert.ok(checkPersonEditText('put him in a bikini'));
   assert.equal(checkPersonEditText('make it night and add rain'), null);
 });
-test('outputGate: nsfw blocks, normal passes, unavailable depends on policy', async () => {
+test('outputGate: nsfw blocks, normal passes, and a result nobody could check never passes', async () => {
   const { outputGate } = await import('../lib/moderation.js');
   assert.equal(outputGate('normal', 'closed'), null);
   const n = outputGate('nsfw', 'open'); assert.equal(n.status, 422); assert.match(n.error, /אסור/);
-  assert.equal(outputGate('unavailable', 'open'), null);
+  assert.equal(outputGate('unavailable', 'open').status, 503, 'no policy lets an unchecked result through');
   assert.equal(outputGate('unavailable', 'closed').status, 503);
+  assert.equal(outputGate('unavailable').status, 503);
+});
+test('the two checkers: what counts as an answer', async () => {
+  const { readMainChecker, readBackupChecker } = await import('../lib/moderation.js');
+  assert.equal(readMainChecker('normal'), 'normal'); assert.equal(readMainChecker(['NSFW']), 'nsfw');
+  assert.equal(readMainChecker(''), ''); assert.equal(readMainChecker(null), ''); assert.equal(readMainChecker('maybe'), '');
+  assert.equal(readBackupChecker({ nsfw_detected: false, nsfw: [], special: [] }), 'normal');
+  assert.equal(readBackupChecker({ nsfw_detected: true, nsfw: ['x'], special: [] }), 'nsfw');
+  assert.equal(readBackupChecker({}), ''); assert.equal(readBackupChecker(null), ''); assert.equal(readBackupChecker('normal'), '');
+});
+test('every image tool checks its result, and nothing is logged as unchecked', () => {
+  const tool = readFileSync(new URL('../lib/imagetool.js', import.meta.url), 'utf8');
+  assert.ok(!/'unchecked'/.test(tool), 'no result is saved unchecked');
+  assert.ok(/checkOutputImage\(url, outputPolicy \|\| 'closed'\)/.test(tool));
+  const gen = src('generate'); assert.ok(!/'open'/.test(gen.slice(gen.indexOf('checkOutputImage('))), 'creation no longer lets an unchecked image through');
 });
 test('output check runs before the result is saved', () => {
   const tool = readFileSync(new URL('../lib/imagetool.js', import.meta.url), 'utf8');

@@ -162,7 +162,7 @@ async function handlePost(request) {
     // is unavailable (prompt was already text-checked); a guide image (could be a real photo) fails CLOSED.
     // The whole request has 60 seconds. The check gets what is left after the model, keeping a few seconds to save
     // the picture; otherwise a slow check could end the request after the picture was made and paid for.
-    const gate = await checkOutputImage(result.url, guideParent ? 'closed' : 'open', { budgetMs: Math.max(3000, Math.min(15_000, startedAt + 52_000 - Date.now())) });
+    const gate = await checkOutputImage(result.url, 'closed', { budgetMs: Math.max(4000, Math.min(18_000, startedAt + 54_000 - Date.now())) });
     if (gate) {
       await glog(gate.status === 422 ? 'blocked:output' : 'blocked:unavailable');
       await refund();

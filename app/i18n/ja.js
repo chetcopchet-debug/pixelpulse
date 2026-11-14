@@ -600,4 +600,7 @@ export default {
   "Couldn't save to favorites. Try again.": "お気に入りに保存できませんでした。もう一度お試しください。",
   "Couldn't remove from favorites. Try again.": "お気に入りから削除できませんでした。もう一度お試しください。",
   "Couldn't add it to the project. It is in your Library.": "プロジェクトに追加できませんでした。ライブラリにあります。",
+  "Video creation is paused for your account until midnight UTC, because 3 of your videos today were blocked by the safety check.": "本日、動画3本が安全チェックでブロックされたため、あなたのアカウントでの動画作成はUTCの午前0時まで一時停止されています。",
+  "This video looks explicit and is not allowed.": "この動画は露骨な内容に見えるため、許可されていません。",
+  "The safety check is busy, so the video could not be kept.": "安全チェックが混み合っているため、動画を保存できませんでした。",
 };

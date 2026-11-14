@@ -19,7 +19,7 @@ import { videoQuote, VIDEO_PRICING, VIDEO_WITH_SOUND } from '../../../lib/videoP
 import { ownedProject } from '../../../lib/projectOwner';
 import { isDiscontinued, markDead, isDeadSlug } from '../../../lib/modelHealth';
 const MODEL_OFF_MSG = 'This model is temporarily unavailable. Pick another model.';
-import { isBanned, BANNED_MSG, logGeneration } from '../../../lib/trustSafety';
+import { isBanned, BANNED_MSG, logGeneration, videoStrikesToday, VIDEO_STRIKES_A_DAY, VIDEO_PAUSED_MSG } from '../../../lib/trustSafety';
 import { replicateStart, THROTTLED_MSG } from '../../../lib/replicate';
 import sharp from 'sharp';
 
@@ -64,6 +64,8 @@ async function handlePost(request) {
   const ip = getClientIp(request);
   const body = await request.json().catch(() => ({}));
   if (!admin && await isBanned(creator.id)) return NextResponse.json({ error: BANNED_MSG }, { status: 403 });
+  // Three videos blocked by the safety check today: no more videos until midnight UTC.
+  if (!admin && await videoStrikesToday(creator.id) >= VIDEO_STRIKES_A_DAY) return NextResponse.json({ error: VIDEO_PAUSED_MSG }, { status: 429 });
   // A model from the picker: text-to-video, or (with an image id) a video that starts from that picture.
   // Wan with a picture is the fixed "Animate" below: its picker model is text only.
   if (typeof body?.model === 'string' && !(body.model === 'wan' && body?.id)) return startTextVideo(request, body, { admin, creator, ip });
@@ -184,7 +186,9 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
 }
 
 // What to tell the person when a job ended without a video. `lost`: the run finished but the file could not be kept.
-const failText = (out) => `${out.lost ? 'The video was made but could not be saved' : 'The video failed'}${out.charged ? '. Your credits were returned.' : '.'}`;
+const failText = (out) => out.blocked ? `This video looks explicit and is not allowed.${out.charged ? ' Your credits were returned.' : ''}`
+  : out.unchecked ? `The safety check is busy, so the video could not be kept.${out.charged ? ' Your credits were returned.' : ''}`
+  : `${out.lost ? 'The video was made but could not be saved' : 'The video failed'}${out.charged ? '. Your credits were returned.' : '.'}`;
 
 // GET ?job=<token>  -> { status: processing | done | failed, item? }   (the tab that started the video)
 // GET ?pending=1    -> { jobs: [...] }  every unfinished video of this creator, finishing any that are ready
