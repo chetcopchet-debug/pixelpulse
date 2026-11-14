@@ -6,6 +6,7 @@ import { rich } from '../i18n/rich.js';
 import { getT } from '../i18n/server';
 import { imageModels, videoModels, TOOLS } from '../studio/models';
 import { VIDEO_PRICING } from '../../lib/videoPricing';
+import { KEEP_FACE_ON } from '../../lib/features';
 export const metadata = { title: { absolute: 'Models & pricing · Yelvo' }, description: 'Sign up and get 10 free credits every day. Yelvo Pack: 500 credits for $9.90 that never expire. Yelvo Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
 const Coin = ({ n }) => <span className="price"><i className="coin" />{n}</span>;
@@ -14,7 +15,7 @@ const TOOL_ROWS = [
   [TOOLS.edit.label, N('Describe a change to an image you have'), TOOLS.edit.cost],
   [TOOLS.sharpen.label, N('The same image at twice the size'), TOOLS.sharpen.cost],
   [TOOLS.cutout.label, N('A transparent PNG'), TOOLS.cutout.cost],
-  [TOOLS.facelock.label, N('The same face in a new scene. Bought credits only'), TOOLS.facelock.cost],
+  ...(KEEP_FACE_ON ? [[TOOLS.facelock.label, N('The same face in a new scene. Bought credits only'), TOOLS.facelock.cost]] : []),
   [TOOLS.animate.label, N('A 5 second video from an image. Bought credits only'), TOOLS.animate.cost],
 ];
 const FAQ = [

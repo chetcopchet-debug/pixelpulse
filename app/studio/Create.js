@@ -13,6 +13,7 @@ import { fitGrid, ratioOf } from "./layout";
 import { download } from "./download";
 import { GrowButton, growMax } from "./GrowField";
 import Lion from "./Lion";
+import { uploadAgreed } from "./Sheets";
 
 // A real desktop layout from this width up; below it, the phone layout.
 function useWide() {
@@ -367,7 +368,13 @@ export default function Create({ s }) {
   const project = s.projectsOn ? s.projects.find((p) => p.id === s.project) : null; // new creations are saved into it
   const modelName = cmp ? t("{n} models", { n: cmp.models.length }) : auto || vauto ? t("Auto") : video ? vm.name : im.name;
   const modelLabel = cmp ? t("Comparing {n} models. Change", { n: cmp.models.length }) : t("Model: {name}. Change", { name: auto || vauto ? t("Auto") : video ? vm.name : im.name });
-  const pickFile = () => { if (!s.needAccount({ tab: "create" })) fileRef.current?.click(); };
+  // Adding a picture. The first time on this device a short sheet says what may be uploaded; its button opens the
+  // file picker. After that the picker opens at once.
+  const pickFile = () => {
+    if (s.needAccount({ tab: "create" })) return;
+    const open = () => fileRef.current?.click();
+    if (uploadAgreed()) open(); else s.setSheet({ type: "upload", pick: open });
+  };
 
   const mode = (
     <div className="seg" role="tablist" aria-label={t("What to make")}>
