@@ -564,6 +564,8 @@ export default {
   "Length and quality. Change": "时长和画质。更改",
   "Prices are for a video that starts from your image, at the standard setting.": "价格为从你的图片开始生成的视频（标准设置）。",
   "The video keeps the shape of your image.": "视频会保持图片的比例。",
+  "Show the whole prompt": "显示完整提示词",
+  "Make the box small again": "恢复输入框大小",
   "Improve this prompt now": "立即优化这条提示词",
   "Improved. You can edit it.": "已优化。你可以继续编辑。",
   "Couldn't improve the prompt right now. Try again in a moment.": "暂时无法优化提示词，请稍后再试。",
