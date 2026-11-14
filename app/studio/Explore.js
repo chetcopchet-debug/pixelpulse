@@ -1,10 +1,13 @@
 "use client";
 import { t, LANGS } from "../i18n/index.js";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Icon from "./icons";
 import { Brand, Balance, Picture, Poster } from "./bits";
 import { IDEAS } from "./ideas";
 import { FREE_DAILY } from "./store";
+import { madeFor } from "./models";
+import { shortTitle } from "../../lib/title.js";
+import { previewUrl } from "../../lib/thumbs";
 
 // How many columns fit: two on a phone, more as the window grows.
 function useColumns() {
@@ -13,6 +16,61 @@ function useColumns() {
   useEffect(() => { const on = () => setN(pick()); on(); window.addEventListener("resize", on); return () => window.removeEventListener("resize", on); }, []);
   return n;
 }
+// One gallery tile. A picture is a picture. A video shows its still, and while it is the one in the middle of the
+// screen its light copy plays over the still, without sound, in a loop. Only one video on the page plays at a time.
+function Tile({ it, playing, onOpen }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => { if (!playing) setShown(false); }, [playing]);
+  const title = shortTitle(it.prompt);
+  const made = madeFor(it);
+  return (
+    <button className="gt" data-vid={it.video && it.preview ? it.id : undefined} style={{ aspectRatio: `1 / ${tall(it.ratio)}` }} onClick={onOpen}
+      aria-label={title ? t("Open: {title}", { title }) : it.video ? t("Open video") : t("Open image")}>
+      {it.video ? <Poster item={it} /> : <Picture src={it.url} />}
+      {it.video && playing ? <video className={shown ? "on" : ""} src={previewUrl(it.url)} muted loop playsInline autoPlay preload="auto" aria-hidden="true" onPlaying={() => setShown(true)} /> : null}
+      {it.video ? <span className="badge top"><Icon name="play" size={10} />{t("Video")}</span> : null}
+      {title || made ? (
+        <span className="gcap">
+          {title ? <span className="b clamp1">{title}</span> : null}
+          {made ? <span className="gmade clamp1">{made.name}<i className="coin" />{made.cost}</span> : null}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+// Which video is playing: the one nearest the middle of the screen, when most of it is in view. None while a
+// window or an item is open, when the page is hidden, on a slow or data-saving connection, or when the person
+// asked their device for less motion: then the stills stay.
+function usePlaying(paused, deps) {
+  const [id, setId] = useState(null);
+  useEffect(() => {
+    if (paused || typeof window === "undefined") { setId(null); return; }
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const calm = (c && (c.saveData || /(^|-)2g|3g/.test(c.effectiveType || ""))) || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (calm) { setId(null); return; }
+    let frame = 0;
+    const pick = () => {
+      frame = 0;
+      if (document.hidden) { setId(null); return; }
+      const mid = window.innerHeight / 2; let best = null, dist = Infinity;
+      for (const el of document.querySelectorAll(".gal [data-vid]")) {
+        const r = el.getBoundingClientRect();
+        const seen = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+        if (r.height <= 0 || seen / r.height < 0.6) continue;
+        const d = Math.abs((r.top + r.bottom) / 2 - mid);
+        if (d < dist) { dist = d; best = el.getAttribute("data-vid"); }
+      }
+      setId(best);
+    };
+    const on = () => { if (!frame) frame = requestAnimationFrame(pick); };
+    pick();
+    window.addEventListener("scroll", on, { passive: true, capture: true }); window.addEventListener("resize", on); document.addEventListener("visibilitychange", on);
+    return () => { if (frame) cancelAnimationFrame(frame); window.removeEventListener("scroll", on, { capture: true }); window.removeEventListener("resize", on); document.removeEventListener("visibilitychange", on); };
+  }, [paused, ...deps]);
+  return id;
+}
+
 const tall = (ratio) => { const [a, b] = String(ratio || "1:1").split(":").map(Number); return a > 0 && b > 0 ? b / a : 1; };
 
 // The gallery: pictures and videos made on this site, chosen by its owner. Nothing is created here and nothing
@@ -37,6 +95,7 @@ export default function Explore({ s, signedHint = false }) {
     return out;
   }, [list, cols]);
   const start = () => { if (s.needAccount({ tab: "create" })) return; s.setTab("create"); };
+  const playing = usePlaying(Boolean(s.viewer || s.sheet || s.page), [kind, cols, s.explore.status, list.length]);
 
   return (
     <div className="screen explore">
@@ -71,11 +130,7 @@ export default function Explore({ s, signedHint = false }) {
         <div className="gal pad">
           {columns.map((c, i) => (
             <div key={i}>
-              {c.items.map((it) => (
-                <button key={it.id || it.idea} className="gt" style={{ aspectRatio: `1 / ${tall(it.ratio)}` }} onClick={() => s.setViewer({ item: it, readonly: true, explore: true })} aria-label={it.prompt ? t("Open: {title}", { title: it.prompt.slice(0, 80) }) : it.video ? t("Open video") : t("Open image")}>
-                  {it.video ? <><Poster item={it} /><span className="badge"><Icon name="play" size={10} />{t("Video")}</span></> : <Picture src={it.url} />}
-                </button>
-              ))}
+              {c.items.map((it) => <Tile key={it.id || it.idea} it={it} playing={Boolean(it.id) && playing === it.id} onOpen={() => s.setViewer({ item: it, readonly: true, explore: true })} />)}
             </div>
           ))}
         </div>
