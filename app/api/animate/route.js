@@ -167,7 +167,8 @@ async function startTextVideo(request, body, { admin, creator, ip }) {
       await logGeneration({ userId: creator.id, ip, mode: `i2v:${body.model}`, prompt: raw, inputRef: row.id, moderation: inGate.status === 422 ? 'blocked:input' : 'blocked:unavailable' });
       return NextResponse.json({ error: inGate.status === 503 ? inGate.error.replace(/ Your credits were refunded\.| הקרדיטים הוחזרו\./g, '') : inGate.error }, { status: inGate.status });
     }
-    try { frame = await firstFrame(row.public_url, loopEnd ? 1920 : 1280); } catch (e) { console.error('i2v first frame', e?.message || e); return NextResponse.json({ error: 'That image could not be read. Try another one.' }, { status: 400 }); }
+    // TEST ADDRESS ONLY: a caller with the test door's secret sends the first frame at up to 1920 px, for a 1080p video.
+    try { frame = await firstFrame(row.public_url, loopEnd || doorOpens(process.env, request.headers.get('x-test-login')) ? 1920 : 1280); } catch (e) { console.error('i2v first frame', e?.message || e); return NextResponse.json({ error: 'That image could not be read. Try another one.' }, { status: 400 }); }
   }
   const charge = await chargePaidCredits({ admin, creator, cost: tier.cost });
   if (!charge.ok) return NextResponse.json({ error: `${def.label} uses purchased credits (${tier.cost} credits).`, needCredits: { cost: tier.cost, label: def.label, paidOnly: true }, paid: await paidFor(creator) }, { status: 402 });
