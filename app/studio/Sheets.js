@@ -9,7 +9,7 @@ import ImproveBar from "./ImproveBar";
 import GrowField from "./GrowField";
 import { ideaCards } from "./ideas";
 import { recommend, VIDEO_AUTO_CAP } from "./auto";
-import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, videoTakesImage, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS, resLabel } from "./models";
+import { imageModels, videoModels, videoModel, videoPlan, videoOptionCost, videoTakesImage, refusesFaces, comparePlan, MAX_COMPARE, IMAGE_RATIOS, TOOLS, resLabel } from "./models";
 import { FREE_DAILY } from "./store";
 
 export function ModelSheet({ s, onClose }) {
@@ -70,6 +70,7 @@ export function ModelSheet({ s, onClose }) {
             <span className="grow">
               <span className="b" style={{ display: "block", fontSize: 16 }}>{m.name}</span>
               <span className="sm t2" style={{ display: "block" }}>{t(m.desc)}</span>
+              {fromImage && refusesFaces(m.id) ? <span className="sm t3" style={{ display: "block" }}>{t("Doesn't accept images with realistic faces")}</span> : null}
             </span>
             {!multi && on ? <span className="tick"><Icon name="check" size={14} /></span> : null}
             <Price n={fromImage ? (videoTakesImage(m.id) ? videoPlan(m.id, undefined, undefined, s.ref.ratio, true)?.cost ?? m.cost : TOOLS.animate.cost) : video ? videoPlan(m.id)?.cost ?? m.cost : m.cost} />
@@ -298,7 +299,7 @@ export function SignInSheet({ s, reason, onClose }) {
           <input className="field" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" aria-label={t("Email address")} value={email} onChange={(e) => setEmail(e.target.value)} />
           <button className="btn btn-p btn-wide" style={{ height: 52 }} disabled={busy || !email.includes("@")}>{busy ? <i className="spin" /> : t("Continue with email")}</button>
           {err ? <p className="sm bad" role="alert">{err}</p> : null}
-          <p className="agree">{rich(t("By continuing you agree to the <a>Terms</a> and the <b>Privacy Policy</b>."), { a: (c) => <a href="/terms" target="_blank" rel="noreferrer">{c}</a>, b: (c) => <a href="/privacy" target="_blank" rel="noreferrer">{c}</a> })}</p>
+          <p className="agree">{rich(t("By continuing you confirm you are 18 or older and agree to the <a>Terms</a> and the <b>Privacy Policy</b>."), { a: (c) => <a href="/terms" target="_blank" rel="noreferrer">{c}</a>, b: (c) => <a href="/privacy" target="_blank" rel="noreferrer">{c}</a> })}</p>
         </form>
       ) : (
         <form className="c" style={{ gap: 10, padding: "4px 8px" }} onSubmit={verify}>
@@ -341,6 +342,23 @@ export function ImproveProSheet({ s, limit, onClose }) {
 }
 
 // What the model was given, when a short idea was filled in first.
+// Before the first upload on this device: what may be uploaded. Pressing the button is the agreement; it is
+// remembered here, so the sheet is shown once.
+const UPLOAD_OK = "pp_upload_ok";
+export const uploadAgreed = () => { try { return window.localStorage.getItem(UPLOAD_OK) === "1"; } catch { return false; } };
+export function UploadSheet({ pick, onClose }) {
+  const go = () => { try { window.localStorage.setItem(UPLOAD_OK, "1"); } catch {} onClose(); pick?.(); };
+  return (
+    <Sheet title={t("Before you upload")} onClose={onClose}>
+      <div style={{ padding: "0 8px 8px" }}>
+        <p className="t2" style={{ fontSize: 16, lineHeight: "24px" }}>{t("Upload only pictures you have the right to use. Don't upload a photo of another person without their permission.")}</p>
+        <button className="btn btn-p btn-wide" style={{ height: 52, marginTop: 16 }} onClick={go}>{t("Choose a picture")}</button>
+        <p className="agree" style={{ marginTop: 12 }}>{rich(t("See the <a>Acceptable Use Policy</a>."), { a: (c) => <a href="/content-policy" target="_blank" rel="noreferrer">{c}</a> })}</p>
+      </div>
+    </Sheet>
+  );
+}
+
 export function UsedSheet({ s, text, idea, onClose }) {
   return (
     <Sheet title={t("The prompt that was used")} sub={t("Your idea was filled in before it was made. This is what the model got.")} onClose={onClose}>

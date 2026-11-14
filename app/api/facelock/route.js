@@ -1,4 +1,6 @@
+import { NextResponse } from 'next/server';
 import { runImageTool } from '../../../lib/imagetool';
+import { KEEP_FACE_ON } from '../../../lib/features';
 import { refusalLog } from '../../../lib/refusals';
 import { MAX_PROMPT_LENGTH, VALID_RATIOS } from '../../../lib/generation';
 import { toEnglish } from '../../../lib/translate';
@@ -28,6 +30,8 @@ async function prepare(body) {
 }
 
 async function handlePost(request) {
+  // Switched off (lib/features.js): the screen does not offer it, and a request sent anyway is turned down.
+  if (!KEEP_FACE_ON) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   return runImageTool(request, { tool: 'facelock', def: FL, cost: FL.cost, usd: FL.usd, label: FL.label, paidOnly: true, ownOnly: true,
     limit: { n: 20, ms: 60 * 60_000 }, prepare, storeTier: 'facelock', outputPolicy: 'closed' /* real-person photo: fail closed */ });
 }

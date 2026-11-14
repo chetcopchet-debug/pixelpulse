@@ -1,11 +1,13 @@
 import Page from '../studio/Page';
-import { PLANS, planEnabled } from '../../lib/paid';
+import { PLANS } from '../../lib/paid';
+import { planEnabled } from '../../lib/pay';
 import BuyButton from './BuyButton';
 import { N } from '../i18n/index.js';
 import { rich } from '../i18n/rich.js';
 import { getT } from '../i18n/server';
 import { imageModels, videoModels, TOOLS } from '../studio/models';
 import { VIDEO_PRICING } from '../../lib/videoPricing';
+import { KEEP_FACE_ON } from '../../lib/features';
 export const metadata = { title: { absolute: 'Models & pricing · Yelvo' }, description: 'Sign up and get 10 free credits every day. Yelvo Pack: 500 credits for $9.90 that never expire. Yelvo Pro: 1,200 credits a month for $14.90.', alternates: { canonical: '/pricing' } };
 
 const Coin = ({ n }) => <span className="price"><i className="coin" />{n}</span>;
@@ -14,15 +16,15 @@ const TOOL_ROWS = [
   [TOOLS.edit.label, N('Describe a change to an image you have'), TOOLS.edit.cost],
   [TOOLS.sharpen.label, N('The same image at twice the size'), TOOLS.sharpen.cost],
   [TOOLS.cutout.label, N('A transparent PNG'), TOOLS.cutout.cost],
-  [TOOLS.facelock.label, N('The same face in a new scene. Bought credits only'), TOOLS.facelock.cost],
+  ...(KEEP_FACE_ON ? [[TOOLS.facelock.label, N('The same face in a new scene. Bought credits only'), TOOLS.facelock.cost]] : []),
   [TOOLS.animate.label, N('A 5 second video from an image. Bought credits only'), TOOLS.animate.cost],
 ];
 const FAQ = [
   [N('Which credits are used first?'), N('Free credits are always used first: 10 every day once you have an account. Bought credits are only used after the free ones run out.')],
   [N('Do bought credits expire?'), N('Yelvo Pack credits never expire. Yelvo Pro adds 1,200 credits each billing month; unused credits stay in your balance.')],
-  [N('How do I cancel Yelvo Pro?'), N('Use the "Manage subscription" link in your Lemon Squeezy receipt email. You keep the credits you already received.')],
+  [N('How do I cancel Yelvo Pro?'), N('Use the "Manage subscription" link in your receipt email, or write to us. Yelvo Pro then stops renewing, and you keep the credits you already received.')],
   [N('Can I get a refund?'), N('Yes. Unused bought credits can be refunded within 14 days.'), ['/refund-policy', N('Refund Policy')]],
-  [N('Who processes payments?'), N('Lemon Squeezy, our Merchant of Record. They handle the payment, VAT or sales tax and your receipt. We never see your card details.')],
+  [N('Who processes payments?'), N('Our payment provider, which is the Merchant of Record: it is named at checkout and on your receipt. It handles the payment, VAT or sales tax and your receipt. We never see your card details.')],
   [N('I changed phone or cleared my browser. Where are my credits?'), N('Sign in with Google or email from the profile menu and your credits follow your account on any device. If you bought without signing in, contact us with your order email.'), ['/contact', N('Contact')]],
 ];
 
@@ -50,6 +52,7 @@ export default async function Pricing() {
           <p className="b">{PLANS.pro.name}</p>
           <p className="amount">{PLANS.pro.price} <span className="sm t3" style={{ fontFamily: 'var(--font-text)', letterSpacing: 0 }}>{t("a month")}</span></p>
           <p className="t2 r" style={{ gap: 6 }}><i className="coin" />{t("{n} credits every month. Cancel anytime.", { n: num(PLANS.pro.credits) })}</p>
+          <p className="sm t3">{t("Renews automatically every month until you cancel.")}</p>
           <BuyButton plan="pro" label={t("Get {name}", { name: PLANS.pro.name })} labels={buyLabels} open={planEnabled('pro')} />
         </div>
       </div>

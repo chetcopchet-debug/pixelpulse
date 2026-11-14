@@ -6,9 +6,10 @@ import Icon from "./icons";
 import { Price, lockScroll } from "./bits";
 import { imageModels, videoModels, TOOLS } from "./models";
 import { FREE_DAILY, BUILD } from "./store";
+import { KEEP_FACE_ON } from "../../lib/features.js";
 
 const THEMES = [["dark", N("Dark")], ["light", N("Light")], ["auto", N("Match device")]];
-const ABOUT = [[N("Terms"), "/terms"], [N("Privacy"), "/privacy"], [N("Refunds"), "/refund-policy"], [N("Content policy"), "/content-policy"], [N("Contact us"), "/contact"]];
+const ABOUT = [[N("Terms"), "/terms"], [N("Privacy"), "/privacy"], [N("Refunds"), "/refund-policy"], [N("Acceptable use"), "/content-policy"], [N("Contact us"), "/contact"]];
 
 // A full page that lies over the tabs, with a way back. Used for Settings, Models & pricing and Help.
 function Page({ title, s, children }) {
@@ -35,20 +36,40 @@ const Sec = ({ children }) => <h2 className="sec">{children}</h2>;
 
 function Purchases() {
   const [st, setSt] = useState({ status: "loading", items: [] });
+  const [sub, setSub] = useState({ busy: false, err: "" });
   useEffect(() => {
     let live = true;
-    fetch("/api/account/purchases", { cache: "no-store" }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))).then(({ ok, d }) => { if (live) setSt(ok ? { status: "ready", items: d.items || [] } : { status: "error", items: [] }); }).catch(() => { if (live) setSt({ status: "error", items: [] }); });
+    fetch("/api/account/purchases", { cache: "no-store" }).then((r) => r.json().then((d) => ({ ok: r.ok, d }))).then(({ ok, d }) => { if (live) setSt(ok ? { status: "ready", items: d.items || [], subscribed: Boolean(d.subscribed) } : { status: "error", items: [] }); }).catch(() => { if (live) setSt({ status: "error", items: [] }); });
     return () => { live = false; };
   }, []);
+  // "Manage subscription": the payment company's own page, where Yelvo Pro is cancelled or the card is changed.
+  const manage = async () => {
+    setSub({ busy: true, err: "" });
+    try {
+      const r = await fetch("/api/account/subscription", { method: "POST" }); const d = await r.json().catch(() => ({}));
+      if (d.url) { window.location.href = d.url; return; }
+      setSub({ busy: false, err: tm(d.error) || t("Something went wrong. Try again.") });
+    } catch { setSub({ busy: false, err: t("Something went wrong. Try again.") }); }
+  };
   if (st.status === "loading") return <div className="lrow t2"><i className="spin" />{t("Loading")}</div>;
   if (st.status === "error") return <div className="lrow t2">{t("Your purchases could not be loaded. Try again in a moment.")}</div>;
   if (!st.items.length) return <div className="lrow t2">{t("No purchases yet.")}</div>;
-  return st.items.map((p) => (
-    <div key={p.id} className="lrow two">
-      <span className="grow"><span className="b" style={{ display: "block" }}>{tm(p.name)}</span><span className="sm t2" style={{ display: "block" }}>{new Date(p.at).toLocaleDateString(langTag(), { year: "numeric", month: "short", day: "numeric" })}{p.price ? `, ${p.price}` : ""}</span></span>
-      <Price n={num(p.credits)} />
-    </div>
-  ));
+  return (
+    <>
+      {st.subscribed ? (
+        <div className="lrow two">
+          <span className="grow"><span className="b" style={{ display: "block" }}>{t("Yelvo Pro is active")}</span><span className="sm t2" style={{ display: "block" }}>{sub.err || t("Renews automatically every month until you cancel.")}</span></span>
+          <button className="btn btn-s" style={{ height: 40 }} disabled={sub.busy} onClick={manage}>{sub.busy ? <i className="spin" style={{ width: 16, height: 16 }} /> : t("Manage subscription")}</button>
+        </div>
+      ) : null}
+      {st.items.map((p) => (
+        <div key={p.id} className="lrow two">
+          <span className="grow"><span className="b" style={{ display: "block" }}>{tm(p.name)}</span><span className="sm t2" style={{ display: "block" }}>{new Date(p.at).toLocaleDateString(langTag(), { year: "numeric", month: "short", day: "numeric" })}{p.price ? `, ${p.price}` : ""}</span></span>
+          <Price n={num(p.credits)} />
+        </div>
+      ))}
+    </>
+  );
 }
 
 export function Settings({ s }) {
@@ -118,7 +139,7 @@ const EDITING = [
   [TOOLS.sharpen.label, N("The same image at twice the size"), TOOLS.sharpen.cost],
   [TOOLS.cutout.label, N("A transparent PNG"), TOOLS.cutout.cost],
   [TOOLS.reference.label, N("A new image that follows one you add"), TOOLS.reference.cost],
-  [TOOLS.facelock.label, N("The same face in a new scene. Bought credits only"), TOOLS.facelock.cost],
+  ...(KEEP_FACE_ON ? [[TOOLS.facelock.label, N("The same face in a new scene. Bought credits only"), TOOLS.facelock.cost]] : []),
   [TOOLS.edit.label, N("Describe a change to an image you have"), TOOLS.edit.cost],
   [TOOLS.repaint.label, N("Paint over a part and replace it"), TOOLS.repaint.cost],
   [TOOLS.animate.label, N("A 5 second video from an image. Bought credits only"), TOOLS.animate.cost],
