@@ -215,6 +215,7 @@ export default {
   "Looks like a realistic photo": "看起来像写实照片",
   "Lowest price": "最低价",
   "Made with": "使用模型",
+  "AI-generated": "AI 生成",
   "Main": "主导航",
   "Make it night, add snow, change the jacket to red": "改成夜晚、加上雪、把外套换成红色",
   "Make something": "创作点什么",
