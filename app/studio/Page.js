@@ -4,7 +4,7 @@ import { N } from "../i18n/index.js";
 import { getT } from "../i18n/server";
 import LangPicker from "../i18n/LangPicker";
 
-const LINKS = [[N("Prices"), "/pricing"], [N("Formats"), "/formats"], [N("Terms"), "/terms"], [N("Privacy"), "/privacy"], [N("Refunds"), "/refund-policy"], [N("Content policy"), "/content-policy"], [N("Safety and reporting"), "/terms#safety"], [N("Contact"), "/contact"]];
+const LINKS = [[N("Prices"), "/pricing"], [N("Formats"), "/formats"], [N("Terms"), "/terms"], [N("Privacy"), "/privacy"], [N("Refunds"), "/refund-policy"], [N("Acceptable use"), "/content-policy"], [N("Safety and reporting"), "/terms#safety"], [N("Contact"), "/contact"]];
 
 // Frame for every page outside the studio (prices, policies, formats, shared images, admin):
 // the same header, type, colours and footer, so the whole site reads as one product.
