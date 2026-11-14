@@ -174,7 +174,7 @@ export default async function AdminLogin(props) {
                 {bal ? <span className="sm t2" style={{ display: 'block' }}>About <b>${bal.left.toFixed(2)}</b> left. An estimate: ${bal.entered.toFixed(2)} typed in on {bal.since}, less ${bal.spent.toFixed(2)} the site has counted since. Replicate&apos;s real charges can differ a little, so correct it from time to time.</span>
                   : <span className="sm t2" style={{ display: 'block' }}>Replicate does not give the balance through its API. Type it in once and this line will estimate what is left, and warn under ${LOW_BALANCE_USD}.</span>}
                 <span className="sm t2" style={{ display: 'block' }}>Replicate&apos;s own notices (under $5, or empty) also turn this line into a warning. <a className="link" href="https://replicate.com/account/billing" target="_blank" rel="noreferrer">Open Replicate billing</a></span>
-                <BalanceForm has={Boolean(bal)} />
+                <BalanceForm has={Boolean(bal)} result={typeof sp?.b === 'string' ? sp.b : null} />
               </span>
               <span className={`b sm ${money.empty > 0 || money.low > 0 || bal?.low ? 'bad' : 'ok'}`} style={{ whiteSpace: 'nowrap' }}>{money.empty > 0 ? 'Empty' : money.low > 0 ? 'Under $5' : bal ? (bal.low ? `About $${bal.left.toFixed(2)}` : `About $${bal.left.toFixed(2)}`) : 'No warnings today'}</span>
             </div>

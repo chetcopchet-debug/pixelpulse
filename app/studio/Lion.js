@@ -8,8 +8,8 @@ import { startSnow } from "./Snow";
 // walks out on the left (25 seconds). Then the quiet loop plays for as long as the screen is open: the landscape he
 // left, with his footprints, mist, and snow falling (the video's own fine snow, and flakes drawn by the page over it). The story's last frame stays where it is and the loop
 // fades in over it (the same landscape), so there is no cut.
-// The story plays once in a visit to the site (until the tab is closed); every other time Create is opened, the
-// loop is there at once. Nothing that happens inside Create starts the story again: where it is in the story is
+// The story plays once in a visit to the site (until the tab is closed; it counts once it has reached the roar);
+// every other time Create is opened, the loop is there at once. Nothing that happens inside Create starts the story again: where it is in the story is
 // remembered here, outside the component, so even if the component were taken off the page and put back, it would
 // go on from the same moment (switching between Image and Video must never restart it).
 // A sharp still picture of the landscape only, with no video: a slow or metered connection, "reduce motion".
@@ -21,16 +21,17 @@ const SNOW_EARLY = 2.8, LOOP_EARLY = 1;
 // The videos play at 60 frames a second: between Veo's 24 frames a second, frames were computed along the motion.
 const OPEN = "/create/lion-story-2-60.mp4", LOOP = "/create/lion-snow-5-60.mp4", STILL = "/create/lion-first-2.webp", SNOW = "/create/lion-snow-5.webp", CALM = "/create/lion-rest-3.webp";
 
-// The story plays once in a visit to the site: once it has started, it is not played again until the tab is closed
-// (also not after the page is loaded again in the same tab). After that, entering Create goes straight to the loop.
-const SEEN = "pp_lion_seen";
+// The story plays once in a visit to the site: once it has reached the roar, it is not played again until the tab
+// is closed (also not after the page is loaded again in the same tab); entering Create then goes straight to the
+// loop. Someone who left before the roar sees the story from its start the next time they open Create.
+const SEEN = "pp_lion_seen", SEEN_AT = 9.5; // seconds into the story: the roar is from about 8.8 to 11.2
 const seen = () => { try { return typeof window !== "undefined" && window.sessionStorage.getItem(SEEN) === "1"; } catch { return false; } };
 const markSeen = () => { try { window.sessionStorage.setItem(SEEN, "1"); } catch {} };
 // Where the story is: "still" (not started), "open" (playing, at `t` seconds) or "loop".
 const visit = { stage: seen() ? "loop" : "still", t: 0 };
-// Called when the Create screen is entered from another screen. The first time, the story plays from its start.
-// If it has already started in this visit to the site (even if the person left in the middle), the loop is shown.
-export function lionEnter() { if (visit.stage !== "still" || seen()) { visit.stage = "loop"; visit.t = 0; } }
+// Called when the Create screen is entered from another screen: the loop if the story was seen (it reached the
+// roar) in this visit to the site, otherwise the story from its start.
+export function lionEnter() { visit.stage = seen() ? "loop" : "still"; visit.t = 0; }
 
 export function calm() {
   if (typeof window === "undefined") return true;
@@ -61,18 +62,19 @@ export default function Lion() {
     const play = (v) => v.play().catch(() => {}); // refused (low power mode): the still picture stays
     const roll = () => { if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } if (b.paused && !document.hidden) play(b); };
     // The story has ended: the loop (already rolling) is shown at once, without waiting for anything.
-    const toLoop = () => { if (gone) return; now = b; visit.stage = "loop"; roll(); setSnowing(true); setStage("loop"); };
+    const toLoop = () => { if (gone) return; now = b; visit.stage = "loop"; markSeen(); roll(); setSnowing(true); setStage("loop"); };
     const begin = () => {
       if (gone) return;
       if (visit.stage === "loop") { toLoop(); return; }               // put back on the page during the loop
       a.src = OPEN; a.load();
       if (visit.t > 0.2) a.addEventListener("loadedmetadata", () => { try { a.currentTime = visit.t; } catch {} }, { once: true }); // or during the story
-      a.addEventListener("playing", () => { if (gone) return; visit.stage = "open"; markSeen(); setStage("open"); if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } }, { once: true });
+      a.addEventListener("playing", () => { if (gone) return; visit.stage = "open"; setStage("open"); if (!b.getAttribute("src")) { b.preload = "auto"; b.src = LOOP; b.load(); } }, { once: true });
       if (!document.hidden) play(a);
     };
     const onTime = () => {
       if (gone || a.ended || !(a.currentTime > 0)) return;
       visit.t = a.currentTime;
+      if (a.currentTime >= SEEN_AT) markSeen();
       const left = a.duration ? a.duration - a.currentTime : Infinity;
       if (left <= SNOW_EARLY) setSnowing(true);
       if (left <= LOOP_EARLY) roll();
