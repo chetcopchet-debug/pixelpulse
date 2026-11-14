@@ -553,7 +553,7 @@ html:lang(ja) .pp, html:lang(zh) .pp { line-break: strict; }
 .pp .nav > button { position: relative; }
 .pp .nav > button.mid { color: var(--text-3); }
 .pp .nav > button.on { color: var(--text); }
-.pp .nav > button.on::after { content: ""; position: absolute; top: 0; left: 50%; width: 28px; height: 3px; margin-left: -14px; border-radius: 0 0 3px 3px; background: var(--mark); }
+.pp .nav > button.on::after { content: ""; position: absolute; bottom: calc(var(--safe-b) + 3px); left: 50%; width: 18px; height: 3px; margin-left: -9px; border-radius: 3px; background: var(--mark); }
 .pp .seg > button { position: relative; color: var(--text-3); }
 .pp .seg > button.on::after, .pp .chip[role="tab"].on::after, .pp .chip2[role="tab"].on::after { content: ""; position: absolute; bottom: 4px; left: 50%; width: 18px; height: 3px; margin-left: -9px; border-radius: 3px; background: var(--mark); }
 .pp .chip[role="tab"], .pp .chip2[role="tab"] { position: relative; color: var(--text-3); }
